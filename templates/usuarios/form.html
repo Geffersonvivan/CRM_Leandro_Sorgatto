@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .form-grid { grid-template-columns: 1fr 1fr 1fr; }
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ titulo }}</h1>
+</div>
+
+<div class="form-card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div style="background:#fee2e2;color:#991b1b;padding:12px 16px;border-radius:6px;margin-bottom:16px;font-size:0.82rem;">
+            <strong>Corrija os erros abaixo:</strong>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                <li>{{ field|upper }}: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="form-grid">
+            <div class="form-group required">
+                <label for="id_first_name">Nome</label>
+                {{ form.first_name }}
+                {{ form.first_name.errors }}
+            </div>
+            <div class="form-group required">
+                <label for="id_last_name">Sobrenome</label>
+                {{ form.last_name }}
+                {{ form.last_name.errors }}
+            </div>
+            <div class="form-group required">
+                <label for="id_username">Username</label>
+                {{ form.username }}
+                {{ form.username.errors }}
+            </div>
+
+            <div class="form-group required">
+                <label for="id_email">Email</label>
+                {{ form.email }}
+                {{ form.email.errors }}
+            </div>
+            {% if form.password1 %}
+            <div class="form-group required">
+                <label for="id_password1">Senha</label>
+                {{ form.password1 }}
+                {{ form.password1.errors }}
+            </div>
+            <div class="form-group required">
+                <label for="id_password2">Confirmar Senha</label>
+                {{ form.password2 }}
+                {{ form.password2.errors }}
+            </div>
+            {% endif %}
+            {% if form.password %}
+            <div class="form-group">
+                <label for="id_password">Nova Senha</label>
+                {{ form.password }}
+                {{ form.password.errors }}
+            </div>
+            {% endif %}
+
+            <div class="form-group required">
+                <label for="id_perfil">Perfil</label>
+                {{ form.perfil }}
+                {{ form.perfil.errors }}
+            </div>
+            <div class="form-group required">
+                <label for="id_telefone">Telefone</label>
+                {{ form.telefone }}
+                {{ form.telefone.errors }}
+            </div>
+            <div class="form-group required">
+                <label for="id_regiao">Região</label>
+                {{ form.regiao }}
+                {{ form.regiao.errors }}
+            </div>
+            <div class="form-group required">
+                <label for="id_cidade">Cidade</label>
+                {{ form.cidade }}
+                {{ form.cidade.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_foto">Foto</label>
+                {{ form.foto }}
+                {{ form.foto.errors }}
+            </div>
+            {% if form.is_active %}
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    {{ form.is_active }} Ativo
+                </label>
+            </div>
+            {% endif %}
+
+            <div class="form-group full">
+                <label>Seções permitidas</label>
+                <div class="secoes-grid" id="secoes-grid">
+                    {% for checkbox in form.secoes %}
+                    {% if "—" in checkbox.choice_label %}
+                    <label class="secao-filho">{{ checkbox.tag }} {{ checkbox.choice_label }}</label>
+                    {% else %}
+                    {% if not forloop.first %}</div>{% endif %}
+                    <div class="secoes-group">
+                    <label class="secao-pai">{{ checkbox.tag }} {{ checkbox.choice_label }}</label>
+                    {% endif %}
+                    {% if forloop.last %}</div>{% endif %}
+                    {% endfor %}
+                </div>
+                {{ form.secoes.errors }}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Salvar</button>
+            <a href="{% url 'usuarios:list' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tel = document.getElementById('id_telefone');
+    if (!tel) return;
+
+    tel.addEventListener('input', (e) => {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length > 11) v = v.slice(0, 11);
+
+        if (v.length <= 2) {
+            v = v.replace(/^(\d{0,2})/, '($1');
+        } else if (v.length <= 6) {
+            v = v.replace(/^(\d{2})(\d{0,4})/, '($1) $2');
+        } else if (v.length <= 10) {
+            v = v.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+        } else {
+            v = v.replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+        }
+        e.target.value = v;
+    });
+
+    tel.setAttribute('placeholder', '(00) 00000-0000');
+
+    // Cascade região → cidade
+    const regiao = document.getElementById('id_regiao');
+    const cidade = document.getElementById('id_cidade');
+    if (regiao && cidade) {
+        regiao.addEventListener('change', function() {
+            cidade.innerHTML = '<option value="">---------</option>';
+            if (!this.value) return;
+            fetch(`/usuarios/api/cidades/${this.value}/`)
+                .then(r => r.json())
+                .then(cidades => {
+                    cidades.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.nome;
+                        cidade.appendChild(opt);
+                    });
+                });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,212 @@
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+
+
+class Tarefa(models.Model):
+    TIPO_CHOICES = [
+        ('reuniao', 'Reunião com liderança'),
+        ('evento', 'Evento presencial'),
+        ('visita', 'Visita de campo'),
+        ('articulacao', 'Articulação partidária'),
+        ('comunicacao', 'Ação de comunicação'),
+        ('captacao', 'Captação de apoiador'),
+        ('outro', 'Outro'),
+    ]
+
+    FASE_CHOICES = [
+        ('a_fazer', 'A Fazer'),
+        ('em_andamento', 'Em Andamento'),
+        ('aguardando', 'Aguardando'),
+        ('concluida', 'Concluída'),
+    ]
+
+    PRIORIDADE_CHOICES = [
+        ('baixa', 'Baixa'),
+        ('media', 'Média'),
+        ('alta', 'Alta'),
+        ('urgente', 'Urgente'),
+    ]
+
+    titulo = models.CharField(max_length=200)
+    descricao = models.TextField(blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='outro')
+    fase = models.CharField(max_length=20, choices=FASE_CHOICES, default='a_fazer', db_index=True)
+    prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media')
+    ordem = models.PositiveIntegerField(default=0)
+
+    responsavel = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tarefas_responsavel',
+        verbose_name='Responsável',
+        db_index=True,
+    )
+    participantes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='tarefas_participante',
+        verbose_name='Participantes',
+    )
+
+    regiao = models.ForeignKey(
+        'liderancas.Regiao',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tarefas',
+        db_index=True,
+    )
+    cidade = models.ForeignKey(
+        'liderancas.Cidade',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tarefas',
+    )
+    cabos = models.ManyToManyField(
+        'liderancas.CaboEleitoral',
+        blank=True,
+        related_name='tarefas',
+        verbose_name='Cabos Eleitorais',
+    )
+
+    data_hora_inicio = models.DateTimeField(null=True, blank=True, verbose_name='Hora de início')
+    data_hora_termino = models.DateTimeField(null=True, blank=True, verbose_name='Hora de término')
+    prazo = models.DateField(null=True, blank=True)
+    concluida_em = models.DateTimeField(null=True, blank=True)
+    observacoes = models.TextField(blank=True, verbose_name='Observações')
+
+    compromisso = models.ForeignKey(
+        'agenda.Compromisso',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tarefas',
+        verbose_name='Compromisso vinculado',
+    )
+
+    cadastrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='tarefas_cadastradas',
+        db_index=True,
+    )
+    atualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tarefas_atualizadas',
+    )
+    excluida_em = models.DateTimeField(null=True, blank=True, verbose_name='Excluída em', db_index=True)
+    excluida_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tarefas_excluidas',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Tarefa'
+        verbose_name_plural = 'Tarefas'
+        ordering = ['ordem', '-prioridade', 'prazo']
+
+    def __str__(self):
+        return self.titulo
+
+    @property
+    def is_vencida(self):
+        if self.prazo and self.fase != 'concluida':
+            from datetime import date
+            return self.prazo < date.today()
+        return False
+
+    @property
+    def vence_hoje(self):
+        if self.prazo and self.fase != 'concluida':
+            from datetime import date
+            return self.prazo == date.today()
+        return False
+
+
+class Comentario(models.Model):
+    tarefa = models.ForeignKey(
+        Tarefa,
+        on_delete=models.CASCADE,
+        related_name='comentarios',
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='respostas',
+    )
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        db_index=True,
+    )
+    texto = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Comentário'
+        verbose_name_plural = 'Comentários'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.autor} — {self.tarefa}'
+
+
+class AnexoComentario(models.Model):
+    comentario = models.ForeignKey(
+        Comentario,
+        on_delete=models.CASCADE,
+        related_name='anexos',
+    )
+    arquivo = models.FileField(upload_to='tarefas/anexos/%Y/%m/')
+    nome_original = models.CharField(max_length=255)
+    tamanho = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Anexo'
+        verbose_name_plural = 'Anexos'
+
+    def __str__(self):
+        return self.nome_original
+
+    @property
+    def extensao(self):
+        return self.nome_original.rsplit('.', 1)[-1].lower() if '.' in self.nome_original else ''
+
+    @property
+    def is_imagem(self):
+        return self.extensao in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'svg')
+
+
+class TarefaHistorico(models.Model):
+    tarefa = models.ForeignKey(
+        Tarefa,
+        on_delete=models.CASCADE,
+        related_name='historico',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+    campo = models.CharField(max_length=50)
+    valor_anterior = models.TextField(blank=True, default='')
+    valor_novo = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Histórico da Tarefa'
+        verbose_name_plural = 'Históricos das Tarefas'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.tarefa} — {self.campo} ({self.created_at:%d/%m/%Y %H:%M})'

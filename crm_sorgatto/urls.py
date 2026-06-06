@@ -1,0 +1,26 @@
+from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import login_required
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('usuarios/', include('usuarios.urls')),
+    path('liderancas/', include('liderancas.urls')),
+    path('agenda/', include('agenda.urls')),
+    path('dashboard/', include('dashboard.urls')),
+    path('tarefas/', include('tarefas.urls')),
+    path('notificacoes/', include('notificacoes.urls')),
+    path('doacoes/', include('doacoes.urls')),
+    path('mapa/', include('mapa.urls')),
+    path('app/', include('pwa.urls')),
+    path('', login_required(lambda request: __import__('dashboard.views', fromlist=['home_view']).home_view(request)), name='home'),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

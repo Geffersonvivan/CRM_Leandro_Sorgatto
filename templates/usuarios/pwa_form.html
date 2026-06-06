@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .form-card { max-width: 720px; }
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ titulo }}</h1>
+</div>
+
+<div class="form-card">
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="id_first_name">Nome</label>
+                {{ form.first_name }}
+                {{ form.first_name.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_last_name">Sobrenome</label>
+                {{ form.last_name }}
+                {{ form.last_name.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_username">Usuário (login)</label>
+                {{ form.username }}
+                {{ form.username.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_vinculo">Vínculo</label>
+                {{ form.vinculo }}
+                {{ form.vinculo.errors }}
+            </div>
+
+            {% if form.password1 %}
+            <div class="form-group">
+                <label for="id_password1">Senha</label>
+                {{ form.password1 }}
+                {{ form.password1.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_password2">Confirmar Senha</label>
+                {{ form.password2 }}
+                {{ form.password2.errors }}
+            </div>
+            {% endif %}
+
+            {% if form.password %}
+            <div class="form-group full">
+                <label for="id_password">Nova Senha (deixe em branco para manter)</label>
+                {{ form.password }}
+                {{ form.password.errors }}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="id_regiao">Região</label>
+                {{ form.regiao }}
+                {{ form.regiao.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_cidade">Cidade</label>
+                {{ form.cidade }}
+                {{ form.cidade.errors }}
+            </div>
+
+            <div class="form-group">
+                <label for="id_telefone">Telefone</label>
+                {{ form.telefone }}
+                {{ form.telefone.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_instagram">Instagram</label>
+                {{ form.instagram }}
+                {{ form.instagram.errors }}
+            </div>
+
+            {% if form.is_active %}
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    {{ form.is_active }} Ativo
+                </label>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Salvar</button>
+            <a href="{% url 'usuarios:pwa_list' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('id_regiao').addEventListener('change', function() {
+    const cidadeSelect = document.getElementById('id_cidade');
+    cidadeSelect.innerHTML = '<option value="">---------</option>';
+    const regiaoId = this.value;
+    if (!regiaoId) return;
+    fetch(`/usuarios/api/cidades/${regiaoId}/`)
+        .then(r => r.json())
+        .then(data => {
+            data.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome;
+                cidadeSelect.appendChild(opt);
+            });
+        });
+});
+</script>
+{% endblock %}

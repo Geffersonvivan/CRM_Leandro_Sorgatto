@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .form-card { max-width: 620px; }
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .import-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 0.82rem; color: #475569; }
+    .import-info h4 { font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
+    .import-info code { background: #e2e8f0; padding: 1px 5px; border-radius: 3px; font-size: 0.78rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Importar {{ label }} via CSV</h1>
+</div>
+
+<div class="form-card">
+    <div class="import-info">
+        <h4>Formato esperado</h4>
+        <p>O arquivo CSV deve conter cabeçalhos na primeira linha. Colunas esperadas:</p>
+        <p style="margin-top:8px;">
+            {% if entidade_tipo == 'coordenador' %}
+            <code>Nome</code>, <code>Telefone</code>, <code>Email</code>, <code>Região</code> (sigla), <code>Cidade Base</code>, <code>Instagram</code>, <code>Prioridade</code>, <code>Frequência</code>, <code>Observações</code>
+            {% elif entidade_tipo == 'cabo' %}
+            <code>Nome</code>, <code>Telefone</code>, <code>Email</code>, <code>Região</code> (sigla), <code>Cidade</code>, <code>Instagram</code>, <code>Prioridade</code>, <code>Frequência</code>, <code>Observações</code>
+            {% elif entidade_tipo == 'apoiador' %}
+            <code>Nome</code>, <code>Telefone</code>, <code>Email</code>, <code>Região</code> (sigla), <code>Cidade</code>, <code>Tipo</code>, <code>Origem</code>, <code>Instagram</code>, <code>Prioridade</code>, <code>Influência</code>, <code>Frequência</code>, <code>Status</code>, <code>Observações</code>
+            {% endif %}
+        </p>
+        <p style="margin-top:8px;color:#64748b;">Dica: exporte primeiro um CSV para usar como modelo.</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-grid">
+            <div class="form-group full">
+                <label>Arquivo CSV *</label>
+                <input type="file" name="csv_file" accept=".csv" class="form-input" required>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Importar</button>
+            <a href="{% if entidade_tipo == 'coordenador' %}{% url 'liderancas:coordenador_list' %}{% elif entidade_tipo == 'cabo' %}{% url 'liderancas:cabo_list' %}{% else %}{% url 'liderancas:apoiador_list' %}{% endif %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

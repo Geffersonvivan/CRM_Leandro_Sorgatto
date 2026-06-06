@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .form-card { max-width: 720px; }
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .help-text { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ titulo }}</h1>
+</div>
+
+<div class="form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">
+            <div class="form-group full">
+                <label for="id_titulo">Título *</label>
+                {{ form.titulo }}
+                {{ form.titulo.errors }}
+            </div>
+            <div class="form-group full">
+                <label for="id_descricao">Descrição</label>
+                {{ form.descricao }}
+                {{ form.descricao.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_tipo">Tipo</label>
+                {{ form.tipo }}
+                {{ form.tipo.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_prioridade">Prioridade</label>
+                {{ form.prioridade }}
+                {{ form.prioridade.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_responsavel">Responsável</label>
+                {{ form.responsavel }}
+                {{ form.responsavel.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_prazo">Prazo</label>
+                {{ form.prazo }}
+                {{ form.prazo.errors }}
+            </div>
+            <div class="form-group full">
+                <label for="id_participantes">Participantes</label>
+                {{ form.participantes }}
+                <span class="help-text">Segure Ctrl/Cmd para selecionar múltiplos</span>
+                {{ form.participantes.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_regiao">Região</label>
+                {{ form.regiao }}
+                {{ form.regiao.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_cidade">Cidade</label>
+                {{ form.cidade }}
+                {{ form.cidade.errors }}
+            </div>
+            <div class="form-group full">
+                <label for="id_observacoes">Observações</label>
+                {{ form.observacoes }}
+                {{ form.observacoes.errors }}
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Salvar{% else %}Criar Tarefa{% endif %}</button>
+            <a href="{% url 'tarefas:lista' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const regiao = document.getElementById('id_regiao');
+    const cidade = document.getElementById('id_cidade');
+    if (!regiao || !cidade) return;
+
+    regiao.addEventListener('change', () => {
+        const regiaoId = regiao.value;
+        cidade.innerHTML = '<option value="">---------</option>';
+        if (!regiaoId) return;
+        fetch(`/tarefas/api/cidades/${regiaoId}/`)
+            .then(r => r.json())
+            .then(cidades => {
+                cidades.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.nome;
+                    cidade.appendChild(opt);
+                });
+            });
+    });
+});
+</script>
+{% endblock %}

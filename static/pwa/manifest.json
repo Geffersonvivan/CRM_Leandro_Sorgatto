@@ -1,0 +1,22 @@
+{
+    "name": "LS Apoiadores - PL22",
+    "short_name": "LS Apoiadores",
+    "description": "Cadastro de apoiadores - Leandro Sorgatto PL22",
+    "start_url": "/app/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#002776",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/static/pwa/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/static/pwa/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

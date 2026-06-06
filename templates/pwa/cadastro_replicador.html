@@ -1,0 +1,68 @@
+{% extends 'pwa/base.html' %}
+{% block nav_replicador %}active{% endblock %}
+{% block title %}Novo Replicador — LS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">Cadastrar Replicador</div>
+    <p style="font-size:0.8rem;color:#6b7280;margin-bottom:16px;">
+        O replicador receberá acesso ao app para cadastrar apoiadores.
+    </p>
+    <form method="post" id="formReplicador">
+        {% csrf_token %}
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Nome *</label>
+            {{ form.nome }}
+            {{ form.nome.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Região</label>
+            {{ form.regiao }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Cidade *</label>
+            {{ form.cidade }}
+            {{ form.cidade.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Telefone</label>
+            {{ form.telefone }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Instagram</label>
+            <div class="pwa-input-wrapper">
+                <span class="pwa-at-prefix">@</span>
+                {{ form.instagram }}
+            </div>
+        </div>
+
+        <button type="submit" class="pwa-btn pwa-btn-green">Criar Acesso</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('id_regiao').addEventListener('change', function() {
+    const regiaoId = this.value;
+    const cidadeSelect = document.getElementById('id_cidade');
+    cidadeSelect.innerHTML = '<option value="">Selecione...</option>';
+    if (!regiaoId) return;
+    fetch(`/app/api/cidades/${regiaoId}/`)
+        .then(r => r.json())
+        .then(cidades => {
+            cidades.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome;
+                cidadeSelect.appendChild(opt);
+            });
+        });
+});
+</script>
+{% endblock %}

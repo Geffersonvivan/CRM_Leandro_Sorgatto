@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Região — CRM Sorgatto{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+    .region-wrapper {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    .region-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .region-title { font-size: 1.15rem; font-weight: 700; color: #1e293b; }
+    .breadcrumb { font-size: .82rem; color: #64748b; margin-bottom: 4px; }
+    .breadcrumb a { color: #2563eb; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+    }
+    .stat-value { font-size: 1.3rem; font-weight: 800; color: #002776; }
+    .stat-label { font-size: .75rem; color: #64748b; margin-top: 2px; }
+
+    #region-map {
+        width: 100%;
+        min-height: 350px;
+        max-height: 500px;
+    }
+
+    .cities-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .82rem;
+        margin-top: 16px;
+    }
+    .cities-table th {
+        text-align: left;
+        padding: 8px 10px;
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 600;
+        font-size: .75rem;
+        text-transform: uppercase;
+    }
+    .cities-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+    }
+    .cities-table tr:hover { background: #f8fafc; }
+    .cities-table a { color: #2563eb; text-decoration: none; font-weight: 500; }
+    .cities-table a:hover { text-decoration: underline; }
+
+    .map-tooltip {
+        position: fixed;
+        pointer-events: none;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: .78rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,.12);
+        opacity: 0;
+        transition: opacity .1s;
+        z-index: 9999;
+        max-width: 320px;
+    }
+    .tooltip-title { font-weight: 700; color: #1e293b; margin-bottom: 6px; }
+    .tooltip-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+    .tooltip-label { color: #64748b; }
+    .tooltip-value { color: #1e293b; font-weight: 500; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="region-wrapper">
+    <div class="breadcrumb">
+        <a href="{% url 'mapa:index' %}">Mapa</a> &rsaquo; <span id="regionName">Carregando...</span>
+    </div>
+    <div class="region-header">
+        <div class="region-title" id="regionTitle">Carregando...</div>
+        <a href="{% url 'mapa:index' %}" style="font-size:.82rem;color:#2563eb;text-decoration:none;">&larr; Voltar ao Mapa</a>
+    </div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div id="region-map"></div>
+
+    <table class="cities-table" id="citiesTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>Cidade</th>
+                <th>População</th>
+                <th>Eleitores</th>
+                <th>Apoiadores</th>
+                <th>Votos 2022</th>
+                <th>Meta</th>
+            </tr>
+        </thead>
+        <tbody id="citiesBody"></tbody>
+    </table>
+</div>
+
+<script src="{% static 'js/map/api.js' %}"></script>
+<script>
+(function() {
+    const slug = '{{ region_slug }}';
+
+    Promise.all([
+        API.dashboard.region(slug),
+        API.maps.region(slug),
+    ]).then(([data, geojson]) => {
+        const r = data.region;
+        document.getElementById('regionName').textContent = r.full_name || r.name;
+        document.getElementById('regionTitle').textContent = r.full_name || r.name;
+
+        // Stats
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card"><div class="stat-value">${data.total_apoiadores}</div><div class="stat-label">Apoiadores</div></div>
+            <div class="stat-card"><div class="stat-value">${data.total_coordenadores}</div><div class="stat-label">Coordenadores</div></div>
+            <div class="stat-card"><div class="stat-value">${data.total_cabos}</div><div class="stat-label">Cabos Eleitorais</div></div>
+            <div class="stat-card"><div class="stat-value">${(r.population || 0).toLocaleString('pt-BR')}</div><div class="stat-label">População</div></div>
+            <div class="stat-card"><div class="stat-value">${r.meta_votes || 0}</div><div class="stat-label">Meta Votos</div></div>
+        `;
+
+        // Map
+        if (geojson.features && geojson.features.length > 0) {
+            renderMap(geojson);
+        }
+
+        // Table
+        if (data.cities && data.cities.length > 0) {
+            const tbody = document.getElementById('citiesBody');
+            data.cities.sort((a, b) => (b.total_apoiadores || 0) - (a.total_apoiadores || 0));
+            tbody.innerHTML = data.cities.map(c => `
+                <tr>
+                    <td><a href="/mapa/cidade/${c.slug}/">${c.nome}</a></td>
+                    <td>${(c.populacao || 0).toLocaleString('pt-BR')}</td>
+                    <td>${(c.eleitores || 0).toLocaleString('pt-BR')}</td>
+                    <td>${c.total_apoiadores || 0}</td>
+                    <td>${(c.votos_sorgatto_2022 || 0).toLocaleString('pt-BR')}</td>
+                    <td>${c.meta_votos || 0}</td>
+                </tr>
+            `).join('');
+            document.getElementById('citiesTable').style.display = '';
+        }
+    });
+
+    function renderMap(geojson) {
+        const container = document.getElementById('region-map');
+        const width = container.clientWidth || 800;
+        const height = 400;
+
+        const svg = d3.select('#region-map')
+            .append('svg')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet')
+            .style('width', '100%')
+            .style('height', '100%')
+            .style('background', '#f8fafc')
+            .style('border-radius', '8px');
+
+        const g = svg.append('g');
+
+        const projection = d3.geoMercator()
+            .fitExtent([[20, 20], [width - 20, height - 20]], geojson);
+        const path = d3.geoPath().projection(projection);
+
+        // Tooltip
+        let tip = document.querySelector('.map-tooltip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.className = 'map-tooltip';
+            document.body.appendChild(tip);
+        }
+
+        g.selectAll('path.city')
+            .data(geojson.features)
+            .enter()
+            .append('path')
+            .attr('class', 'city')
+            .attr('d', path)
+            .attr('fill', '#80a5dc')
+            .attr('fill-opacity', 0.7)
+            .attr('stroke', '#003DA5')
+            .attr('stroke-width', 1)
+            .attr('cursor', 'pointer')
+            .on('mouseenter', (event, d) => {
+                const p = d.properties;
+                tip.innerHTML = `<div class="tooltip-title">${p.name}</div>
+                    <div class="tooltip-row"><span class="tooltip-label">Apoiadores:</span> <span class="tooltip-value">${p.total_apoiadores || 0}</span></div>
+                    <div class="tooltip-row"><span class="tooltip-label">Votos 2022:</span> <span class="tooltip-value">${(p.votes_2022 || 0).toLocaleString('pt-BR')}</span></div>`;
+                tip.style.transform = `translate3d(${event.pageX + 14}px, ${event.pageY - 14}px, 0)`;
+                tip.style.opacity = '1';
+            })
+            .on('mousemove', (event) => {
+                tip.style.transform = `translate3d(${event.pageX + 14}px, ${event.pageY - 14}px, 0)`;
+            })
+            .on('mouseleave', () => { tip.style.opacity = '0'; })
+            .on('click', (event, d) => {
+                tip.style.opacity = '0';
+                window.location.href = `/mapa/cidade/${d.properties.slug}/`;
+            });
+
+        g.selectAll('text.city-label')
+            .data(geojson.features)
+            .enter()
+            .append('text')
+            .attr('class', 'city-label')
+            .attr('x', d => path.centroid(d)[0])
+            .attr('y', d => path.centroid(d)[1])
+            .attr('text-anchor', 'middle')
+            .attr('dy', '0.35em')
+            .attr('font-size', '7.5px')
+            .attr('font-weight', '600')
+            .attr('fill', '#002776')
+            .attr('pointer-events', 'none')
+            .attr('paint-order', 'stroke')
+            .attr('stroke', '#fff')
+            .attr('stroke-width', '2px')
+            .text(d => d.properties.name);
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .actions { display: flex; gap: 6px; }
+    .filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .filters input, .filters select {
+        padding: 9px 14px; border: 1.5px solid #e2e8f0; border-radius: 12px;
+        font-size: 0.82rem; background: #f8fafc; color: #475569; transition: all 0.2s;
+    }
+    .filters input { flex: 1; min-width: 200px; }
+    .filters input:focus, .filters select:focus { outline: none; border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .filters select {
+        appearance: none; cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title" data-tip="Usuários com acesso ao sistema CRM (administradores e operadores).">Usuários</h1>
+    <a href="{% url 'usuarios:create' %}" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Novo Usuário
+    </a>
+</div>
+
+<form method="get" class="filters">
+    <input type="text" name="busca" placeholder="Buscar por nome, email..." value="{{ busca }}">
+    <select name="perfil" onchange="this.form.submit()">
+        <option value="">Todos os perfis</option>
+        {% for value, label in perfil_choices %}
+        <option value="{{ value }}" {% if perfil_filtro == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+</form>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Perfil</th>
+                <th>Região</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td>{{ u.get_full_name|default:u.username }}</td>
+                <td>{{ u.username }}</td>
+                <td>{{ u.email|default:"-" }}</td>
+                <td><span class="badge badge-{{ u.perfil }}">{{ u.get_perfil_display }}</span></td>
+                <td>{{ u.regiao|default:"-" }}</td>
+                <td>
+                    {% if u.is_active %}
+                    <span class="badge badge-ativo">Ativo</span>
+                    {% else %}
+                    <span class="badge badge-inativo">Inativo</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="actions">
+                        <a href="{% url 'usuarios:edit' u.pk %}" class="btn btn-primary btn-sm">Editar</a>
+                        <form method="post" action="{% url 'usuarios:toggle' u.pk %}">
+                            {% csrf_token %}
+                            {% if u.is_active %}
+                            <button type="submit" class="btn btn-danger btn-sm">Desativar</button>
+                            {% else %}
+                            <button type="submit" class="btn btn-success btn-sm">Ativar</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: #9ca3af; padding: 40px;">
+                    Nenhum usuário encontrado.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

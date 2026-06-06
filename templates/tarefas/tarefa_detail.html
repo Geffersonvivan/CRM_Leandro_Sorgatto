@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .actions-bar { display: flex; gap: 8px; }
+    .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    .detail-card {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 24px;
+    }
+    .detail-titulo { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+    .detail-descricao { font-size: 0.88rem; color: #4b5563; line-height: 1.6; margin-bottom: 16px; white-space: pre-wrap; }
+    .detail-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .detail-field label { display: block; font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 3px; }
+    .detail-field span { font-size: 0.85rem; color: #374151; font-weight: 500; }
+    .badge-fase { background: #dbeafe; color: #1d4ed8; }
+    .badge-baixa { background: #d1fae5; color: #047857; }
+    .badge-media { background: #dbeafe; color: #1d4ed8; }
+    .badge-alta { background: #fef3c7; color: #92400e; }
+    .badge-urgente { background: #fee2e2; color: #991b1b; }
+    .badge-vencido { background: #fee2e2; color: #991b1b; }
+    .badge-hoje { background: #fef3c7; color: #92400e; }
+    .participantes-list { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .participante-tag { background: #eff6ff; color: #002776; padding: 4px 12px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+    .comments-section {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 20px;
+    }
+    .comments-title { font-size: 0.82rem; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 14px; }
+    .comment-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+    .comment-item:last-child { border-bottom: none; }
+    .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .comment-autor { font-size: 0.82rem; font-weight: 600; color: #1e293b; }
+    .comment-data { font-size: 0.7rem; color: #94a3b8; }
+    .comment-texto { font-size: 0.85rem; color: #4b5563; line-height: 1.5; white-space: pre-wrap; }
+    .comment-form { margin-top: 16px; padding-top: 14px; border-top: 1px solid #f1f5f9; }
+    .comment-form textarea {
+        width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0;
+        border-radius: 12px; font-size: 0.85rem; resize: vertical; min-height: 60px;
+        background: #f8fafc; transition: all 0.2s;
+    }
+    .comment-form textarea:hover { border-color: #cbd5e1; background: #fff; }
+    .comment-form textarea:focus { outline: none; border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .comment-form button { margin-top: 8px; }
+    .empty-comments { text-align: center; color: #94a3b8; font-size: 0.82rem; padding: 20px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Tarefa #{{ tarefa.pk }}</h1>
+    <div class="actions-bar">
+        <a href="{% url 'tarefas:tarefa_edit' tarefa.pk %}" class="btn btn-primary btn-sm">Editar</a>
+        <form method="post" action="{% url 'tarefas:tarefa_delete' tarefa.pk %}" onsubmit="return confirm('Excluir esta tarefa?')" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+        </form>
+        <a href="{% url 'tarefas:lista' %}" class="btn btn-secondary btn-sm">Voltar à Lista</a>
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div>
+        <div class="detail-card">
+            <div class="detail-titulo">{{ tarefa.titulo }}</div>
+            {% if tarefa.descricao %}
+            <div class="detail-descricao">{{ tarefa.descricao }}</div>
+            {% endif %}
+            <div class="detail-fields">
+                <div class="detail-field">
+                    <label>Fase</label>
+                    <span class="badge badge-fase">{{ tarefa.get_fase_display }}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Prioridade</label>
+                    <span class="badge badge-{{ tarefa.prioridade }}">{{ tarefa.get_prioridade_display }}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Tipo</label>
+                    <span>{{ tarefa.get_tipo_display }}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Responsável</label>
+                    <span>{{ tarefa.responsavel.get_full_name|default:"-" }}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Região</label>
+                    <span>{% if tarefa.regiao %}{{ tarefa.regiao.sigla }}{% else %}-{% endif %}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Cidade</label>
+                    <span>{{ tarefa.cidade|default:"-" }}</span>
+                </div>
+                <div class="detail-field">
+                    <label>Prazo</label>
+                    <span>
+                        {% if tarefa.prazo %}
+                            {{ tarefa.prazo|date:"d/m/Y" }}
+                            {% if tarefa.is_vencida %}<span class="badge badge-vencido">Vencida</span>{% endif %}
+                            {% if tarefa.vence_hoje %}<span class="badge badge-hoje">Hoje</span>{% endif %}
+                        {% else %}-{% endif %}
+                    </span>
+                </div>
+                <div class="detail-field">
+                    <label>Concluída em</label>
+                    <span>{{ tarefa.concluida_em|date:"d/m/Y"|default:"-" }}</span>
+                </div>
+            </div>
+
+            {% if tarefa.participantes.exists %}
+            <div style="margin-top: 16px;">
+                <label style="font-size:0.7rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.3px;">Participantes</label>
+                <div class="participantes-list">
+                    {% for p in tarefa.participantes.all %}
+                    <span class="participante-tag">{{ p.get_full_name|default:p.username }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if tarefa.observacoes %}
+            <div style="margin-top: 16px;">
+                <label style="font-size:0.7rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.3px;">Observações</label>
+                <div style="font-size:0.85rem;color:#4b5563;margin-top:4px;white-space:pre-wrap;">{{ tarefa.observacoes }}</div>
+            </div>
+            {% endif %}
+
+            <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f3f4f6;font-size:0.72rem;color:#9ca3af;">
+                Criada em {{ tarefa.created_at|date:"d/m/Y H:i" }}
+                {% if tarefa.cadastrado_por %} por {{ tarefa.cadastrado_por.get_full_name }}{% endif %}
+                {% if tarefa.atualizado_por %} · Atualizada por {{ tarefa.atualizado_por.get_full_name }}{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="comments-section">
+            <div class="comments-title">Comentários ({{ comentarios|length }})</div>
+            <div id="commentsList">
+                {% for c in comentarios %}
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <span class="comment-autor">{{ c.autor.get_full_name|default:c.autor.username }}</span>
+                        <span class="comment-data">{{ c.created_at|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <div class="comment-texto">{{ c.texto }}</div>
+                </div>
+                {% empty %}
+                <div class="empty-comments" id="emptyComments">Nenhum comentário ainda.</div>
+                {% endfor %}
+            </div>
+            <div class="comment-form">
+                <textarea id="commentTexto" placeholder="Escreva um comentário..."></textarea>
+                <button class="btn btn-primary btn-sm" onclick="enviarComentario()">Comentar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function enviarComentario() {
+    const texto = document.getElementById('commentTexto').value.trim();
+    if (!texto) return;
+
+    fetch('{% url "tarefas:api_comentar" tarefa.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: 'texto=' + encodeURIComponent(texto),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const empty = document.getElementById('emptyComments');
+            if (empty) empty.remove();
+
+            const div = document.createElement('div');
+            div.className = 'comment-item';
+            div.innerHTML = `
+                <div class="comment-header">
+                    <span class="comment-autor">${data.autor}</span>
+                    <span class="comment-data">${data.data}</span>
+                </div>
+                <div class="comment-texto">${data.texto}</div>
+            `;
+            document.getElementById('commentsList').appendChild(div);
+            document.getElementById('commentTexto').value = '';
+        }
+    });
+}
+</script>
+{% endblock %}

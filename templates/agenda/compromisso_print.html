@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda de Compromissos — LS</title>
+    <style>
+        @page { size: A4; margin: 15mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #222; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #002776; padding-bottom: 12px; }
+        .header h1 { font-size: 16pt; color: #002776; margin-bottom: 4px; }
+        .header p { font-size: 10pt; color: #666; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th { background: #f0f0f0; padding: 8px 10px; text-align: left; font-size: 9pt; font-weight: 700; color: #333; border: 1px solid #ccc; text-transform: uppercase; }
+        td { padding: 7px 10px; font-size: 10pt; border: 1px solid #ddd; vertical-align: top; }
+        tr:nth-child(even) td { background: #fafafa; }
+        .footer { margin-top: 20px; text-align: right; font-size: 8pt; color: #999; }
+        .no-print { margin-bottom: 16px; }
+        @media print {
+            .no-print { display: none; }
+        }
+        @media screen {
+            body { max-width: 900px; margin: 20px auto; padding: 0 20px; }
+            .btn-print { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; border: none; background: #002776; color: #fff; }
+            .btn-print:hover { background: #003da5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()">Imprimir</button>
+    </div>
+
+    <div class="header">
+        <h1>Agenda de Compromissos</h1>
+        <p>
+            {% if de and ate %}
+                Período: {{ de }} a {{ ate }}
+            {% elif de %}
+                A partir de: {{ de }}
+            {% elif ate %}
+                Até: {{ ate }}
+            {% else %}
+                Todos os compromissos
+            {% endif %}
+        </p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Data/Hora</th>
+                <th>Título</th>
+                <th>Tipo</th>
+                <th>Local</th>
+                <th>Contato</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in compromissos %}
+            <tr>
+                <td>{{ c.data_hora_inicio|date:"d/m/Y H:i" }}<br>a {{ c.data_hora_fim|date:"H:i" }}</td>
+                <td><strong>{{ c.titulo }}</strong>{% if c.descricao %}<br><small>{{ c.descricao|truncatechars:80 }}</small>{% endif %}</td>
+                <td>{{ c.get_tipo_display }}</td>
+                <td>{{ c.cidade }} ({{ c.regiao.sigla }}){% if c.endereco %}<br>{{ c.endereco }}{% endif %}</td>
+                <td>{% if c.contato_local_nome %}{{ c.contato_local_nome }}{% endif %}{% if c.contato_local_telefone %}<br>{{ c.contato_local_telefone }}{% endif %}</td>
+                <td>{{ c.get_status_display }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center;color:#999;padding:30px;">Nenhum compromisso encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Impresso em {% now "d/m/Y H:i" %} — CRM Eleitoral LS
+    </div>
+</body>
+</html>

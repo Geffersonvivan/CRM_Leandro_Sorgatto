@@ -1,0 +1,129 @@
+{% extends 'pwa/base.html' %}
+{% block nav_home %}active{% endblock %}
+{% block title %}Mobilização — LS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .disp-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .disp-option {
+        position: relative;
+    }
+    .disp-option input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .disp-option label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1.5px solid #d1d5db;
+        border-radius: 10px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.15s;
+        background: #fff;
+    }
+    .disp-option input[type="checkbox"]:checked + label {
+        border-color: #ea580c;
+        background: #fff7ed;
+        color: #ea580c;
+        font-weight: 600;
+    }
+    .disp-option label::before {
+        content: '';
+        width: 18px;
+        height: 18px;
+        border: 2px solid #d1d5db;
+        border-radius: 4px;
+        flex-shrink: 0;
+        transition: all 0.15s;
+    }
+    .disp-option input[type="checkbox"]:checked + label::before {
+        border-color: #ea580c;
+        background: #ea580c;
+        box-shadow: inset 0 0 0 2px #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">Cadastrar Voluntário</div>
+    <form method="post" id="formVoluntario">
+        {% csrf_token %}
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Nome *</label>
+            {{ form.nome }}
+            {{ form.nome.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Telefone *</label>
+            {{ form.telefone }}
+            {{ form.telefone.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Região</label>
+            {{ form.regiao }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Cidade</label>
+            {{ form.cidade }}
+            {{ form.cidade.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Disponibilidade *</label>
+            <div class="disp-grid">
+                {% for checkbox in form.disponibilidades %}
+                <div class="disp-option">
+                    {{ checkbox.tag }}
+                    <label for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                </div>
+                {% endfor %}
+            </div>
+            {{ form.disponibilidades.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Observações</label>
+            {{ form.observacoes }}
+        </div>
+
+        <button type="submit" class="pwa-btn pwa-btn-primary">Cadastrar Voluntário</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('id_regiao').addEventListener('change', function() {
+    const regiaoId = this.value;
+    const cidadeSelect = document.getElementById('id_cidade');
+    cidadeSelect.innerHTML = '<option value="">Selecione...</option>';
+    if (!regiaoId) return;
+    fetch(`/app/api/cidades/${regiaoId}/`)
+        .then(r => r.json())
+        .then(cidades => {
+            cidades.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome;
+                cidadeSelect.appendChild(opt);
+            });
+        });
+});
+</script>
+{% endblock %}

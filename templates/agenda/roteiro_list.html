@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .actions { display: flex; gap: 6px; }
+    .badge-planejado { background: #fef3c7; color: #92400e; }
+    .badge-em_andamento { background: #dbeafe; color: #1d4ed8; }
+    .badge-concluido { background: #d1fae5; color: #047857; }
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title" data-tip="Planos de deslocamento diário com paradas ordenadas vinculadas a compromissos da agenda.">Roteiros</h1>
+    <a href="{% url 'agenda:roteiro_create' %}" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo Roteiro
+    </a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Título</th>
+                <th>Região</th>
+                <th>Motorista</th>
+                <th>Paradas</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in roteiros %}
+            <tr>
+                <td>{{ r.data|date:"d/m/Y" }}</td>
+                <td><a href="{% url 'agenda:roteiro_detail' r.pk %}" style="color:#002776;text-decoration:none;font-weight:500;">{{ r.titulo }}</a></td>
+                <td>{{ r.regiao.sigla }}</td>
+                <td>{{ r.motorista|default:"-" }}</td>
+                <td>{{ r.pontos.count }}</td>
+                <td><span class="badge badge-{{ r.status }}">{{ r.get_status_display }}</span></td>
+                <td>
+                    <div class="actions">
+                        <a href="{% url 'agenda:roteiro_detail' r.pk %}" class="btn btn-secondary btn-sm">Ver</a>
+                        <a href="{% url 'agenda:roteiro_edit' r.pk %}" class="btn btn-primary btn-sm">Editar</a>
+                        <a href="{% url 'agenda:roteiro_print' r.pk %}" class="btn btn-secondary btn-sm" target="_blank">Imprimir</a>
+                        <form method="post" action="{% url 'agenda:roteiro_delete' r.pk %}" onsubmit="return confirm('Remover este roteiro?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum roteiro cadastrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

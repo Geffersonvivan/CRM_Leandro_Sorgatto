@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .form-card { max-width: 720px; }
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ titulo }}</h1>
+</div>
+
+<div class="form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="id_nome">Nome *</label>
+                {{ form.nome }}
+                {{ form.nome.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_telefone">Telefone</label>
+                {{ form.telefone }}
+                {{ form.telefone.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_email">Email</label>
+                {{ form.email }}
+                {{ form.email.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_regiao">Região *</label>
+                {{ form.regiao }}
+                {{ form.regiao.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_cidade">Cidade *</label>
+                {{ form.cidade }}
+                {{ form.cidade.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_tipo">Tipo de Contato *</label>
+                {{ form.tipo }}
+                {{ form.tipo.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_origem_contato">Origem do Contato</label>
+                {{ form.origem_contato }}
+                {{ form.origem_contato.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_instagram">Instagram</label>
+                {{ form.instagram }}
+                {{ form.instagram.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_prioridade">Prioridade Comunicação *</label>
+                {{ form.prioridade }}
+                {{ form.prioridade.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_grau_influencia">Grau de Influência</label>
+                {{ form.grau_influencia }}
+                {{ form.grau_influencia.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_frequencia_relacionamento">Frequência de Relacionamento</label>
+                {{ form.frequencia_relacionamento }}
+                {{ form.frequencia_relacionamento.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_status">Status</label>
+                {{ form.status }}
+                {{ form.status.errors }}
+            </div>
+            <div class="form-group full">
+                <label for="id_observacoes">Observações</label>
+                {{ form.observacoes }}
+                {{ form.observacoes.errors }}
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Salvar{% else %}Cadastrar{% endif %}</button>
+            <a href="{% url 'liderancas:apoiador_list' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/liderancas-common.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    LiderancasCommon.initPhoneMask();
+    LiderancasCommon.initCityLoader();
+});
+</script>
+{% endblock %}

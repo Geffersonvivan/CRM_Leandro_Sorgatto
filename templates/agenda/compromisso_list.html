@@ -1,0 +1,1835 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    /* ---- Layout full-height ---- */
+    .agenda-wrapper { display: flex; flex-direction: column; height: calc(100vh - 60px); }
+    .page-header { padding-bottom: 16px; flex-shrink: 0; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .toggle-group { display: flex; border: 1.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #f8fafc; }
+    .toggle-group .btn { border-radius: 0; border: none; padding: 6px 16px; background: transparent; color: #64748b; font-weight: 500; }
+    .toggle-group .btn.active { background: #002776; color: #fff; }
+
+    /* ---- Calendário container ---- */
+    .calendar-container { flex: 1; min-height: 0; background: #fff; border: 1px solid #ecedf0; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; display: flex; flex-direction: column; }
+    #calendar { flex: 1; padding: 16px 20px 20px; }
+
+    /* ---- Hide events on other-month days ---- */
+    .fc .fc-day-other .fc-daygrid-event-harness { display: none !important; }
+    .fc .fc-day-other .fc-daygrid-day-events { display: none !important; }
+
+    /* ---- FullCalendar overrides — Monday.com / Notion style ---- */
+    .fc { font-family: inherit; --fc-border-color: #ecedf0; --fc-today-bg-color: transparent; }
+
+    /* Toolbar */
+    .fc .fc-toolbar { margin-bottom: 12px !important; align-items: center; }
+    .fc .fc-toolbar-title { font-size: 1.1rem; font-weight: 700; color: #1e293b; letter-spacing: -0.01em; }
+    .fc .fc-button-primary {
+        background: #fff; border: 1px solid #d0d4e4; color: #323338;
+        font-size: 0.78rem; font-weight: 500; padding: 6px 14px;
+        border-radius: 8px; text-transform: none; box-shadow: none;
+        transition: all 0.15s;
+    }
+    .fc .fc-button-primary:hover { background: #f0f6ff; border-color: #0073ea; color: #0073ea; }
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active {
+        background: #0073ea; border-color: #0073ea; color: #fff; box-shadow: none;
+    }
+    .fc .fc-button-primary:focus { box-shadow: 0 0 0 2px rgba(0,115,234,0.2); }
+    .fc .fc-today-button { border-radius: 8px; font-weight: 600; }
+    .fc .fc-button-group > .fc-button { border-radius: 0; }
+    .fc .fc-button-group > .fc-button:first-child { border-radius: 8px 0 0 8px; }
+    .fc .fc-button-group > .fc-button:last-child { border-radius: 0 8px 8px 0; }
+
+    /* Column headers */
+    .fc .fc-col-header-cell {
+        background: #f5f6f8; border-color: #ecedf0;
+        padding: 12px 0; font-size: 0.7rem; font-weight: 600;
+        color: #676879; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .fc .fc-col-header-cell-cushion { text-decoration: none !important; }
+
+    /* Day cells */
+    .fc .fc-daygrid-day {
+        border-color: #ecedf0; transition: all 0.15s; cursor: pointer;
+        min-height: 110px;
+    }
+    .fc .fc-daygrid-day:hover { background: #f5f6f8; }
+    .fc .fc-daygrid-day-number {
+        font-size: 0.8rem; font-weight: 500; color: #676879; padding: 8px 10px;
+        text-decoration: none !important;
+    }
+
+    /* Today highlight */
+    .fc .fc-day-today { background: #f0f6ff !important; }
+    .fc .fc-day-today .fc-daygrid-day-number {
+        background: #0073ea; color: #fff; border-radius: 50%;
+        width: 30px; height: 30px; display: flex; align-items: center;
+        justify-content: center; font-weight: 700; margin: 4px 6px; padding: 0;
+        font-size: 0.82rem;
+    }
+
+    /* Other month days */
+    .fc .fc-day-other .fc-daygrid-day-number { color: #c5c7d0; }
+    .fc .fc-day-other { background: #fafbfc; }
+
+    /* ---- Events — pill style ---- */
+    .fc .fc-daygrid-event {
+        border-radius: 6px; border: none; padding: 3px 8px;
+        font-size: 0.72rem; font-weight: 600; margin: 1px 4px 1px 4px;
+        line-height: 1.4; transition: all 0.15s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .fc .fc-daygrid-event:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+        filter: brightness(1.05);
+    }
+    .fc .fc-daygrid-dot-event { padding: 3px 8px; }
+    .fc .fc-event-title { font-weight: 500; }
+    .fc .fc-event-time { font-weight: 700; opacity: 0.9; }
+    .fc .fc-daygrid-event-dot { display: none; }
+
+    /* ---- Tarefa events — dashed border style ---- */
+    .fc .fc-tarefa-event { border: 1.5px dashed !important; background: rgba(255,255,255,0.85) !important; opacity: 0.9; }
+    .fc .fc-tarefa-event .fc-event-title { color: #334155 !important; font-weight: 500; font-size: 0.68rem; }
+    .fc .fc-tarefa-event.fc-tarefa-vencida { background: #fef2f2 !important; }
+    .fc .fc-tarefa-event { cursor: pointer; }
+
+    /* Popover tarefas do dia */
+    .tarefas-popover {
+        position: fixed; z-index: 1100;
+        background: #fff; border-radius: 12px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06);
+        width: 320px; max-height: 360px;
+        display: flex; flex-direction: column;
+        animation: popIn 0.15s ease-out;
+    }
+    @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .tarefas-popover-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 14px 8px; border-bottom: 1px solid #f0f1f3;
+    }
+    .tarefas-popover-header span { font-size: 0.82rem; font-weight: 600; color: #323338; }
+    .tarefas-popover-close {
+        background: none; border: none; width: 26px; height: 26px; border-radius: 50%;
+        color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+    }
+    .tarefas-popover-close:hover { background: #f5f6f8; color: #323338; }
+    .tarefas-popover-body { overflow-y: auto; padding: 6px 0; flex: 1; }
+    .tarefas-popover-body::-webkit-scrollbar { width: 4px; }
+    .tarefas-popover-body::-webkit-scrollbar-thumb { background: #d0d4e4; border-radius: 3px; }
+    .tarefas-popover-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 7px 14px; cursor: pointer; transition: background 0.1s;
+        text-decoration: none; color: inherit;
+    }
+    .tarefas-popover-item:hover { background: #f5f6f8; }
+    .tarefas-popover-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .tarefas-popover-info { flex: 1; min-width: 0; }
+    .tarefas-popover-titulo { font-size: 0.78rem; font-weight: 500; color: #323338; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tarefas-popover-meta { font-size: 0.68rem; color: #676879; margin-top: 1px; }
+    .tarefas-popover-vencida { color: #ef4444; font-weight: 600; font-size: 0.65rem; margin-left: auto; flex-shrink: 0; }
+    .tarefas-popover-backdrop { position: fixed; inset: 0; z-index: 1099; }
+
+    /* Toggle tarefas */
+    .tarefas-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: #64748b; cursor: pointer; user-select: none; margin-left: 12px; }
+    .tarefas-toggle input { accent-color: #3b82f6; margin: 0; }
+
+    /* Follow-up section */
+    .gcal-followup-header { margin-bottom: 6px; }
+    .gcal-followup-label { font-size: 0.8rem; font-weight: 600; color: #1e293b; }
+    .gcal-followup-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+    .gcal-followup-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #334155; cursor: pointer; padding: 3px 0; }
+    .gcal-followup-item input { accent-color: #22c55e; margin: 0; }
+    .gcal-followup-custom { display: flex; gap: 4px; margin-bottom: 8px; }
+    .gcal-followup-btn { display: flex; align-items: center; gap: 6px; background: #22c55e; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .gcal-followup-btn:hover { background: #16a34a; }
+    .gcal-followup-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+    .gcal-followup-result { font-size: 0.73rem; color: #16a34a; margin-top: 6px; }
+
+    /* More events link */
+    .fc .fc-daygrid-more-link {
+        font-size: 0.7rem; font-weight: 600; color: #0073ea;
+        padding: 2px 6px; border-radius: 4px; transition: all 0.15s;
+    }
+    .fc .fc-daygrid-more-link:hover { background: #e6f0ff; }
+
+    /* Time grid (week view) */
+    .fc .fc-timegrid-slot { height: 44px; border-color: #f0f1f3; }
+    .fc .fc-timegrid-slot-label { font-size: 0.7rem; color: #676879; font-weight: 500; }
+    .fc .fc-timegrid-event {
+        border-radius: 8px; border: none; font-size: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* List view */
+    .fc .fc-list-event:hover td { background: #f0f6ff; }
+    .fc .fc-list-day-cushion { background: #f5f6f8; font-weight: 600; color: #323338; }
+
+    /* Scrollbar */
+    .fc-scroller::-webkit-scrollbar { width: 5px; }
+    .fc-scroller::-webkit-scrollbar-thumb { background: #c5c7d0; border-radius: 4px; }
+    .fc-scroller::-webkit-scrollbar-thumb:hover { background: #a1a5b7; }
+
+    /* ---- Lista view ---- */
+    .table-container { flex: 1; min-height: 0; overflow: auto; display: none; }
+    .table-container tr:hover td { cursor: pointer; }
+    .actions { display: flex; gap: 6px; }
+
+    /* ---- Modal Central ---- */
+    .modal-overlay {
+        display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+        z-index: 1000; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        justify-content: center; align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-panel {
+        background: #fff; z-index: 1001; border-radius: 16px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04);
+        width: 500px; max-width: 94vw; max-height: 88vh;
+        display: flex; flex-direction: column;
+        transform: scale(0.95); opacity: 0;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s;
+    }
+    .modal-overlay.open .modal-panel { transform: scale(1); opacity: 1; }
+    .modal-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 12px 20px 0; flex-shrink: 0;
+    }
+    .modal-title { font-size: 0.88rem; font-weight: 600; color: #676879; }
+    .modal-close {
+        background: none; border: none; width: 30px; height: 30px; border-radius: 50%;
+        color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem; transition: all 0.15s;
+    }
+    .modal-close:hover { background: #f5f6f8; color: #323338; }
+    .modal-body {
+        flex: 1; overflow-y: auto; padding: 0 20px;
+        display: flex; flex-direction: column;
+    }
+    .modal-body::-webkit-scrollbar { width: 4px; }
+    .modal-body::-webkit-scrollbar-thumb { background: #d0d4e4; border-radius: 3px; }
+
+    /* ---- Google Calendar style form ---- */
+    #compromisso-modal-form {
+        display: flex; flex-direction: column; height: 100%;
+    }
+    #compromisso-modal-form > .gcal-footer {
+        margin-top: auto;
+    }
+    .gcal-title-wrap { padding: 0; }
+    .gcal-title-wrap .form-input {
+        width: 100%; border: none; border-bottom: 2px solid #d0d4e4;
+        font-size: 1.05rem; font-weight: 500; color: #323338;
+        padding: 2px 0; background: transparent; border-radius: 0;
+        outline: none; transition: border-color 0.2s;
+    }
+    .gcal-title-wrap .form-input:focus { border-bottom-color: #0073ea; }
+    .gcal-title-wrap .form-input::placeholder { color: #c5c7d0; font-weight: 400; }
+
+    .gcal-rows { display: flex; flex-direction: column; gap: 0; }
+    .gcal-row {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 4px 0; border-bottom: 1px solid #f5f6f8;
+        min-height: 32px;
+    }
+    .gcal-row:last-child { border-bottom: none; }
+    .gcal-icon {
+        width: 18px; min-width: 18px; color: #676879;
+        display: flex; align-items: center; justify-content: center;
+        margin-top: 4px;
+    }
+    .gcal-fields { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .gcal-fields-inline { flex-direction: row; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .gcal-sep { color: #c5c7d0; font-size: 0.82rem; font-weight: 500; }
+
+    /* Field sizes */
+    .gcal-field-sm { flex: 1; min-width: 100px; }
+    .gcal-field-md { flex: 1; min-width: 140px; }
+    .gcal-field-date { width: 140px; flex-shrink: 0; }
+    .gcal-field-time { width: 100px; flex-shrink: 0; }
+
+    /* Inputs — clean, borderless look */
+    .gcal-rows .form-input {
+        padding: 5px 8px; border: 1px solid transparent; border-radius: 6px;
+        font-size: 0.78rem; background: #f5f6f8; color: #323338;
+        transition: all 0.15s; width: 100%;
+    }
+    .gcal-rows .form-input:hover { background: #ecedf0; }
+    .gcal-rows .form-input:focus {
+        outline: none; background: #fff; border-color: #0073ea;
+        box-shadow: 0 0 0 2px rgba(0,115,234,0.12);
+    }
+    .gcal-rows select.form-input { appearance: auto; cursor: pointer; }
+    .gcal-rows textarea.form-input { resize: vertical; min-height: 44px; }
+
+    /* Expandable rows */
+    .gcal-expand-label {
+        font-size: 0.78rem; color: #676879; font-weight: 500;
+        padding: 0; user-select: none;
+    }
+    .gcal-expand-content {
+        max-height: 0; overflow: hidden; opacity: 0;
+        transition: max-height 0.2s ease, opacity 0.15s, margin 0.15s;
+        margin-top: 0;
+    }
+    .gcal-expandable.expanded .gcal-expand-content {
+        max-height: 200px; opacity: 1; margin-top: 4px;
+    }
+    .gcal-expandable.expanded .gcal-expand-label { color: #0073ea; }
+
+    /* Toggle cursor on expand trigger */
+    .gcal-expand-toggle { cursor: pointer; }
+
+    /* Errors */
+    .errorlist { list-style: none; padding: 0 0 0 34px; margin: 0; }
+    .errorlist li { font-size: 0.72rem; color: #e2445c; margin-top: 1px; }
+
+    /* Tarefas / Preparação */
+    .gcal-row-tarefas { border-bottom: none !important; }
+    .gcal-tarefas-header { display: flex; align-items: center; gap: 6px; padding: 0; }
+    .gcal-tarefas-label { font-size: 0.78rem; font-weight: 600; color: #323338; }
+    .gcal-tarefas-count {
+        font-size: 0.62rem; font-weight: 600; color: #676879;
+        background: #ecedf0; padding: 1px 6px; border-radius: 10px;
+    }
+    .gcal-tarefas-count.done { background: #d1fae5; color: #047857; }
+    .gcal-tarefas-progress { padding: 2px 0; }
+    .gcal-tarefas-progress-bar {
+        height: 3px; background: #ecedf0; border-radius: 2px; overflow: hidden;
+    }
+    .gcal-tarefas-progress-fill {
+        height: 100%; background: #00c875; border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+    .gcal-tarefas-list { display: flex; flex-direction: column; gap: 0; }
+    .gcal-tarefa-item {
+        display: flex; align-items: center; gap: 5px;
+        padding: 1px 4px; border-radius: 4px; transition: all 0.1s;
+    }
+    .gcal-tarefa-item:hover { background: #f5f6f8; }
+    .gcal-tarefa-cb {
+        width: 14px; height: 14px; border-radius: 3px; cursor: pointer;
+        accent-color: #00c875; flex-shrink: 0; margin: 0;
+    }
+    .gcal-tarefa-titulo {
+        flex: 1; font-size: 0.72rem; color: #323338; cursor: pointer;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gcal-tarefa-titulo:hover { color: #0073ea; }
+    .gcal-tarefa-item.done .gcal-tarefa-titulo {
+        text-decoration: line-through; color: #94a3b8;
+    }
+    .gcal-tarefas-add {
+        display: flex; gap: 4px; align-items: center; margin-top: 2px;
+    }
+    .gcal-tarefas-input {
+        flex: 1; padding: 4px 8px; border: 1px dashed #d0d4e4; border-radius: 5px;
+        font-size: 0.72rem; background: #fff; color: #323338; outline: none;
+        transition: border-color 0.15s;
+    }
+    .gcal-tarefas-input:focus { border-color: #0073ea; border-style: solid; }
+    .gcal-tarefas-input::placeholder { color: #c5c7d0; }
+    .gcal-tarefas-add-btn {
+        width: 24px; height: 24px; border-radius: 5px; border: none;
+        background: #0073ea; color: #fff; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.15s; flex-shrink: 0;
+    }
+    .gcal-tarefas-add-btn:hover { background: #0060c0; }
+
+    /* Contatos panel */
+    .contatos-panel-compact { padding: 0; }
+    .contatos-box {
+        background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 8px;
+        padding: 8px 10px;
+    }
+    .contatos-title { font-size: 0.72rem; font-weight: 700; color: #0073ea; margin-bottom: 4px; }
+    .contato-section-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; margin-bottom: 2px; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+    .contato-section-label.coord { background: #dbeafe; color: #1d4ed8; }
+    .contato-section-label.cabo { background: #d1fae5; color: #047857; }
+    .contato-section-label.apoiador { background: #fef3c7; color: #92400e; }
+    .contato-item { font-size: 0.72rem; color: #374151; padding: 1px 0; }
+    .contato-item a { color: #0073ea; text-decoration: none; }
+    .contato-item a:hover { text-decoration: underline; }
+    .contato-empty { font-size: 0.7rem; color: #94a3b8; }
+    .contatos-scroll { max-height: 140px; overflow-y: auto; }
+    .contatos-scroll::-webkit-scrollbar { width: 4px; }
+    .contatos-scroll::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 3px; }
+
+    /* Footer — Google Calendar style */
+    .gcal-footer {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 20px; border-top: 1px solid #ecedf0;
+        flex-shrink: 0;
+    }
+    .gcal-footer-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .gcal-btn-save {
+        padding: 8px 24px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+        background: #0073ea; color: #fff; border: none; cursor: pointer; transition: all 0.15s;
+    }
+    .gcal-btn-save:hover { background: #0060c0; box-shadow: 0 2px 8px rgba(0,115,234,0.3); }
+    .gcal-btn-cancel {
+        padding: 8px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 500;
+        background: none; color: #0073ea; border: none; cursor: pointer;
+    }
+    .gcal-btn-cancel:hover { background: #f0f6ff; }
+    .gcal-btn-delete {
+        padding: 8px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 500;
+        background: none; color: #e2445c; border: none; cursor: pointer;
+    }
+    .gcal-btn-delete:hover { background: #fef2f2; }
+    .gcal-share-group { display: flex; gap: 4px; }
+    .gcal-btn-whatsapp {
+        width: 32px; height: 32px; border-radius: 50%; border: none;
+        background: #25d366; color: #fff; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .gcal-btn-whatsapp:hover { background: #1da851; transform: scale(1.1); }
+    .gcal-btn-whatsapp-link { background: #128c7e; }
+    .gcal-btn-whatsapp-link:hover { background: #0e7a6d; }
+
+    /* Header WhatsApp button + dropdown */
+    .btn-whatsapp { background: #25d366; color: #fff; }
+    .btn-whatsapp:hover { background: #1da851; box-shadow: 0 2px 8px rgba(37,211,102,0.3); }
+    .dropdown-wrapper { position: relative; }
+    .dropdown-menu {
+        display: none; position: absolute; top: calc(100% + 6px); right: 0;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; min-width: 220px;
+        overflow: hidden;
+    }
+    .dropdown-menu.open { display: block; }
+    .dropdown-menu button {
+        display: block; width: 100%; padding: 11px 16px; border: none; background: none;
+        text-align: left; font-size: 0.84rem; color: #374151; cursor: pointer;
+        transition: background 0.1s;
+    }
+    .dropdown-menu button:hover { background: #f0fdf4; }
+    .dropdown-item-group {
+        padding: 12px 16px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .dropdown-item-group + .dropdown-item-group { border-top: 1px solid #f1f5f9; }
+    .dropdown-item-group label { font-size: 0.78rem; font-weight: 600; color: #475569; }
+    .dropdown-date-input {
+        padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+        font-size: 0.82rem; width: 100%;
+    }
+    .dropdown-date-input:focus { outline: none; border-color: #25d366; box-shadow: 0 0 0 2px rgba(37,211,102,0.15); }
+    .dropdown-item-group button {
+        padding: 8px 14px; border: none; background: #25d366; color: #fff;
+        border-radius: 6px; font-size: 0.82rem; font-weight: 500; cursor: pointer;
+        transition: background 0.15s;
+    }
+    .dropdown-item-group button:hover { background: #1da851; }
+
+    /* Loading spinner */
+    .modal-loading {
+        display: flex; align-items: center; justify-content: center;
+        height: 200px; color: #94a3b8; font-size: 0.9rem;
+    }
+    /* Modal Evento */
+    .ev-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.45); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    .ev-modal-overlay.active { display: flex; }
+    .ev-modal-box { background: #fff; border-radius: 12px; padding: 16px 20px; width: 520px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .ev-modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; }
+    .ev-modal-title { font-weight: 700; font-size: 1rem; color: #1e293b; }
+    .ev-modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #94a3b8; }
+    .ev-modal-close:hover { color: #334155; }
+    .ev-modal-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; }
+    .ev-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 8px; }
+    .ev-detail-item { font-size: 0.75rem; }
+    .ev-detail-label { font-weight: 600; color: #64748b; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    .ev-detail-section { border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 6px; }
+    .ev-detail-text { font-size: 0.78rem; color: #334155; line-height: 1.4; margin-top: 4px; }
+    .ev-modal-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+    /* Modal Roteiro do Dia */
+    .rot-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.45); z-index: 9998; display: none; align-items: center; justify-content: center; }
+    .rot-modal-overlay.active { display: flex; }
+    .rot-modal-box { background: #fff; border-radius: 12px; padding: 20px 24px; width: 600px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .rot-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .rot-modal-title { font-weight: 700; font-size: 1rem; color: #1e293b; }
+    .rot-modal-subtitle { font-size: 0.75rem; color: #64748b; }
+    .rot-modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #94a3b8; }
+    .rot-modal-close:hover { color: #334155; }
+    .rot-section-title { font-weight: 600; font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+    .rot-section-title:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+    .rot-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; margin-bottom: 4px; background: #f8fafc; }
+    .rot-item-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .rot-item-info { flex: 1; min-width: 0; }
+    .rot-item-titulo { font-size: 0.78rem; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rot-item-meta { font-size: 0.68rem; color: #64748b; }
+    .rot-item-hora { font-size: 0.72rem; font-weight: 600; color: #334155; white-space: nowrap; }
+    .rot-item-ordem { width: 22px; height: 22px; border-radius: 50%; background: #e2e8f0; color: #475569; font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .rot-empty { text-align: center; color: #94a3b8; padding: 20px; font-size: 0.82rem; }
+    .rot-form-row { display: flex; gap: 12px; margin-top: 8px; }
+    .rot-form-group { flex: 1; }
+    .rot-form-group label { display: block; font-size: 0.68rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+    .rot-form-group input, .rot-form-group textarea { width: 100%; padding: 6px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.78rem; }
+    .rot-form-group textarea { resize: vertical; height: 50px; }
+    .rot-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+    .rot-badge-saved { display: inline-block; background: #f0fdf4; color: #16a34a; font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="agenda-wrapper">
+
+<div class="page-header">
+    <h1 class="page-title" data-tip="Calendário de compromissos do candidato: reuniões, visitas, comícios, entrevistas e eventos.">Agenda</h1>
+    <div class="header-actions">
+        <div class="toggle-group">
+            <button class="btn active" id="btn-calendar" onclick="toggleView('calendar')">Calendário</button>
+            <button class="btn" id="btn-list" onclick="toggleView('list')">Lista</button>
+        </div>
+        <a href="{% url 'agenda:compromisso_print' %}" class="btn btn-outline" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Imprimir
+        </a>
+        <div class="dropdown-wrapper">
+            <button class="btn btn-whatsapp" onclick="toggleDropdown()" id="btnEnviarAgenda">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.12 1.52 5.855L0 24l6.335-1.652A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82a9.78 9.78 0 01-5.202-1.49l-.373-.222-3.862 1.01 1.032-3.77-.244-.388A9.78 9.78 0 012.18 12 9.82 9.82 0 0112 2.18 9.82 9.82 0 0121.82 12 9.82 9.82 0 0112 21.82z"/></svg>
+                Enviar Agenda
+            </button>
+            <div class="dropdown-menu" id="dropdownAgenda">
+                <div class="dropdown-item-group">
+                    <label>📅 Enviar agenda da semana que contém:</label>
+                    <input type="date" id="inputSemana" class="dropdown-date-input">
+                    <button onclick="shareAgenda('semana')">Enviar Semana</button>
+                </div>
+                <div class="dropdown-item-group">
+                    <label>🗓️ Enviar agenda do mês que contém:</label>
+                    <input type="date" id="inputMes" class="dropdown-date-input">
+                    <button onclick="shareAgenda('mes')">Enviar Mês</button>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="openCreate()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Novo Compromisso
+        </button>
+    </div>
+</div>
+
+<div class="calendar-container" id="calendar-view">
+    <div id="calendar"></div>
+</div>
+
+<div class="table-container" id="list-view">
+    <table>
+        <thead>
+            <tr>
+                <th>Data/Hora</th>
+                <th>Título</th>
+                <th>Tipo</th>
+                <th>Região</th>
+                <th>Cidade</th>
+                <th>Status</th>
+                <th>Prioridade</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in compromissos %}
+            <tr onclick="openEdit({{ c.pk }})">
+                <td>{{ c.data_hora_inicio|date:"d/m/Y H:i" }}</td>
+                <td>{{ c.titulo }}</td>
+                <td>{{ c.get_tipo_display }}</td>
+                <td>{{ c.regiao.sigla }}</td>
+                <td>{{ c.cidade }}</td>
+                <td><span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span></td>
+                <td>{{ c.get_prioridade_display }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum compromisso cadastrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</div>
+
+<!-- Modal Central -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-panel" id="modalPanel">
+        <div class="modal-header">
+            <span class="modal-title" id="modalTitle">Novo Compromisso</span>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <div class="modal-loading">Carregando...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalhes Evento -->
+<div class="ev-modal-overlay" id="eventoModal" onclick="if(event.target===this)closeEventoModal()">
+    <div class="ev-modal-box">
+        <div class="ev-modal-header">
+            <span class="ev-modal-title" id="evTitle"></span>
+            <button class="ev-modal-close" onclick="closeEventoModal()">&times;</button>
+        </div>
+        <div id="evBody">
+            <img id="evImg" class="ev-modal-img" style="display:none;" alt="Imagem do evento">
+            <div class="ev-detail-grid">
+                <div class="ev-detail-item"><span class="ev-detail-label">Tipo</span><br><span id="evTipo"></span></div>
+                <div class="ev-detail-item"><span class="ev-detail-label">Data</span><br><span id="evData"></span></div>
+                <div class="ev-detail-item"><span class="ev-detail-label">Horário</span><br><span id="evHorario"></span></div>
+                <div class="ev-detail-item"><span class="ev-detail-label">Cidade</span><br><span id="evCidade"></span></div>
+                <div class="ev-detail-item"><span class="ev-detail-label">Local</span><br><span id="evLocal"></span></div>
+                <div class="ev-detail-item"><span class="ev-detail-label">Público Est.</span><br><span id="evPublico"></span></div>
+                <div class="ev-detail-item"><span class="ev-detail-label">Relevância</span><br><span id="evRelevancia"></span></div>
+                <div class="ev-detail-item"><span class="ev-detail-label">Status</span><br><span id="evStatus"></span></div>
+            </div>
+            <div id="evObsSection" class="ev-detail-section" style="display:none;">
+                <span class="ev-detail-label">Observações</span>
+                <div class="ev-detail-text" id="evObs"></div>
+            </div>
+            <div id="evResultadoSection" class="ev-detail-section" style="display:none;">
+                <span class="ev-detail-label">Resultado / Avaliação</span>
+                <div class="ev-detail-text" id="evResultado"></div>
+            </div>
+            <div class="ev-modal-actions">
+                <a id="evEditLink" href="#" class="btn btn-primary btn-sm">Editar Evento</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Roteiro do Dia -->
+<div class="rot-modal-overlay" id="roteiroModal" onclick="if(event.target===this)closeRoteiroModal()">
+    <div class="rot-modal-box">
+        <div class="rot-modal-header">
+            <div>
+                <div class="rot-modal-title" id="rotTitle">Roteiro do Dia</div>
+                <div class="rot-modal-subtitle" id="rotSubtitle"></div>
+            </div>
+            <button class="rot-modal-close" onclick="closeRoteiroModal()">&times;</button>
+        </div>
+
+        <div class="rot-section-title">Agenda do Dia</div>
+        <div id="rotItens"></div>
+
+        <div class="rot-section-title">📍 Roteiro</div>
+        <div id="rotRoteiro"></div>
+
+        <div class="rot-section-title" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+            <span>🗺️ Mapa do Trajeto</span>
+            <span id="rotDistanciaInfo" class="rot-badge-saved" style="background:#e0f2fe; color:#0369a1; display:none; font-size:0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600;"></span>
+        </div>
+        <div id="rotMap" style="height: 200px; width: 100%; border-radius: 8px; margin-top: 6px; border: 1.5px solid #e2e8f0; display: none; z-index: 1;"></div>
+
+        <div class="rot-form-row">
+            <div class="rot-form-group">
+                <label>Motorista</label>
+                <input type="text" id="rotMotorista" placeholder="Nome do motorista">
+            </div>
+            <div class="rot-form-group">
+                <label>Horário de Saída</label>
+                <input type="time" id="rotSaida">
+            </div>
+        </div>
+        <div class="rot-form-row">
+            <div class="rot-form-group">
+                <label>Observações</label>
+                <textarea id="rotObs" placeholder="Observações do roteiro..."></textarea>
+            </div>
+        </div>
+
+        <div class="rot-actions">
+            <button class="btn btn-primary btn-sm" onclick="salvarRoteiro()">Salvar Roteiro</button>
+            <button class="btn btn-outline btn-sm" onclick="imprimirRoteiro()">Imprimir</button>
+            <button class="btn btn-outline btn-sm" id="rotGpsBtn" style="display:none;" onclick="abrirGpsExterno()">Ver Rota no GPS</button>
+            <a href="#" class="btn btn-outline btn-sm" id="rotNovoComp" style="margin-left:auto;">+ Compromisso</a>
+            <span id="rotSavedBadge" class="rot-badge-saved" style="display:none;">Salvo!</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let calendar;
+const csrfToken = '{{ csrf_token }}';
+
+// ---- Toggle view ----
+function toggleView(view) {
+    const cal = document.getElementById('calendar-view');
+    const list = document.getElementById('list-view');
+    const btnCal = document.getElementById('btn-calendar');
+    const btnList = document.getElementById('btn-list');
+    if (view === 'list') {
+        cal.style.display = 'none';
+        list.style.display = 'flex';
+        list.style.flexDirection = 'column';
+        btnList.classList.add('active');
+        btnCal.classList.remove('active');
+    } else {
+        cal.style.display = 'flex';
+        list.style.display = 'none';
+        btnCal.classList.add('active');
+        btnList.classList.remove('active');
+    }
+}
+
+// ---- Modal ----
+function openModal(title) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = '<div class="modal-loading">Carregando...</div>';
+    document.getElementById('modalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function loadFormIntoModal(url, title) {
+    openModal(title);
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error('Erro: ' + r.status);
+            return r.json();
+        })
+        .then(data => {
+            document.getElementById('modalBody').innerHTML = data.html;
+            initModalForm();
+            initModalContatos();
+        })
+        .catch(err => {
+            console.error('Erro ao carregar formulário:', err);
+            document.getElementById('modalBody').innerHTML =
+                '<div style="padding:40px;text-align:center;color:#dc2626;">' +
+                'Erro ao carregar formulário.<br><small>' + err.message + '</small></div>';
+        });
+}
+
+function openCreate(dateStr) {
+    window._prefillDate = dateStr || null;
+    let url = '{% url "agenda:compromisso_create" %}';
+    loadFormIntoModal(url, 'Novo Compromisso');
+}
+
+function openEdit(pk) {
+    const url = `/agenda/compromissos/${pk}/editar/`;
+    loadFormIntoModal(url, 'Editar Compromisso');
+}
+
+function deleteCompromisso(pk) {
+    if (!confirm('Remover este compromisso?')) return;
+    fetch(`/agenda/compromissos/${pk}/excluir/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken,
+        },
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            closeModal();
+            calendar.refetchEvents();
+            reloadListView();
+        }
+    });
+}
+
+// ---- Form submit via AJAX ----
+function initModalForm() {
+    const form = document.getElementById('compromisso-modal-form');
+    if (!form) return;
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData,
+            credentials: 'same-origin',
+        })
+        .then(r => {
+            if (!r.ok) throw new Error('Erro no servidor: ' + r.status);
+            return r.json();
+        })
+        .then(data => {
+            if (data.success) {
+                closeModal();
+                calendar.refetchEvents();
+                reloadListView();
+            } else {
+                document.getElementById('modalBody').innerHTML = data.html;
+                initModalForm();
+                initModalContatos();
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao salvar:', err);
+            alert('Erro ao salvar compromisso. Verifique os dados e tente novamente.');
+        });
+    });
+
+    // Expandable sections — toggle on label/icon click only
+    form.querySelectorAll('.gcal-expand-toggle').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const row = el.closest('.gcal-expandable');
+            if (row) row.classList.toggle('expanded');
+        });
+    });
+
+    // Auto-expand sections that have content (editing mode)
+    form.querySelectorAll('.gcal-expandable').forEach(row => {
+        const textarea = row.querySelector('textarea');
+        if (textarea && textarea.value.trim()) {
+            row.classList.add('expanded');
+        }
+    });
+
+    // Phone mask
+    const tel = form.querySelector('[name="contato_local_telefone"]');
+    if (tel) {
+        tel.addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            if (v.length <= 2) v = v.replace(/^(\d{0,2})/, '($1');
+            else if (v.length <= 6) v = v.replace(/^(\d{2})(\d{0,4})/, '($1) $2');
+            else if (v.length <= 10) v = v.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+            else v = v.replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+            e.target.value = v;
+        });
+    }
+
+    // Auto-prefill título com tipo selecionado
+    const tipoSelect = form.querySelector('[name="tipo"]');
+    const tituloInput = form.querySelector('[name="titulo"]');
+    if (tipoSelect && tituloInput) {
+        tipoSelect.addEventListener('change', () => {
+            const label = tipoSelect.options[tipoSelect.selectedIndex].text;
+            if (!tipoSelect.value) return;
+            const currentVal = tituloInput.value;
+            // Se título vazio ou já começa com outro prefixo de tipo, substituir
+            const tipos = Array.from(tipoSelect.options).map(o => o.text).filter(t => t !== '---------');
+            const prefixoAtual = tipos.find(t => currentVal.startsWith(t + ' - '));
+            if (!currentVal || prefixoAtual) {
+                const resto = prefixoAtual ? currentVal.slice(prefixoAtual.length + 3) : '';
+                tituloInput.value = label + ' - ' + resto;
+            }
+            tituloInput.focus();
+            tituloInput.setSelectionRange(tituloInput.value.length, tituloInput.value.length);
+        });
+    }
+
+    // Pre-fill date from dateClick param
+    if (window._prefillDate) {
+        const dataField = form.querySelector('[name="data"]');
+        const hiField = form.querySelector('[name="hora_inicio"]');
+        const hfField = form.querySelector('[name="hora_fim"]');
+        if (dataField && !dataField.value) dataField.value = window._prefillDate;
+        if (hiField && !hiField.value) hiField.value = '09:00';
+        if (hfField && !hfField.value) hfField.value = '10:00';
+        window._prefillDate = null;
+    }
+
+    // Load tarefas checklist (editing mode)
+    const pkMatch = form.action.match(/(\d+)\/editar/);
+    if (pkMatch) {
+        loadTarefasCompromisso(pkMatch[1]);
+    }
+
+    // Show follow-up section when status = realizado
+    const statusSelect = form.querySelector('[name="status"]');
+    const followupSection = form.querySelector('#followupSection');
+    if (statusSelect && followupSection) {
+        const toggleFollowup = () => {
+            followupSection.style.display = statusSelect.value === 'realizado' ? '' : 'none';
+        };
+        toggleFollowup();
+        statusSelect.addEventListener('change', toggleFollowup);
+    }
+}
+
+// ---- Contatos AJAX ----
+function initModalContatos() {
+    const form = document.getElementById('compromisso-modal-form');
+    if (!form) return;
+
+    const regiao = form.querySelector('[name="regiao"]');
+    const cidade = form.querySelector('[name="cidade"]');
+    const panel = document.getElementById('contatos-panel');
+    const coordList = document.getElementById('coord-list');
+    const caboList = document.getElementById('cabo-list');
+    const apoiadorList = document.getElementById('apoiador-list');
+
+    if (!regiao || !cidade) return;
+
+    function formatWa(telefone) {
+        if (!telefone) return '';
+        const nums = telefone.replace(/\D/g, '');
+        const full = nums.length <= 11 ? '55' + nums : nums;
+        return ` — <a href="https://wa.me/${full}" target="_blank">${telefone}</a>`;
+    }
+
+    function loadCoords(rid) {
+        if (!rid) { coordList.innerHTML = '<span class="contato-empty">Selecione uma região...</span>'; return; }
+        fetch(`/agenda/api/coordenadores/${rid}/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(coords => {
+                coordList.innerHTML = coords.length === 0
+                    ? '<span class="contato-empty">Nenhum coordenador nesta região</span>'
+                    : coords.map(c => `<div class="contato-item">${c.nome}${c.telefone ? formatWa(c.telefone) : ''}${c.instagram ? ' — @' + c.instagram : ''}</div>`).join('');
+                panel.style.display = 'block';
+            });
+    }
+
+    function loadCabos(cid) {
+        if (!cid) { caboList.innerHTML = '<span class="contato-empty">Selecione uma cidade...</span>'; return; }
+        fetch(`/agenda/api/cabos/${cid}/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(cabos => {
+                caboList.innerHTML = cabos.length === 0
+                    ? '<span class="contato-empty">Nenhum cabo eleitoral nesta cidade</span>'
+                    : cabos.map(c => `<div class="contato-item">${c.nome}${c.telefone ? formatWa(c.telefone) : ''}${c.instagram ? ' — @' + c.instagram : ''}</div>`).join('');
+            });
+    }
+
+    function loadApoiadores(cid) {
+        if (!cid) { apoiadorList.innerHTML = '<span class="contato-empty">Selecione uma cidade...</span>'; return; }
+        fetch(`/agenda/api/apoiadores/${cid}/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(apoiadores => {
+                apoiadorList.innerHTML = apoiadores.length === 0
+                    ? '<span class="contato-empty">Nenhum apoiador nesta cidade</span>'
+                    : apoiadores.map(a => `<div class="contato-item">${a.nome}${a.telefone ? formatWa(a.telefone) : ''}${a.instagram ? ' — @' + a.instagram : ''}</div>`).join('');
+            });
+    }
+
+    regiao.addEventListener('change', () => {
+        const rid = regiao.value;
+        cidade.innerHTML = '<option value="">---------</option>';
+        caboList.innerHTML = '<span class="contato-empty">Selecione uma cidade...</span>';
+        apoiadorList.innerHTML = '<span class="contato-empty">Selecione uma cidade...</span>';
+        if (!rid) { panel.style.display = 'none'; return; }
+        fetch(`/liderancas/api/cidades/${rid}/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json())
+            .then(cidades => {
+                cidades.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.nome;
+                    cidade.appendChild(opt);
+                });
+            });
+        loadCoords(rid);
+    });
+
+    cidade.addEventListener('change', () => {
+        loadCabos(cidade.value);
+        loadApoiadores(cidade.value);
+    });
+
+    // Se editando, carregar contatos
+    if (regiao.value) {
+        loadCoords(regiao.value);
+        if (cidade.value) {
+            loadCabos(cidade.value);
+            loadApoiadores(cidade.value);
+        }
+    }
+}
+
+// ---- Tarefas / Preparação ----
+function loadTarefasCompromisso(pk) {
+    const checklist = document.getElementById('tarefasChecklist');
+    const countEl = document.getElementById('tarefasCount');
+    const progressWrap = document.getElementById('tarefasProgress');
+    const progressFill = document.getElementById('tarefasProgressFill');
+    if (!checklist || !pk) return;
+
+    fetch(`/agenda/api/compromissos/${pk}/tarefas/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin'
+    })
+    .then(r => r.json())
+    .then(data => {
+        renderTarefasChecklist(data.tarefas, data.total, data.concluidas);
+    });
+}
+
+function renderTarefasChecklist(tarefas, total, concluidas) {
+    const checklist = document.getElementById('tarefasChecklist');
+    const countEl = document.getElementById('tarefasCount');
+    const progressWrap = document.getElementById('tarefasProgress');
+    const progressFill = document.getElementById('tarefasProgressFill');
+
+    if (countEl) {
+        countEl.textContent = `${concluidas}/${total}`;
+        countEl.className = 'gcal-tarefas-count' + (total > 0 && concluidas === total ? ' done' : '');
+    }
+    if (progressWrap && progressFill) {
+        if (total > 0) {
+            progressWrap.style.display = 'block';
+            progressFill.style.width = `${Math.round((concluidas / total) * 100)}%`;
+        } else {
+            progressWrap.style.display = 'none';
+        }
+    }
+    if (checklist) {
+        checklist.innerHTML = tarefas.map(t => `
+            <div class="gcal-tarefa-item ${t.concluida ? 'done' : ''}" data-tarefa-id="${t.id}">
+                <input type="checkbox" class="gcal-tarefa-cb" ${t.concluida ? 'checked' : ''} onchange="toggleTarefaCompromisso(${t.id})">
+                <span class="gcal-tarefa-titulo" onclick="window.open('/tarefas/?abrir=${t.id}','_blank')" title="${t.titulo}">${t.titulo}</span>
+            </div>
+        `).join('');
+    }
+}
+
+function addTarefaCompromisso(pk) {
+    const input = document.getElementById('novaTarefaInput');
+    if (!input) return;
+    const titulo = input.value.trim();
+    if (!titulo) return;
+
+    input.disabled = true;
+    fetch(`/agenda/api/compromissos/${pk}/tarefas/criar/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ titulo }),
+    })
+    .then(r => r.json())
+    .then(resp => {
+        input.disabled = false;
+        if (resp.ok) {
+            input.value = '';
+            loadTarefasCompromisso(pk);
+        } else {
+            alert(resp.error || 'Erro ao criar tarefa.');
+        }
+    })
+    .catch(() => { input.disabled = false; });
+}
+
+function toggleTarefaCompromisso(tarefaId) {
+    const form = document.getElementById('compromisso-modal-form');
+    const pkInput = form ? form.action.match(/(\d+)\/editar/) : null;
+    const pk = pkInput ? pkInput[1] : null;
+
+    fetch(`/agenda/api/tarefas/${tarefaId}/toggle/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(resp => {
+        if (resp.ok && pk) {
+            loadTarefasCompromisso(pk);
+        }
+    });
+}
+
+// ---- WhatsApp share ----
+function _getFormData() {
+    const form = document.getElementById('compromisso-modal-form');
+    if (!form) return null;
+    const val = (name) => {
+        const el = form.querySelector(`[name="${name}"]`);
+        if (!el) return '';
+        if (el.tagName === 'SELECT') return el.options[el.selectedIndex]?.text || '';
+        return el.value || '';
+    };
+    const dataRaw = val('data');
+    let dataFmt = dataRaw;
+    if (dataRaw && dataRaw.includes('-')) {
+        const [y, m, d] = dataRaw.split('-');
+        dataFmt = `${d}/${m}/${y}`;
+    }
+    return {
+        titulo: val('titulo'),
+        data: dataFmt,
+        hora_inicio: val('hora_inicio'),
+        hora_fim: val('hora_fim'),
+        tipo: val('tipo'),
+        prioridade: val('prioridade'),
+        status: val('status'),
+        regiao: val('regiao'),
+        cidade: val('cidade'),
+        endereco: form.querySelector('[name="endereco"]')?.value || '',
+        participantes: form.querySelector('[name="participantes"]')?.value || '',
+        descricao: form.querySelector('[name="descricao"]')?.value || '',
+        observacoes: form.querySelector('[name="observacoes"]')?.value || '',
+    };
+}
+
+function _statusEmoji(s) {
+    const m = {'Confirmado':'✅','Pendente':'⏳','Cancelado':'❌','Realizado':'☑️'};
+    return m[s] || '';
+}
+function _prioridadeEmoji(p) {
+    const m = {'Alta':'🔴','Média':'🟡','Baixa':'🟢'};
+    return m[p] || '';
+}
+
+function shareTexto(pk) {
+    const d = _getFormData();
+    if (!d) return;
+    let msg = `🇧🇷 *AGENDA — LEANDRO SORGATTO | PL22*\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    msg += `📋 *${d.titulo}*\n\n`;
+    msg += `📅 Data: ${d.data}\n`;
+    msg += `🕐 Horário: ${d.hora_inicio} às ${d.hora_fim}\n`;
+    if (d.endereco || d.cidade) {
+        msg += `📍 Local: ${d.endereco}`;
+        if (d.cidade) msg += ` - ${d.cidade}`;
+        msg += '\n';
+    }
+    if (d.participantes) msg += `👥 Participantes: ${d.participantes}\n`;
+    if (d.descricao) msg += `📝 ${d.descricao}\n`;
+    msg += `\n${_statusEmoji(d.status)} ${d.status} | ${_prioridadeEmoji(d.prioridade)} ${d.prioridade} prioridade`;
+    if (d.observacoes) msg += `\n\n💬 Obs: ${d.observacoes}`;
+    msg += `\n\n━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `Leandro Sorgatto — Pré-candidato a\nDeputado Federal por Santa Catarina 🇧🇷 PL22`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function shareLink(pk) {
+    const d = _getFormData();
+    if (!d) return;
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/agenda/compromissos/${pk}/editar/`;
+    let msg = `🇧🇷 *AGENDA — LEANDRO SORGATTO | PL22*\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    msg += `📋 *${d.titulo}*\n`;
+    msg += `📅 ${d.data} - ${d.hora_inicio} às ${d.hora_fim}\n\n`;
+    msg += `🔗 Acesse: ${link}\n\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `Leandro Sorgatto — Pré-candidato a\nDeputado Federal por Santa Catarina 🇧🇷 PL22`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+// ---- Dropdown Enviar Agenda ----
+function toggleDropdown() {
+    const dd = document.getElementById('dropdownAgenda');
+    dd.classList.toggle('open');
+    if (dd.classList.contains('open')) {
+        // Pre-fill com data visível do calendário
+        const calDate = calendar.getDate();
+        const pad = n => String(n).padStart(2, '0');
+        const iso = `${calDate.getFullYear()}-${pad(calDate.getMonth()+1)}-${pad(calDate.getDate())}`;
+        document.getElementById('inputSemana').value = iso;
+        document.getElementById('inputMes').value = iso;
+    }
+}
+document.addEventListener('click', (e) => {
+    const dd = document.getElementById('dropdownAgenda');
+    if (dd && !e.target.closest('.dropdown-wrapper')) dd.classList.remove('open');
+});
+
+function shareAgenda(periodo) {
+    document.getElementById('dropdownAgenda').classList.remove('open');
+
+    // Calcular intervalo baseado nos inputs selecionados
+    let inicio, fim;
+    if (periodo === 'semana') {
+        const val = document.getElementById('inputSemana').value;
+        if (!val) { alert('Selecione uma data para a semana.'); return; }
+        const ref = new Date(val + 'T12:00:00');
+        const dia = ref.getDay();
+        const diffSeg = dia === 0 ? -6 : 1 - dia;
+        inicio = new Date(ref);
+        inicio.setDate(ref.getDate() + diffSeg);
+        fim = new Date(inicio);
+        fim.setDate(inicio.getDate() + 6);
+    } else {
+        const val = document.getElementById('inputMes').value;
+        if (!val) { alert('Selecione uma data.'); return; }
+        const ref = new Date(val + 'T12:00:00');
+        inicio = new Date(ref.getFullYear(), ref.getMonth(), 1);
+        fim = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+    }
+
+    const pad = n => String(n).padStart(2, '0');
+    const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const startStr = toISO(inicio);
+    const fimNext = new Date(fim);
+    fimNext.setDate(fimNext.getDate() + 1);
+    const endStr = toISO(fimNext);
+
+    const url = `{% url "agenda:api_compromissos_json" %}?start=${startStr}&end=${endStr}`;
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+        .then(r => {
+            if (!r.ok) throw new Error('Erro: ' + r.status);
+            return r.json();
+        })
+        .then(events => {
+            if (events.length === 0) {
+                alert('Nenhum compromisso encontrado para o período.');
+                return;
+            }
+
+            // Ordenar por data/hora
+            events.sort((a, b) => a.start.localeCompare(b.start));
+
+            // Agrupar por dia
+            const grupos = {};
+            events.forEach(ev => {
+                const dia = ev.start.slice(0, 10);
+                if (!grupos[dia]) grupos[dia] = [];
+                grupos[dia].push(ev);
+            });
+
+            const periodoLabel = periodo === 'semana' ? 'SEMANA' : 'MÊS';
+            let msg = `🇧🇷 *AGENDA ${periodoLabel} — LEANDRO SORGATTO | PL22*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+
+            Object.keys(grupos).sort().forEach(dia => {
+                const [y, m, d] = dia.split('-');
+                const dataFmt = `${d}/${m}/${y}`;
+                const dt = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+                const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+                const nomeDia = diasSemana[dt.getDay()];
+
+                msg += `\n━━━━━━━━━━━━━━\n📅 *${nomeDia}, ${dataFmt}*\n`;
+
+                grupos[dia].forEach(ev => {
+                    const hi = ev.start.slice(11, 16);
+                    const hf = ev.end.slice(11, 16);
+                    msg += `\n📋 *${ev.title}*\n`;
+                    msg += `🕐 ${hi} às ${hf}\n`;
+                    const props = ev.extendedProps || {};
+                    if (props.cidade) msg += `📍 ${props.cidade} (${props.regiao})\n`;
+                    msg += `${_statusEmoji(props.status)} ${props.status}\n`;
+                });
+            });
+
+            msg += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `Leandro Sorgatto — Pré-candidato a\nDeputado Federal por Santa Catarina 🇧🇷 PL22`;
+
+            window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+        })
+        .catch(err => {
+            console.error('Erro ao buscar agenda:', err);
+            alert('Erro ao carregar agenda.');
+        });
+}
+
+// ---- Reload list view ----
+function reloadListView() {
+    fetch(window.location.href, { credentials: 'same-origin' })
+        .then(r => r.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newTbody = doc.querySelector('#list-view tbody');
+            if (newTbody) {
+                document.querySelector('#list-view tbody').innerHTML = newTbody.innerHTML;
+            }
+        });
+}
+
+// ---- Escape key ----
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ---- Calendar ----
+document.addEventListener('DOMContentLoaded', () => {
+    const calEl = document.getElementById('calendar');
+    calendar = new FullCalendar.Calendar(calEl, {
+        locale: 'pt-br',
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: ''
+        },
+        eventSources: [
+            { url: '{% url "agenda:api_compromissos_json" %}', id: 'compromissos' },
+            { url: '{% url "agenda:api_tarefas_calendario" %}', id: 'tarefas' },
+            { url: '{% url "agenda:api_eventos_calendario" %}', id: 'eventos' },
+        ],
+        eventClick: function(info) {
+            info.jsEvent.preventDefault();
+            const props = info.event.extendedProps || {};
+            if (props.tipo === 'evento_externo') {
+                const evId = info.event.id.replace('evento-', '');
+                openEventoModal(evId);
+            } else if (props.is_tarefa) {
+                openTarefasPopover(info.event.startStr, info.jsEvent);
+            } else {
+                const pk = props.pk;
+                if (pk) openEdit(pk);
+            }
+        },
+        dateClick: function(info) {
+            openRoteiroModal(info.dateStr);
+        },
+        eventDidMount: function(info) {
+            const el = info.el;
+            const props = info.event.extendedProps || {};
+
+            if (props.is_tarefa) {
+                let tip = info.event.title;
+                if (props.vencidas > 0) {
+                    tip += `\n⚠️ ${props.vencidas} vencida(s)`;
+                    el.classList.add('fc-tarefa-vencida');
+                }
+                tip += '\nClique para ver tarefas';
+                el.title = tip;
+                return;
+            }
+
+            // Compromisso tooltip
+            const start = info.event.start;
+            const end = info.event.end;
+            const hi = start ? start.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+            const hf = end ? end.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+            let tip = info.event.title;
+            if (hi) tip += `\n${hi}` + (hf ? ` - ${hf}` : '');
+            if (props.cidade) tip += `\n${props.cidade} (${props.regiao})`;
+            if (props.status) tip += `\n${props.status}`;
+            if (props.tarefas_count > 0) tip += `\n📋 ${props.tarefas_count} tarefa(s) vinculada(s)`;
+            el.title = tip;
+        },
+        height: '100%',
+        expandRows: true,
+        stickyHeaderDates: true,
+        eventOrder: 'order,start,-duration,allDay',
+        buttonText: {
+            today: 'Hoje',
+            month: 'Mês',
+            week: 'Semana',
+            list: 'Lista',
+        },
+        eventDisplay: 'block',
+        fixedWeekCount: false,
+        dayCellDidMount: function(info) {
+            const d = info.date;
+            const ds = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+            const CAMPANHA_INI = 20260816;
+            const CAMPANHA_FIM = 20261003;
+            const ELEICAO = 20261004;
+            if (ds === ELEICAO) {
+                info.el.style.background = '#fefce8';
+            } else if (ds >= CAMPANHA_INI && ds <= CAMPANHA_FIM) {
+                info.el.style.background = '#f0fdf4';
+            } else if (ds < CAMPANHA_INI) {
+                info.el.style.background = '#f8fafc';
+            }
+        },
+    });
+    calendar.render();
+
+    // Inject tarefas toggle next to "Hoje" button
+    const toolbarLeft = calEl.querySelector('.fc-toolbar .fc-toolbar-chunk:first-child');
+    if (toolbarLeft) {
+        const lbl = document.createElement('label');
+        lbl.className = 'tarefas-toggle';
+        lbl.innerHTML = '<input type="checkbox" id="toggleTarefas" checked onchange="toggleTarefasCalendario(this.checked)"> 📋 Tarefas';
+        toolbarLeft.appendChild(lbl);
+    }
+
+    // Auto-open event modal from ?abrir=PK
+    const params = new URLSearchParams(window.location.search);
+    const abrirPk = params.get('abrir');
+    if (abrirPk) {
+        openEdit(parseInt(abrirPk));
+        // Clean URL
+        history.replaceState(null, '', window.location.pathname);
+    }
+});
+
+// ---- Follow-up pós-compromisso ----
+function addFollowupItem() {
+    const input = document.getElementById('followupCustomInput');
+    const val = (input.value || '').trim();
+    if (!val) return;
+    const list = document.getElementById('followupChecklist');
+    const label = document.createElement('label');
+    label.className = 'gcal-followup-item';
+    label.innerHTML = `<input type="checkbox" value="${val.replace(/"/g, '&quot;')}" checked> ${val}`;
+    list.appendChild(label);
+    input.value = '';
+}
+
+function criarFollowups(pk) {
+    const checkboxes = document.querySelectorAll('#followupChecklist input[type="checkbox"]:checked');
+    const itens = [];
+    checkboxes.forEach(cb => itens.push({ titulo: cb.value }));
+    if (!itens.length) { alert('Selecione ao menos um item.'); return; }
+
+    const btn = document.getElementById('followupCreateBtn');
+    btn.disabled = true;
+    btn.textContent = 'Criando...';
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    fetch(`/agenda/api/compromissos/${pk}/followup/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ itens }),
+        credentials: 'same-origin',
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const result = document.getElementById('followupResult');
+            result.style.display = '';
+            result.textContent = `✓ ${data.total} tarefa(s) criada(s) com prazo ${data.criadas[0]?.prazo || ''}`;
+            btn.style.display = 'none';
+            document.getElementById('followupChecklist').style.display = 'none';
+            document.querySelector('.gcal-followup-custom').style.display = 'none';
+            // Refresh tarefas checklist
+            loadTarefasCompromisso(pk);
+            calendar.refetchEvents();
+        } else {
+            alert(data.error || 'Erro ao criar follow-ups');
+            btn.disabled = false;
+            btn.textContent = 'Criar tarefas de follow-up';
+        }
+    })
+    .catch(() => {
+        alert('Erro de conexão');
+        btn.disabled = false;
+        btn.textContent = 'Criar tarefas de follow-up';
+    });
+}
+
+function toggleTarefasCalendario(show) {
+    const src = calendar.getEventSourceById('tarefas');
+    if (src) src.remove();
+    if (show) {
+        calendar.addEventSource({ url: '{% url "agenda:api_tarefas_calendario" %}', id: 'tarefas' });
+    }
+}
+
+function closeTarefasPopover() {
+    const old = document.querySelector('.tarefas-popover');
+    const oldBd = document.querySelector('.tarefas-popover-backdrop');
+    if (old) old.remove();
+    if (oldBd) oldBd.remove();
+}
+
+function openTarefasPopover(dateStr, evt) {
+    closeTarefasPopover();
+
+    // Backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'tarefas-popover-backdrop';
+    backdrop.onclick = closeTarefasPopover;
+    document.body.appendChild(backdrop);
+
+    // Popover
+    const pop = document.createElement('div');
+    pop.className = 'tarefas-popover';
+
+    const dataFmt = new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
+    pop.innerHTML = `
+        <div class="tarefas-popover-header">
+            <span>📋 Tarefas — ${dataFmt}</span>
+            <button class="tarefas-popover-close" onclick="closeTarefasPopover()">&times;</button>
+        </div>
+        <div class="tarefas-popover-body">
+            <div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.78rem;">Carregando...</div>
+        </div>
+    `;
+    document.body.appendChild(pop);
+
+    // Position based on click coordinates
+    let top = evt.clientY + 10;
+    let left = evt.clientX - 160;
+    if (left + 320 > window.innerWidth) left = window.innerWidth - 330;
+    if (left < 10) left = 10;
+    if (top + 360 > window.innerHeight) top = evt.clientY - 370;
+    if (top < 10) top = 10;
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
+
+    // Fetch
+    fetch('{% url "agenda:api_tarefas_por_dia" %}?data=' + dateStr, {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => r.json())
+    .then(items => {
+        const body = pop.querySelector('.tarefas-popover-body');
+        if (!items.length) {
+            body.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.78rem;">Nenhuma tarefa</div>';
+            return;
+        }
+        body.innerHTML = items.map(t => `
+            <a class="tarefas-popover-item" href="/tarefas/?open=${t.id}">
+                <span class="tarefas-popover-dot" style="background:${t.cor}"></span>
+                <div class="tarefas-popover-info">
+                    <div class="tarefas-popover-titulo">${t.titulo}</div>
+                    <div class="tarefas-popover-meta">${t.responsavel || 'Sem responsável'} · ${t.fase}</div>
+                </div>
+                ${t.vencida ? '<span class="tarefas-popover-vencida">VENCIDA</span>' : ''}
+            </a>
+        `).join('');
+    });
+}
+
+// ---- Modal Evento ----
+function openEventoModal(evId) {
+    fetch(`/agenda/api/eventos/${evId}/`)
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('evTitle').textContent = d.nome;
+            const img = document.getElementById('evImg');
+            if (d.imagem) { img.src = d.imagem; img.style.display = 'block'; }
+            else { img.style.display = 'none'; }
+            document.getElementById('evTipo').textContent = d.tipo;
+            document.getElementById('evData').textContent = d.data;
+            document.getElementById('evHorario').textContent = d.horario;
+            document.getElementById('evCidade').textContent = d.cidade;
+            document.getElementById('evLocal').textContent = d.local;
+            document.getElementById('evPublico').textContent = d.publico_estimado || '-';
+            document.getElementById('evRelevancia').textContent = d.relevancia;
+            document.getElementById('evStatus').textContent = d.status;
+
+            const obsS = document.getElementById('evObsSection');
+            if (d.observacoes) { document.getElementById('evObs').textContent = d.observacoes; obsS.style.display = 'block'; }
+            else { obsS.style.display = 'none'; }
+
+            const resS = document.getElementById('evResultadoSection');
+            if (d.resultado) { document.getElementById('evResultado').textContent = d.resultado; resS.style.display = 'block'; }
+            else { resS.style.display = 'none'; }
+
+            document.getElementById('evEditLink').href = `/agenda/eventos/${d.id}/editar/`;
+            document.getElementById('eventoModal').classList.add('active');
+        });
+}
+function closeEventoModal() {
+    document.getElementById('eventoModal').classList.remove('active');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeEventoModal(); closeRoteiroModal(); } });
+
+// ---- Modal Roteiro do Dia ----
+let _roteiroDiaData = null;
+let _roteiroItens = [];
+let rotMapInstance = null;
+let rotRouteLine = null;
+let rotMarkers = [];
+let rotPontoCoords = [];
+
+function openRoteiroModal(dateStr) {
+    _roteiroDiaData = dateStr;
+    const modal = document.getElementById('roteiroModal');
+    document.getElementById('rotItens').innerHTML = '<div class="rot-empty">Carregando...</div>';
+    document.getElementById('rotRoteiro').innerHTML = '';
+    document.getElementById('rotMotorista').value = '';
+    document.getElementById('rotSaida').value = '';
+    document.getElementById('rotObs').value = '';
+    document.getElementById('rotSavedBadge').style.display = 'none';
+    document.getElementById('rotDistanciaInfo').style.display = 'none';
+    document.getElementById('rotMap').style.display = 'none';
+    document.getElementById('rotGpsBtn').style.display = 'none';
+    rotPontoCoords = [];
+    
+    document.getElementById('rotNovoComp').href = 'javascript:void(0)';
+    document.getElementById('rotNovoComp').onclick = function() { closeRoteiroModal(); openCreate(dateStr); };
+    modal.classList.add('active');
+
+    fetch(`/agenda/api/roteiro-dia/?data=${dateStr}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('rotTitle').textContent = `Roteiro — ${data.data}`;
+            const diaSemana = new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' });
+            document.getElementById('rotSubtitle').textContent = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+
+            _roteiroItens = data.itens;
+
+            if (!data.itens.length) {
+                document.getElementById('rotItens').innerHTML = '<div class="rot-empty">Nenhum compromisso ou evento neste dia.</div>';
+                document.getElementById('rotRoteiro').innerHTML = '<div class="rot-empty">Adicione compromissos para montar o roteiro.</div>';
+                return;
+            }
+
+            // Agenda do dia
+            document.getElementById('rotItens').innerHTML = data.itens.map(item => `
+                <div class="rot-item">
+                    <div class="rot-item-dot" style="background:${item.cor}"></div>
+                    <div class="rot-item-info">
+                        <div class="rot-item-titulo">${item.titulo}</div>
+                        <div class="rot-item-meta">${item.cidade}${item.endereco ? ' — ' + item.endereco : ''}</div>
+                    </div>
+                    <div class="rot-item-hora">${item.horario}</div>
+                </div>
+            `).join('');
+
+            // Roteiro (sequência de cidades)
+            renderRoteiro(data.itens);
+
+            // Roteamento e mapa Leaflet + OSRM
+            const paradasComCoords = [];
+            let lastCidade = null;
+            data.itens.forEach(item => {
+                if (item.cidade !== lastCidade) {
+                    if (item.cidade_lat && item.cidade_lon) {
+                        paradasComCoords.push({
+                            cidade: item.cidade,
+                            lat: parseFloat(item.cidade_lat),
+                            lon: parseFloat(item.cidade_lon)
+                        });
+                    }
+                    lastCidade = item.cidade;
+                }
+            });
+
+            if (paradasComCoords.length >= 2) {
+                document.getElementById('rotMap').style.display = 'block';
+                document.getElementById('rotGpsBtn').style.display = 'inline-block';
+                rotPontoCoords = paradasComCoords;
+                setTimeout(() => {
+                    initLeafletMap(paradasComCoords);
+                }, 200);
+            }
+
+            // Se já existe roteiro salvo
+            if (data.roteiro) {
+                document.getElementById('rotMotorista').value = data.roteiro.motorista || '';
+                document.getElementById('rotObs').value = data.roteiro.observacoes || '';
+                document.getElementById('rotSavedBadge').textContent = data.roteiro.status;
+                document.getElementById('rotSavedBadge').style.display = 'inline-block';
+            }
+        });
+}
+
+function initLeafletMap(coords) {
+    const mapDiv = document.getElementById('rotMap');
+    if (!mapDiv) return;
+
+    // Se o mapa já foi inicializado, limpamos os marcadores e a linha de rota antiga
+    if (rotMapInstance) {
+        rotMarkers.forEach(m => rotMapInstance.removeLayer(m));
+        rotMarkers = [];
+        if (rotRouteLine) {
+            rotMapInstance.removeLayer(rotRouteLine);
+            rotRouteLine = null;
+        }
+    } else {
+        // Inicializa o mapa Leaflet
+        rotMapInstance = L.map('rotMap', {
+            zoomControl: true,
+            scrollWheelZoom: false
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(rotMapInstance);
+    }
+
+    // Adiciona pins para cada ponto com numeração sequencial
+    const leafletPoints = [];
+    coords.forEach((pt, i) => {
+        const markerLatLng = [pt.lat, pt.lon];
+        leafletPoints.push(markerLatLng);
+
+        // Criar ícone customizado com numeração
+        const numberIcon = L.divIcon({
+            className: 'rot-map-pin',
+            html: `<div style="background:#0073ea; color:#fff; width:22px; height:22px; border-radius:50%; border:2px solid #fff; font-size:0.68rem; font-weight:700; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.3);">${i + 1}</div>`,
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+        });
+
+        const marker = L.marker(markerLatLng, { icon: numberIcon })
+            .bindPopup(`<b>${i + 1}. ${pt.cidade}</b>`)
+            .addTo(rotMapInstance);
+        rotMarkers.push(marker);
+    });
+
+    // Ajusta o zoom do mapa para enquadrar todos os pontos
+    const bounds = L.latLngBounds(leafletPoints);
+    rotMapInstance.fitBounds(bounds, { padding: [30, 30] });
+
+    // Consulta à API pública do OSRM para roteamento por rodovia
+    const coordString = coords.map(pt => `${pt.lon},${pt.lat}`).join(';');
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson`;
+
+    fetch(osrmUrl)
+        .then(r => r.json())
+        .then(data => {
+            if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                const route = data.routes[0];
+                const distanceKm = (route.distance / 1000).toFixed(1);
+                
+                // Converter duração (segundos) para horas e minutos
+                const durationMinutes = Math.round(route.duration / 60);
+                const hrs = Math.floor(durationMinutes / 60);
+                const mins = durationMinutes % 60;
+                const timeStr = hrs > 0 ? `${hrs}h ${mins}min` : `${mins}min`;
+
+                // Exibe as informações de distância e tempo
+                const infoBadge = document.getElementById('rotDistanciaInfo');
+                if (infoBadge) {
+                    infoBadge.textContent = `🛣️ ${distanceKm} km · ⏰ ${timeStr}`;
+                    infoBadge.style.display = 'inline-block';
+                }
+
+                // Desenha a linha da rota pelas estradas
+                const routeGeom = route.geometry;
+                rotRouteLine = L.geoJSON(routeGeom, {
+                    style: {
+                        color: '#0073ea',
+                        weight: 4,
+                        opacity: 0.8
+                    }
+                }).addTo(rotMapInstance);
+            }
+        })
+        .catch(err => {
+            console.error('Erro de roteirização OSRM:', err);
+            // Em caso de falha, desenha uma linha reta simples (fallback)
+            rotRouteLine = L.polyline(leafletPoints, {
+                color: '#e2445c',
+                weight: 3,
+                dashArray: '5, 5'
+            }).addTo(rotMapInstance);
+        });
+}
+
+function abrirGpsExterno() {
+    if (!rotPontoCoords || rotPontoCoords.length < 2) return;
+    
+    // Gerar URL do Google Maps com origens, destinos e waypoints na sequência
+    const origin = `${rotPontoCoords[0].lat},${rotPontoCoords[0].lon}`;
+    const destination = `${rotPontoCoords[rotPontoCoords.length - 1].lat},${rotPontoCoords[rotPontoCoords.length - 1].lon}`;
+    
+    let waypoints = '';
+    if (rotPontoCoords.length > 2) {
+        const middlePoints = rotPontoCoords.slice(1, -1);
+        waypoints = '&waypoints=' + middlePoints.map(pt => `${pt.lat},${pt.lon}`).join('|');
+    }
+    
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints}&travelmode=driving`;
+    window.open(mapsUrl, '_blank');
+}
+
+function renderRoteiro(itens) {
+    if (!itens.length) {
+        document.getElementById('rotRoteiro').innerHTML = '<div class="rot-empty">Sem paradas.</div>';
+        return;
+    }
+
+    // Agrupar cidades na sequência (eliminar repetidas consecutivas)
+    const paradas = [];
+    let lastCidade = null;
+    itens.forEach(item => {
+        if (item.cidade !== lastCidade) {
+            paradas.push({ cidade: item.cidade, itens: [item] });
+            lastCidade = item.cidade;
+        } else {
+            paradas[paradas.length - 1].itens.push(item);
+        }
+    });
+
+    let html = paradas.map((p, i) => {
+        const detalhes = p.itens.map(it => it.titulo).join(', ');
+        const seta = i < paradas.length - 1 ? '<div style="text-align:center;color:#cbd5e1;font-size:0.7rem;margin:2px 0;">↓</div>' : '';
+        return `
+            <div class="rot-item">
+                <div class="rot-item-ordem">${i + 1}</div>
+                <div class="rot-item-info">
+                    <div class="rot-item-titulo">${p.cidade}</div>
+                    <div class="rot-item-meta">${detalhes}</div>
+                </div>
+            </div>
+            ${seta}
+        `;
+    }).join('');
+
+    document.getElementById('rotRoteiro').innerHTML = html;
+}
+
+function closeRoteiroModal() {
+    document.getElementById('roteiroModal').classList.remove('active');
+}
+
+function salvarRoteiro() {
+    const pontos = _roteiroItens.map(item => ({
+        id: item.id,
+        tipo_item: item.tipo_item,
+    }));
+
+    fetch('/agenda/api/roteiro-salvar/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+            data: _roteiroDiaData,
+            motorista: document.getElementById('rotMotorista').value,
+            observacoes: document.getElementById('rotObs').value,
+            pontos: pontos,
+        })
+    })
+    .then(resp => resp.json().then(data => ({ status: resp.status, data })))
+    .then(({ status, data }) => {
+        const badge = document.getElementById('rotSavedBadge');
+        if (data.ok) {
+            badge.textContent = 'Salvo!';
+            badge.style.background = '#f0fdf4';
+            badge.style.color = '#16a34a';
+        } else {
+            badge.textContent = data.error || 'Erro ao salvar';
+            badge.style.background = '#fef2f2';
+            badge.style.color = '#dc2626';
+            console.error('Erro roteiro:', data);
+        }
+        badge.style.display = 'inline-block';
+    })
+    .catch(err => {
+        const badge = document.getElementById('rotSavedBadge');
+        badge.textContent = 'Erro de conexão';
+        badge.style.display = 'inline-block';
+        badge.style.background = '#fef2f2';
+        badge.style.color = '#dc2626';
+        console.error('Fetch error:', err);
+    });
+}
+
+function imprimirRoteiro() {
+    const content = document.querySelector('.rot-modal-box').cloneNode(true);
+    // Remover botões
+    const actions = content.querySelector('.rot-actions');
+    if (actions) actions.remove();
+    const close = content.querySelector('.rot-modal-close');
+    if (close) close.remove();
+    const forms = content.querySelectorAll('.rot-form-row');
+    forms.forEach(f => {
+        const inputs = f.querySelectorAll('input, textarea');
+        inputs.forEach(inp => {
+            const span = document.createElement('span');
+            span.textContent = inp.value || '-';
+            span.style.fontSize = '0.82rem';
+            inp.replaceWith(span);
+        });
+    });
+
+    const win = window.open('', '_blank');
+    win.document.write(`<html><head><title>Roteiro</title>
+        <style>body{font-family:sans-serif;padding:30px;max-width:700px;margin:auto;}
+        .rot-item{display:flex;align-items:center;gap:10px;padding:6px 8px;border:1px solid #eee;border-radius:6px;margin-bottom:4px;}
+        .rot-item-ordem{width:22px;height:22px;border-radius:50%;background:#e2e8f0;font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
+        .rot-item-dot{width:8px;height:8px;border-radius:50;}
+        .rot-item-titulo{font-weight:600;font-size:0.82rem;}
+        .rot-item-meta{font-size:0.72rem;color:#666;}
+        .rot-item-hora{font-size:0.75rem;font-weight:600;}
+        .rot-section-title{font-weight:600;font-size:0.75rem;color:#666;text-transform:uppercase;margin:16px 0 6px;padding-top:10px;border-top:1px solid #ddd;}
+        .rot-modal-title{font-size:1.2rem;font-weight:700;}
+        .rot-modal-subtitle{color:#666;font-size:0.82rem;}
+        .rot-form-row{display:flex;gap:12px;margin-top:10px;}
+        .rot-form-group{flex:1;} .rot-form-group label{font-size:0.72rem;font-weight:600;color:#666;text-transform:uppercase;}
+        </style></head><body>${content.innerHTML}</body></html>`);
+    win.document.close();
+    win.print();
+}
+</script>
+{% endblock %}

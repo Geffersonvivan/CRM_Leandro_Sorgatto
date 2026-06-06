@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cidade — CRM Sorgatto{% endblock %}
+
+{% block extra_head %}
+<style>
+    .city-wrapper {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+    .breadcrumb { font-size: .82rem; color: #64748b; margin-bottom: 4px; }
+    .breadcrumb a { color: #2563eb; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .city-title { font-size: 1.15rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+    }
+    .stat-value { font-size: 1.2rem; font-weight: 800; color: #002776; }
+    .stat-label { font-size: .72rem; color: #64748b; margin-top: 2px; }
+
+    .section-title {
+        font-size: .92rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 20px 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #f1f5f9;
+    }
+
+    .strategic-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: .78rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+    }
+    .info-item {
+        padding: 10px;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+    .info-label { font-size: .72rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
+    .info-value { font-size: .88rem; color: #1e293b; font-weight: 500; margin-top: 2px; }
+
+    .rec-list { list-style: none; padding: 0; margin: 0; }
+    .rec-item {
+        padding: 10px 14px;
+        border-left: 3px solid #d1d5db;
+        margin-bottom: 8px;
+        background: #f8fafc;
+        border-radius: 0 8px 8px 0;
+        font-size: .82rem;
+        color: #1e293b;
+    }
+    .rec-item.urgent { border-left-color: #ef4444; }
+    .rec-item.high { border-left-color: #f97316; }
+    .rec-item.medium { border-left-color: #eab308; }
+    .rec-item.low { border-left-color: #9ca3af; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="city-wrapper">
+    <div class="breadcrumb" id="breadcrumb">Carregando...</div>
+    <div class="city-title" id="cityTitle">Carregando...</div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div id="strategicSection" style="display:none;">
+        <div class="section-title">Análise Estratégica</div>
+        <div id="strategicContent"></div>
+    </div>
+
+    <div id="structureSection" style="display:none;">
+        <div class="section-title">Estrutura Política</div>
+        <div class="info-grid" id="structureGrid"></div>
+    </div>
+
+    <div id="recsSection" style="display:none;">
+        <div class="section-title">Recomendações</div>
+        <ul class="rec-list" id="recsList"></ul>
+    </div>
+</div>
+
+<script src="{% static 'js/map/api.js' %}"></script>
+<script>
+(function() {
+    const slug = '{{ city_slug }}';
+
+    API.dashboard.city(slug).then(data => {
+        const c = data.city;
+        document.getElementById('breadcrumb').innerHTML =
+            `<a href="{% url 'mapa:index' %}">Mapa</a> &rsaquo; <a href="/mapa/regiao/${c.region_slug}/">${c.region}</a> &rsaquo; ${c.name}`;
+        document.getElementById('cityTitle').textContent = c.name;
+
+        // Stats
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card"><div class="stat-value">${(c.population || 0).toLocaleString('pt-BR')}</div><div class="stat-label">População</div></div>
+            <div class="stat-card"><div class="stat-value">${(c.registered_voters || 0).toLocaleString('pt-BR')}</div><div class="stat-label">Eleitores</div></div>
+            <div class="stat-card"><div class="stat-value">${data.total_apoiadores}</div><div class="stat-label">Apoiadores</div></div>
+            <div class="stat-card"><div class="stat-value">${(c.votes_sorgatto_2022 || 0).toLocaleString('pt-BR')}</div><div class="stat-label">Votos 2022</div></div>
+            <div class="stat-card"><div class="stat-value">${c.meta_votes || 0}</div><div class="stat-label">Meta 2026</div></div>
+            <div class="stat-card"><div class="stat-value">R$ ${fmt.number(data.total_doacoes)}</div><div class="stat-label">Doações</div></div>
+            <div class="stat-card"><div class="stat-value">${data.tarefas_total}</div><div class="stat-label">Tarefas</div></div>
+            <div class="stat-card"><div class="stat-value">${data.compromissos}</div><div class="stat-label">Compromissos</div></div>
+        `;
+
+        // Strategic
+        const s = data.strategic;
+        if (s) {
+            const colors = {
+                base_forte: '#15803d',
+                aliado_fraco: '#86efac',
+                potencial_oculto: '#eab308',
+                territorio_hostil: '#dc2626',
+                neutro: '#9ca3af',
+            };
+            document.getElementById('strategicContent').innerHTML = `
+                <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
+                    <span class="strategic-badge" style="background:${colors[s.classification] || '#9ca3af'}">${s.classification_label}</span>
+                    <span style="font-size:.85rem;color:#475569;">Score: <strong>${s.score}/100</strong></span>
+                    <span style="font-size:.85rem;color:#475569;">Penetração: <strong>${s.penetration}%</strong> (média ${s.avg_penetration}%)</span>
+                </div>
+            `;
+            document.getElementById('strategicSection').style.display = '';
+        }
+
+        // Structure
+        const st = s ? s.structure : null;
+        if (st) {
+            document.getElementById('structureGrid').innerHTML = `
+                <div class="info-item"><div class="info-label">Prefeito</div><div class="info-value">${st.mayor_name || '-'} (${st.mayor_party || '-'})</div></div>
+                <div class="info-item"><div class="info-label">Alinhamento</div><div class="info-value">${{allied:'Aliado',adversary:'Adversário',neutral:'Neutro'}[st.alignment] || '-'}</div></div>
+                <div class="info-item"><div class="info-label">Vereadores PL</div><div class="info-value">${st.num_vereadores_pl}/${st.num_vereadores}</div></div>
+                <div class="info-item"><div class="info-label">Presidente PL</div><div class="info-value">${st.pl_executive_president || 'Não informado'}</div></div>
+                <div class="info-item"><div class="info-label">Coordenador</div><div class="info-value">${st.has_coordinator ? 'Sim' : 'Não'}</div></div>
+            `;
+            document.getElementById('structureSection').style.display = '';
+        }
+
+        // Recommendations
+        const recs = s ? s.recommendations : [];
+        if (recs && recs.length > 0) {
+            document.getElementById('recsList').innerHTML = recs.map(r =>
+                `<li class="rec-item ${r.priority}">${r.text}</li>`
+            ).join('');
+            document.getElementById('recsSection').style.display = '';
+        }
+    });
+})();
+</script>
+{% endblock %}

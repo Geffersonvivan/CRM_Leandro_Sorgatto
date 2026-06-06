@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .actions { display: flex; gap: 4px; }
+    .obs-link { color: #002776; cursor: pointer; text-decoration: underline dotted; }
+    .obs-link:hover { color: #003da5; }
+    .pagination-info { text-align: center; font-size: 0.78rem; color: #64748b; padding-bottom: 12px; }
+    .pagination .disabled { color: #cbd5e1; cursor: default; }
+    .pagination .disabled:hover { background: transparent; border-color: #e2e8f0; }
+    .modal-box { padding: 16px 20px; width: 520px; max-height: 85vh; overflow-y: auto; }
+    .modal-body { word-break: break-word; }
+    .modal-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 8px; }
+    .detail-item { font-size: 0.75rem; }
+    .detail-label { font-weight: 600; color: #64748b; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0; }
+    .detail-text { font-size: 0.78rem; color: #334155; line-height: 1.4; margin-top: 4px; }
+    .detail-section { border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 6px; }
+    .table-container table { table-layout: fixed; width: 100%; }
+    .table-container th, .table-container td {
+        font-size: 0.72rem; padding: 6px 5px;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        text-align: left; vertical-align: middle;
+    }
+    .table-container th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    .table-container td .btn-sm { padding: 2px 7px; font-size: 0.66rem; }
+    .table-container td .badge { font-size: 0.64rem; padding: 2px 5px; }
+    .badge-relevancia-alta { background: #fef2f2; color: #dc2626; }
+    .badge-relevancia-media { background: #fffbeb; color: #d97706; }
+    .badge-relevancia-baixa { background: #f0fdf4; color: #16a34a; }
+    .badge-status-identificado { background: #f1f5f9; color: #475569; }
+    .badge-status-avaliando { background: #eff6ff; color: #2563eb; }
+    .badge-status-confirmado { background: #f0fdf4; color: #16a34a; }
+    .badge-status-descartado { background: #fef2f2; color: #dc2626; }
+    .badge-status-participou { background: #faf5ff; color: #7c3aed; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title" data-tip="Eventos externos da comunidade que o candidato pode participar. Inaugurações, festas, encontros, feiras, etc.">Eventos <span class="page-subtitle">{{ total }} registros</span></h1>
+    <a href="{% url 'agenda:evento_create' %}" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo Evento
+    </a>
+</div>
+
+<div class="filters-card">
+    <form method="get" id="filterForm">
+        <div class="filters-row">
+            <div class="filter-group">
+                <label>Busca</label>
+                <input type="text" name="busca" placeholder="Nome, local..." value="{{ busca }}">
+            </div>
+            <div class="filter-group">
+                <label>Tipo</label>
+                <select name="tipo">
+                    <option value="">Todos</option>
+                    {% for value, label in tipo_choices %}
+                    <option value="{{ value }}" {% if tipo_filtro == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Relevância</label>
+                <select name="relevancia">
+                    <option value="">Todas</option>
+                    {% for value, label in relevancia_choices %}
+                    <option value="{{ value }}" {% if relevancia_filtro == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status">
+                    <option value="">Todos</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status_filtro == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Região</label>
+                <select name="regiao" id="filtroRegiao" onchange="onRegiaoChange()">
+                    <option value="">Todas</option>
+                    {% for r in regioes %}
+                    <option value="{{ r.id }}" {% if regiao_filtro == r.id|stringformat:"d" %}selected{% endif %}>{{ r.sigla }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Cidade</label>
+                <select name="cidade" id="filtroCidade">
+                    <option value="">Todas</option>
+                    {% for c in cidades_filtro %}
+                    <option value="{{ c.id }}" {% if cidade_filtro == c.id|stringformat:"d" %}selected{% endif %}>{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+                <a href="{% url 'agenda:evento_list' %}" class="btn btn-outline btn-sm">Limpar</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th style="width:15%;">Evento</th>
+                <th style="width:8%;">Tipo</th>
+                <th style="width:7%;">Data</th>
+                <th style="width:5%;">Hora</th>
+                <th style="width:8%;">Cidade</th>
+                <th style="width:10%;">Local</th>
+                <th style="width:4%;">Públ.</th>
+                <th style="width:5%;">Relev.</th>
+                <th style="width:10%;">Status</th>
+                <th style="width:5%;">Info</th>
+                <th style="width:11%;">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in page_obj %}
+            <tr>
+                <td>{{ e.nome }}</td>
+                <td><span class="badge">{{ e.get_tipo_display }}</span></td>
+                <td>{{ e.data|date:"d/m/Y" }}</td>
+                <td>{% if e.horario_inicio %}{{ e.horario_inicio|time:"H:i" }}{% else %}-{% endif %}</td>
+                <td>{{ e.cidade }}</td>
+                <td>{{ e.local|default:"-" }}</td>
+                <td>{{ e.publico_estimado|default:"-" }}</td>
+                <td><span class="badge badge-relevancia-{{ e.relevancia }}">{{ e.get_relevancia_display }}</span></td>
+                <td><span class="badge badge-status-{{ e.status }}">{{ e.get_status_display }}</span></td>
+                <td>
+                    <span class="obs-link" onclick="openDetalhes(this)"
+                        data-nome="{{ e.nome|escapejs }}"
+                        data-tipo="{{ e.get_tipo_display }}"
+                        data-data="{{ e.data|date:'d/m/Y' }}"
+                        data-horario="{% if e.horario_inicio %}{{ e.horario_inicio|time:'H:i' }}{% if e.horario_fim %} — {{ e.horario_fim|time:'H:i' }}{% endif %}{% else %}-{% endif %}"
+                        data-cidade="{{ e.cidade }}"
+                        data-local="{{ e.local|default:'' }}"
+                        data-publico="{{ e.publico_estimado|default:'' }}"
+                        data-relevancia="{{ e.get_relevancia_display }}"
+                        data-status="{{ e.get_status_display }}"
+                        data-obs="{{ e.observacoes|escapejs }}"
+                        data-resultado="{{ e.resultado|escapejs }}"
+                        data-imagem="{% if e.imagem %}{{ e.imagem.url }}{% endif %}"
+                    >Detalhes</span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a href="{% url 'agenda:evento_edit' e.pk %}" class="btn btn-primary btn-sm">Editar</a>
+                        <form method="post" action="{% url 'agenda:evento_delete' e.pk %}" onsubmit="return confirm('Remover este evento?')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="11" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum evento cadastrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination-info">Exibindo {{ page_obj.start_index }} a {{ page_obj.end_index }} de {{ total }}</div>
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?{{ query_string }}&page=1">&laquo;</a>
+        <a href="?{{ query_string }}&page={{ page_obj.previous_page_number }}">&lsaquo;</a>
+        {% else %}
+        <span class="disabled">&laquo;</span><span class="disabled">&lsaquo;</span>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}<span class="current">{{ num }}</span>
+            {% elif num > page_obj.number|add:"-4" and num < page_obj.number|add:"4" %}<a href="?{{ query_string }}&page={{ num }}">{{ num }}</a>
+            {% elif num == 1 or num == page_obj.paginator.num_pages %}<a href="?{{ query_string }}&page={{ num }}">{{ num }}</a>
+            {% elif num == page_obj.number|add:"-4" or num == page_obj.number|add:"4" %}<span class="disabled">…</span>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <a href="?{{ query_string }}&page={{ page_obj.next_page_number }}">&rsaquo;</a>
+        <a href="?{{ query_string }}&page={{ page_obj.paginator.num_pages }}">&raquo;</a>
+        {% else %}
+        <span class="disabled">&rsaquo;</span><span class="disabled">&raquo;</span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal-overlay" id="detalhesModal" onclick="if(event.target===this)closeDetalhes()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span class="modal-title" id="detalhesTitle"></span>
+            <button class="modal-close" onclick="closeDetalhes()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <img id="detalhesImg" class="modal-img" style="display:none;" alt="Imagem do evento">
+            <div class="detail-grid">
+                <div class="detail-item"><span class="detail-label">Tipo</span><br><span id="dTipo"></span></div>
+                <div class="detail-item"><span class="detail-label">Data</span><br><span id="dData"></span></div>
+                <div class="detail-item"><span class="detail-label">Horário</span><br><span id="dHorario"></span></div>
+                <div class="detail-item"><span class="detail-label">Cidade</span><br><span id="dCidade"></span></div>
+                <div class="detail-item"><span class="detail-label">Local</span><br><span id="dLocal"></span></div>
+                <div class="detail-item"><span class="detail-label">Público Est.</span><br><span id="dPublico"></span></div>
+                <div class="detail-item"><span class="detail-label">Relevância</span><br><span id="dRelevancia"></span></div>
+                <div class="detail-item"><span class="detail-label">Status</span><br><span id="dStatus"></span></div>
+            </div>
+            <div id="dObsSection" class="detail-section" style="display:none;">
+                <span class="detail-label">Observações</span>
+                <div class="detail-text" id="dObs"></div>
+            </div>
+            <div id="dResultadoSection" class="detail-section" style="display:none;">
+                <span class="detail-label">Resultado / Avaliação</span>
+                <div class="detail-text" id="dResultado"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openDetalhes(el) {
+    const d = el.dataset;
+    document.getElementById('detalhesTitle').textContent = d.nome;
+
+    const img = document.getElementById('detalhesImg');
+    if (d.imagem) { img.src = d.imagem; img.style.display = 'block'; }
+    else { img.style.display = 'none'; }
+
+    document.getElementById('dTipo').textContent = d.tipo;
+    document.getElementById('dData').textContent = d.data;
+    document.getElementById('dHorario').textContent = d.horario;
+    document.getElementById('dCidade').textContent = d.cidade;
+    document.getElementById('dLocal').textContent = d.local || '-';
+    document.getElementById('dPublico').textContent = d.publico || '-';
+    document.getElementById('dRelevancia').textContent = d.relevancia;
+    document.getElementById('dStatus').textContent = d.status;
+
+    const obsSection = document.getElementById('dObsSection');
+    if (d.obs) { document.getElementById('dObs').textContent = d.obs; obsSection.style.display = 'block'; }
+    else { obsSection.style.display = 'none'; }
+
+    const resSection = document.getElementById('dResultadoSection');
+    if (d.resultado) { document.getElementById('dResultado').textContent = d.resultado; resSection.style.display = 'block'; }
+    else { resSection.style.display = 'none'; }
+
+    document.getElementById('detalhesModal').classList.add('active');
+}
+function closeDetalhes() {
+    document.getElementById('detalhesModal').classList.remove('active');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetalhes(); });
+
+function onRegiaoChange() {
+    const regiaoId = document.getElementById('filtroRegiao').value;
+    const cidadeSelect = document.getElementById('filtroCidade');
+    cidadeSelect.innerHTML = '<option value="">Todas</option>';
+    if (!regiaoId) return;
+    fetch(`/liderancas/api/cidades/${regiaoId}/`)
+        .then(r => r.json())
+        .then(cidades => {
+            cidades.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome;
+                cidadeSelect.appendChild(opt);
+            });
+        });
+}
+</script>
+{% endblock %}

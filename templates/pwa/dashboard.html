@@ -1,0 +1,368 @@
+{% extends 'pwa/base.html' %}
+{% block nav_home %}active{% endblock %}
+{% block title %}Início — LS Apoiadores{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hero card */
+    .hero-card {
+        background: linear-gradient(135deg, #002776, #003da5);
+        border-radius: 20px;
+        padding: 28px 24px 24px;
+        color: #fff;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-card::after {
+        content: '';
+        position: absolute;
+        top: -40px;
+        right: -40px;
+        width: 120px;
+        height: 120px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50%;
+    }
+    .hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+    .hero-number {
+        font-size: 3.2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .hero-label {
+        font-size: 0.82rem;
+        opacity: 0.75;
+        margin-top: 4px;
+    }
+    .hero-rank {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(4px);
+        padding: 8px 16px;
+        border-radius: 14px;
+        text-align: center;
+    }
+    .hero-rank-pos {
+        font-size: 1.4rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+    .hero-rank-label {
+        font-size: 0.65rem;
+        opacity: 0.75;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Action buttons */
+    .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 22px 14px;
+        background: #fff;
+        border-radius: 16px;
+        text-decoration: none;
+        color: #1a1a1a;
+        font-weight: 600;
+        font-size: 0.85rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1.5px solid transparent;
+        transition: all 0.15s;
+    }
+    .action-btn:active { transform: scale(0.97); }
+    .action-btn .action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .action-btn .action-icon svg { width: 24px; height: 24px; }
+    .action-btn.apoiador .action-icon { background: #eff6ff; color: #002776; }
+    .action-btn.apoiador { border-color: #dbeafe; }
+    .action-btn.replicador .action-icon { background: #ecfdf5; color: #047857; }
+    .action-btn.replicador { border-color: #d1fae5; }
+    .action-btn.mobilizacao .action-icon { background: #fff7ed; color: #ea580c; }
+    .action-btn.mobilizacao { border-color: #fed7aa; }
+    .action-btn.doacao .action-icon { background: #f0fdf4; color: #16a34a; }
+    .action-btn.doacao { border-color: #bbf7d0; }
+
+    /* Section */
+    .section { margin-bottom: 20px; }
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 0 4px;
+    }
+    .section-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .section-badge {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #6b7280;
+        background: #f1f5f9;
+        padding: 3px 10px;
+        border-radius: 10px;
+    }
+
+    /* Ranking */
+    .ranking-list {
+        background: #fff;
+        border-radius: 16px;
+        padding: 4px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .ranking-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        gap: 12px;
+    }
+    .ranking-row:not(:last-child) { border-bottom: 1px solid #f3f4f6; }
+    .ranking-row.ranking-me { background: #eff6ff; }
+    .ranking-pos {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #64748b;
+        flex-shrink: 0;
+    }
+    .ranking-pos.top1 { background: #fef3c7; color: #92400e; }
+    .ranking-pos.top2 { background: #e5e7eb; color: #374151; }
+    .ranking-pos.top3 { background: #fed7aa; color: #9a3412; }
+    .ranking-info { flex: 1; min-width: 0; }
+    .ranking-nome {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ranking-vinculo {
+        font-size: 0.68rem;
+        color: #9ca3af;
+        font-weight: 400;
+    }
+    .ranking-total {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #002776;
+        flex-shrink: 0;
+    }
+
+    /* Últimos cadastros */
+    .ultimos-list {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .ultimos-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        gap: 12px;
+    }
+    .ultimos-item:not(:last-child) { border-bottom: 1px solid #f3f4f6; }
+    .ultimos-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #eff6ff;
+        color: #002776;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+    .ultimos-info { flex: 1; min-width: 0; }
+    .ultimos-nome {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ultimos-cidade {
+        font-size: 0.72rem;
+        color: #9ca3af;
+    }
+
+    /* Replicadores */
+    .replicadores-list {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .replicador-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+    }
+    .replicador-row:not(:last-child) { border-bottom: 1px solid #f3f4f6; }
+    .replicador-nome {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #1e293b;
+    }
+    .replicador-count {
+        background: #ecfdf5;
+        color: #047857;
+        padding: 4px 12px;
+        border-radius: 10px;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.82rem;
+        padding: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="hero-card">
+    <div class="hero-top">
+        <div>
+            <div class="hero-number">{{ meu_total }}</div>
+            <div class="hero-label">apoiadores cadastrados</div>
+        </div>
+        {% if minha_posicao %}
+        <div class="hero-rank">
+            <div class="hero-rank-pos">{{ minha_posicao }}°</div>
+            <div class="hero-rank-label">no ranking</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Ações -->
+<div class="action-buttons">
+    <a href="{% url 'pwa:cadastro_apoiador' %}" class="action-btn apoiador">
+        <div class="action-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        </div>
+        Novo Apoiador
+    </a>
+    <a href="{% url 'pwa:cadastro_replicador' %}" class="action-btn replicador">
+        <div class="action-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        Novo Replicador
+    </a>
+    <a href="{% url 'pwa:cadastro_voluntario' %}" class="action-btn mobilizacao">
+        <div class="action-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        Mobilização
+    </a>
+    <a href="{% url 'pwa:cadastro_doacao' %}" class="action-btn doacao">
+        <div class="action-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        Doação
+    </a>
+</div>
+
+<!-- Ranking -->
+<div class="section">
+    <div class="section-header">
+        <div class="section-title">Ranking</div>
+        <span class="section-badge">Top 10</span>
+    </div>
+    <div class="ranking-list">
+        {% for r in ranking %}
+        <div class="ranking-row {% if r.cadastrado_por__id == user.id %}ranking-me{% endif %}">
+            <div class="ranking-pos {% if forloop.counter == 1 %}top1{% elif forloop.counter == 2 %}top2{% elif forloop.counter == 3 %}top3{% endif %}">
+                {{ forloop.counter }}
+            </div>
+            <div class="ranking-info">
+                <div class="ranking-nome">
+                    {{ r.cadastrado_por__first_name }} {{ r.cadastrado_por__last_name }}
+                </div>
+                {% if r.cadastrado_por__vinculo_display %}
+                <div class="ranking-vinculo">{{ r.cadastrado_por__vinculo_display }}</div>
+                {% endif %}
+            </div>
+            <div class="ranking-total">{{ r.total }}</div>
+        </div>
+        {% empty %}
+        <div class="empty-state">Nenhum cadastro ainda. Seja o primeiro!</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Últimos cadastros -->
+{% if ultimos %}
+<div class="section">
+    <div class="section-header">
+        <div class="section-title">Meus Últimos Cadastros</div>
+    </div>
+    <div class="ultimos-list">
+        {% for e in ultimos %}
+        <div class="ultimos-item">
+            <div class="ultimos-avatar">{{ e.nome|first }}</div>
+            <div class="ultimos-info">
+                <div class="ultimos-nome">{{ e.nome }}</div>
+                {% if e.cidade %}<div class="ultimos-cidade">{{ e.cidade }}</div>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Meus replicadores -->
+{% if meus_replicadores %}
+<div class="section">
+    <div class="section-header">
+        <div class="section-title">Meus Replicadores</div>
+        <span class="section-badge">{{ meus_replicadores|length }}</span>
+    </div>
+    <div class="replicadores-list">
+        {% for r in meus_replicadores %}
+        <div class="replicador-row">
+            <span class="replicador-nome">{{ r.first_name }} {{ r.last_name }}</span>
+            <span class="replicador-count">{{ r.total_apoiadores }} cadastros</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

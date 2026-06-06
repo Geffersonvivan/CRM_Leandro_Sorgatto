@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .home-title { font-size: 1.4rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+    .summary-grid { grid-template-columns: repeat(3, 1fr); }
+    .summary-card.hero .summary-sub { color: rgba(255,255,255,0.6); }
+    .progress-bar-container { background: rgba(255,255,255,0.2); border-radius: 8px; height: 10px; margin-top: 10px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: #FFD700; border-radius: 8px; transition: width 0.6s ease; }
+
+    .dash-section { margin-top: 24px; }
+    .dash-section-title { font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .dash-row { display: grid; gap: 16px; }
+    .dash-row-3 { grid-template-columns: repeat(3, 1fr); }
+    .dash-row-2 { grid-template-columns: 1fr 1fr; }
+    .dash-row-3-rede { grid-template-columns: 1fr 1fr 2fr; }
+
+    .mini-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; }
+    .mini-card .mc-label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.3px; color: #64748b; font-weight: 600; }
+    .mini-card .mc-value { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
+    .mini-card .mc-sub { font-size: 0.7rem; color: #94a3b8; margin-top: 1px; }
+    .mini-card.green .mc-value { color: #16a34a; }
+    .mini-card.blue .mc-value { color: #2563eb; }
+    .mini-card.orange .mc-value { color: #d97706; }
+
+    .list-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; }
+    .list-card h4 { font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.75rem; }
+    .list-item:last-child { border-bottom: none; }
+    .list-item .li-main { color: #334155; font-weight: 500; }
+    .list-item .li-sub { color: #94a3b8; font-size: 0.68rem; }
+    .list-item .li-right { text-align: right; color: #64748b; font-size: 0.68rem; white-space: nowrap; }
+    .list-item .li-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 0.6rem; font-weight: 600; }
+    .badge-urgente { background: #fef2f2; color: #dc2626; }
+    .badge-alta { background: #fff7ed; color: #ea580c; }
+    .badge-media { background: #fffbeb; color: #d97706; }
+    .badge-baixa { background: #f0fdf4; color: #16a34a; }
+    .badge-vencida { background: #fef2f2; color: #dc2626; }
+
+    .empty-msg { color: #94a3b8; font-size: 0.75rem; text-align: center; padding: 16px 0; }
+
+    .tag-counters { display: flex; gap: 10px; margin-bottom: 8px; }
+    .tag-counter { font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+    .tag-counter.red { background: #fef2f2; color: #dc2626; }
+    .tag-counter.yellow { background: #fffbeb; color: #d97706; }
+    .tag-counter.blue { background: #eff6ff; color: #2563eb; }
+
+    .regiao-bar { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.75rem; }
+    .regiao-bar .rb-label { width: 60px; font-weight: 600; color: #334155; }
+    .regiao-bar .rb-fill { height: 14px; background: #002776; border-radius: 4px; min-width: 4px; }
+    .regiao-bar .rb-val { color: #64748b; font-size: 0.68rem; }
+
+    .dash-section-title a { color: #002776; text-decoration: none; font-weight: 700; }
+    .dash-section-title a:hover { color: #003da5; text-decoration: underline; }
+    .list-card h4 a { color: #002776 !important; }
+    .list-card h4 a:hover { text-decoration: underline !important; }
+    .list-item a { text-decoration: none; color: inherit; display: contents; }
+    .list-item a .li-main { color: #2563eb; }
+    .list-item a:hover .li-main { text-decoration: underline; }
+    a.mini-card { text-decoration: none; color: inherit; transition: border-color 0.15s, box-shadow 0.15s; display: block; }
+    a.mini-card:hover { border-color: #002776; box-shadow: 0 2px 8px rgba(0,39,118,.1); }
+
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; }
+    .chart-card h4 { font-size: 0.78rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+    .chart-card canvas { max-height: 180px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="home-title">CRM Eleitoral — Leandro Sorgatto</h1>
+
+<!-- LINHA 1: Meta -->
+<div class="summary-grid">
+    <div class="summary-card hero">
+        <div class="summary-label" data-tip="Total de votos necessários para eleger o candidato LS em 2026.">Meta</div>
+        <div class="summary-value">{{ meta_votos }}</div>
+        <div class="summary-sub">votos necessários</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: {% if percentual > 100 %}100{% else %}{{ percentual }}{% endif %}%"></div>
+        </div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label" data-tip="Total de apoiadores cadastrados por coordenadores, cabos eleitorais e replicadores via sistema e PWA.">Votos Captados</div>
+        <div class="summary-value">{{ total_votos }}</div>
+        <div class="summary-sub">{{ percentual }}% da meta</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label" data-tip="Quantidade de votos que ainda precisam ser captados para atingir a meta.">Faltam</div>
+        <div class="summary-value">{{ faltam }}</div>
+        <div class="summary-sub">votos para a meta</div>
+    </div>
+</div>
+
+<!-- LINHA 2: Resumo Financeiro -->
+<div class="dash-section">
+    <div class="dash-section-title"><a href="{% url 'doacoes:dashboard_doacoes' %}" data-tip="Visão geral das doações recebidas pela campanha. Clique para acessar o dashboard completo.">Resumo Financeiro &rarr;</a></div>
+    <div class="dash-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="mini-card" style="background:#002776;color:#fff;">
+            <div class="mc-label" style="color:rgba(255,255,255,.6);" data-tip="Meta total de arrecadação da campanha até as eleições 2026.">Meta Arrecadação</div>
+            <div class="mc-value" style="color:#FFD700;">R$ {{ meta_doacoes_fmt }}</div>
+            <div class="mc-sub" style="color:rgba(255,255,255,.5);">{{ percentual_meta }}% alcançado</div>
+            <div style="background:rgba(255,255,255,.2);border-radius:6px;height:6px;margin-top:6px;overflow:hidden;">
+                <div style="height:100%;background:#FFD700;border-radius:6px;width:{% if percentual_meta > 100 %}100{% else %}{{ percentual_meta }}{% endif %}%;"></div>
+            </div>
+        </div>
+        <a class="mini-card green" href="{% url 'doacoes:doacao_list' %}?status=confirmada">
+            <div class="mc-label" data-tip="Total de doações com status confirmado. Clique para ver a lista.">Arrecadado (confirmado)</div>
+            <div class="mc-value">R$ {{ total_arrecadado }}</div>
+        </a>
+        <div class="mini-card blue">
+            <div class="mc-label" data-tip="Valor que fica para a campanha após descontar todas as comissões (80% do total).">Líquido Campanha</div>
+            <div class="mc-value">R$ {{ total_liquido }}</div>
+        </div>
+        <a class="mini-card orange" href="{% url 'doacoes:doacao_list' %}?status=pendente">
+            <div class="mc-label" data-tip="Doações registradas aguardando confirmação. Clique para ver e confirmar.">Pendentes</div>
+            <div class="mc-value">{{ pendentes_qtd }}</div>
+            <div class="mc-sub">R$ {{ pendentes_valor }} aguardando</div>
+        </a>
+    </div>
+</div>
+
+<!-- GRÁFICOS -->
+<div class="charts-row" style="margin-top:16px;">
+    <div class="chart-card">
+        <h4>Captação de Apoiadores (últimos 7 dias)</h4>
+        <canvas id="chartCaptacao"></canvas>
+    </div>
+    <div class="chart-card">
+        <h4>Arrecadação por Mês</h4>
+        <canvas id="chartArrec"></canvas>
+    </div>
+</div>
+
+<!-- LINHA 3: Agenda + Eventos da Semana -->
+<div class="dash-section">
+    <div class="dash-section-title"><a href="{% url 'agenda:compromisso_list' %}" data-tip="Compromissos e eventos externos dos próximos 7 dias. Clique para acessar o calendário completo.">Agenda da Semana &rarr;</a></div>
+    <div class="dash-row dash-row-2">
+        <div class="list-card">
+            <h4><a href="{% url 'agenda:compromisso_list' %}" style="text-decoration:none;color:#1e293b;" data-tip="Reuniões, visitas, comícios e eventos internos agendados. Clique para ver todos.">Compromissos &rarr;</a></h4>
+            {% for c in compromissos_semana %}
+            <div class="list-item">
+                <a href="{% url 'agenda:compromisso_edit' c.pk %}">
+                    <div>
+                        <div class="li-main">{{ c.titulo }}</div>
+                        <div class="li-sub">{{ c.cidade }}</div>
+                    </div>
+                    <div class="li-right">
+                        {{ c.data_hora_inicio|date:"d/m" }}<br>
+                        {{ c.data_hora_inicio|date:"H:i" }}
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="empty-msg">Nenhum compromisso esta semana.</div>
+            {% endfor %}
+        </div>
+        <div class="list-card">
+            <h4><a href="{% url 'agenda:evento_list' %}" style="text-decoration:none;color:#1e293b;" data-tip="Eventos da comunidade que o candidato pode participar: inaugurações, feiras, encontros.">Eventos Externos &rarr;</a></h4>
+            {% for e in eventos_semana %}
+            <div class="list-item">
+                <a href="{% url 'agenda:evento_edit' e.pk %}">
+                    <div>
+                        <div class="li-main">{{ e.nome }}</div>
+                        <div class="li-sub">{{ e.cidade }} — {{ e.get_tipo_display }}</div>
+                    </div>
+                    <div class="li-right">
+                        {{ e.data|date:"d/m" }}<br>
+                        {{ e.horario_inicio|time:"H:i" }}
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="empty-msg">Nenhum evento confirmado esta semana.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- LINHA 4: Tarefas Pendentes -->
+<div class="dash-section">
+    <div class="dash-section-title"><a href="{% url 'tarefas:lista' %}" data-tip="Tarefas operacionais da campanha com prazo esta semana. Inclui contadores de vencidas e urgentes.">Tarefas &rarr;</a></div>
+    <div class="tag-counters">
+        {% if tarefas_vencidas %}<span class="tag-counter red">{{ tarefas_vencidas }} vencida{{ tarefas_vencidas|pluralize }}</span>{% endif %}
+        {% if tarefas_hoje %}<span class="tag-counter yellow">{{ tarefas_hoje }} para hoje</span>{% endif %}
+        <span class="tag-counter blue">{{ tarefas_semana|length }} esta semana</span>
+    </div>
+    <div class="list-card">
+        {% for t in tarefas_semana %}
+        <div class="list-item">
+            <a href="{% url 'tarefas:tarefa_detail' t.pk %}">
+                <div>
+                    <div class="li-main">{{ t.titulo }}</div>
+                    <div class="li-sub">{{ t.responsavel|default:"Sem responsável" }}{% if t.cidade %} — {{ t.cidade }}{% endif %}</div>
+                </div>
+                <div class="li-right">
+                    <span class="li-badge badge-{{ t.prioridade }}">{{ t.get_prioridade_display }}</span><br>
+                    {% if t.prazo %}{{ t.prazo|date:"d/m" }}{% endif %}
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="empty-msg">Nenhuma tarefa pendente esta semana.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- LINHA 5: Atividade Recente -->
+<div class="dash-section">
+    <div class="dash-section-title">Atividade Recente</div>
+
+    <div class="dash-row dash-row-2">
+        <div class="list-card">
+            <h4><a href="{% url 'liderancas:apoiador_list' %}" style="text-decoration:none;color:#1e293b;" data-tip="Apoiadores cadastrados mais recentemente via CRM e PWA. Clique para ver todos.">Últimos Apoiadores &rarr;</a></h4>
+            {% for a in ultimos_apoiadores %}
+            <div class="list-item">
+                <div>
+                    <div class="li-main">{{ a.nome }}</div>
+                    <div class="li-sub">{{ a.cidade }} — por {{ a.cadastrado_por|default:"?" }}</div>
+                </div>
+                <div class="li-right">{{ a.created_at|date:"d/m H:i" }}</div>
+            </div>
+            {% empty %}
+            <div class="empty-msg">Nenhum apoiador recente.</div>
+            {% endfor %}
+        </div>
+        <div class="list-card">
+            <h4><a href="{% url 'doacoes:doacao_list' %}" style="text-decoration:none;color:#1e293b;" data-tip="Doações mais recentes registradas via PWA e CRM. Clique para gerenciar.">Últimas Doações &rarr;</a></h4>
+            {% for d in ultimas_doacoes %}
+            <div class="list-item">
+                <div>
+                    <div class="li-main">{{ d.doador_nome }}</div>
+                    <div class="li-sub">{{ d.cidade|default:"-" }} — {{ d.get_status_display }}</div>
+                </div>
+                <div class="li-right">
+                    <strong>R$ {{ d.valor }}</strong><br>
+                    {{ d.criado_em|date:"d/m H:i" }}
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-msg">Nenhuma doação recente.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- LINHA 6: Rede -->
+<div class="dash-section">
+    <div class="dash-section-title"><a href="{% url 'liderancas:coordenador_list' %}" data-tip="Estrutura da rede eleitoral: coordenadores, cabos eleitorais e distribuição por região.">Rede &rarr;</a></div>
+    <div class="dash-row dash-row-3-rede">
+        <a class="mini-card" href="{% url 'liderancas:coordenador_list' %}">
+            <div class="mc-label" data-tip="Total de coordenadores regionais cadastrados na rede eleitoral.">Coordenadores</div>
+            <div class="mc-value">{{ coordenadores_ativos }}</div>
+        </a>
+        <a class="mini-card" href="{% url 'liderancas:cabo_list' %}">
+            <div class="mc-label" data-tip="Total de cabos eleitorais ativos que articulam apoiadores em campo.">Cabos Eleitorais</div>
+            <div class="mc-value">{{ cabos_ativos }}</div>
+        </a>
+        <div class="list-card">
+            <h4>Top Regiões (apoiadores)</h4>
+            {% for r in top_regioes %}
+            <div class="regiao-bar">
+                <span class="rb-label">{{ r.cidade__regiao__sigla }}</span>
+                <div class="rb-fill" style="width: calc({{ r.total }} / {{ total_votos|default:1 }} * 300%);"></div>
+                <span class="rb-val">{{ r.total }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+new Chart(document.getElementById('chartCaptacao'), {
+    type: 'bar',
+    data: {
+        labels: {{ chart_captacao_labels|safe }},
+        datasets: [{
+            label: 'Apoiadores',
+            data: {{ chart_captacao_data|safe }},
+            backgroundColor: '#002776',
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+});
+
+new Chart(document.getElementById('chartArrec'), {
+    type: 'bar',
+    data: {
+        labels: {{ chart_arrec_labels|safe }},
+        datasets: [{
+            label: 'R$',
+            data: {{ chart_arrec_data|safe }},
+            backgroundColor: '#16a34a',
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+</script>
+{% endblock %}

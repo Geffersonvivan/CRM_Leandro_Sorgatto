@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 1.4rem; font-weight: 700; color: #1e293b; }
+
+    /* Monday-style group */
+    .monday-group { margin-bottom: 24px; }
+    .monday-group-header {
+        display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer;
+    }
+    .monday-group-arrow { color: #00c875; font-size: 0.8rem; }
+    .monday-group-title { font-size: 0.95rem; font-weight: 700; color: #00c875; }
+    .monday-group-count { font-size: 0.78rem; color: #676879; font-weight: 400; }
+    .back-link { color: #676879; font-size: 0.78rem; text-decoration: none; display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; transition: all 0.15s; }
+    .back-link:hover { color: #0073ea; background: #f0f6ff; }
+
+    /* Table */
+    .monday-table {
+        width: 100%; border-collapse: separate; border-spacing: 0;
+        border-left: 4px solid #00c875;
+        border-radius: 8px 8px 0 0; overflow: hidden;
+        background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .monday-table th {
+        padding: 8px 0; font-size: 0.72rem; font-weight: 500; color: #676879;
+        text-align: center; background: #fff; border-bottom: 1px solid #d0d4e4;
+        border-right: 1px solid #d0d4e4; letter-spacing: 0.2px;
+    }
+    .monday-table th:first-child { text-align: left; padding-left: 16px; }
+    .monday-table th:last-child { border-right: none; }
+    .monday-table td {
+        padding: 0; border-bottom: 1px solid #d0d4e4; border-right: 1px solid #d0d4e4;
+        font-size: 0.82rem; color: #323338; text-align: center; height: 36px; position: relative;
+    }
+    .monday-table td:last-child { border-right: none; }
+    .monday-table tr:last-child td { border-bottom: none; }
+    .monday-table tr:hover td { background: rgba(0,200,117,0.06); }
+    .monday-table tr.row-selected td { background: #d6f5e8; }
+
+    /* Title cell */
+    .cell-title-wrap {
+        display: flex; align-items: center; gap: 6px; padding: 0 10px 0 6px;
+        text-align: left; height: 36px;
+    }
+    .cell-cb { width: 15px; height: 15px; accent-color: #00c875; cursor: pointer; flex-shrink: 0; }
+    .cell-task-name {
+        font-size: 0.82rem; color: #323338; font-weight: 500;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+    }
+
+    /* Cells */
+    .cell-center { display: flex; align-items: center; justify-content: center; height: 36px; padding: 0; }
+
+    /* Status badge */
+    .badge-fase {
+        display: flex; align-items: center; justify-content: center;
+        width: 100%; height: 36px; border-radius: 0;
+        font-size: 0.75rem; font-weight: 600; color: #fff; white-space: nowrap;
+    }
+    .badge-fase.a_fazer { background: #579bfc; }
+    .badge-fase.em_andamento { background: #fdab3d; }
+    .badge-fase.aguardando { background: #e2445c; }
+    .badge-fase.concluida { background: #00c875; }
+
+    /* Tipo badge */
+    .badge-tipo {
+        display: flex; align-items: center; justify-content: center;
+        width: 100%; height: 36px; border-radius: 0;
+        font-size: 0.75rem; font-weight: 600; color: #fff; white-space: nowrap;
+    }
+    .badge-tipo.reuniao { background: #0073ea; }
+    .badge-tipo.evento { background: #e2445c; }
+    .badge-tipo.visita { background: #a25ddc; }
+    .badge-tipo.articulacao { background: #ff642e; }
+    .badge-tipo.comunicacao { background: #00c875; }
+    .badge-tipo.captacao { background: #fdab3d; }
+    .badge-tipo.outro { background: #c4c4c4; }
+
+    /* Prioridade badge */
+    .badge-prio {
+        display: flex; align-items: center; justify-content: center;
+        width: 100%; height: 36px; border-radius: 0;
+        font-size: 0.75rem; font-weight: 600; color: #fff; white-space: nowrap;
+    }
+    .badge-prio.baixa { background: #00c875; }
+    .badge-prio.media { background: #579bfc; }
+    .badge-prio.alta { background: #fdab3d; }
+    .badge-prio.urgente { background: #e2445c; }
+
+    /* Avatar */
+    .cell-avatar {
+        width: 28px; height: 28px; border-radius: 50%; background: #c4c4c4;
+        color: #fff; font-size: 0.6rem; font-weight: 700; display: inline-flex;
+        align-items: center; justify-content: center;
+    }
+    .cell-avatar.has-user { background: #676879; }
+    .cell-avatar.mini { width: 22px; height: 22px; font-size: 0.5rem; }
+    .cell-avatars { display: flex; align-items: center; justify-content: center; gap: 0; height: 36px; }
+    .cell-avatars .cell-avatar + .cell-avatar { margin-left: -6px; border: 2px solid #fff; }
+
+    /* Date text */
+    .cell-date { font-size: 0.75rem; color: #676879; }
+
+    .empty-state { text-align: center; color: #94a3b8; padding: 60px 20px; font-size: 0.9rem; }
+    .empty-state svg { margin-bottom: 12px; color: #cbd5e1; }
+
+    /* Action bar */
+    .action-bar {
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: #fff; border-radius: 10px;
+        display: flex; align-items: center; gap: 0; padding: 10px 20px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.15); z-index: 200;
+        min-width: 380px; animation: slideUp 0.25s ease-out;
+        border: 1px solid #e6e9ef;
+    }
+    @keyframes slideUp { from { transform: translateX(-50%) translateY(40px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+    .action-bar.hidden { display: none; }
+    .action-bar-count { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; color: #323338; padding-right: 16px; }
+    .action-bar-badge { background: #00c875; color: #fff; font-size: 0.72rem; font-weight: 700; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .action-bar-divider { width: 1px; height: 36px; background: #e6e9ef; margin: 0 8px; }
+    .action-bar-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; color: #676879; cursor: pointer; font-size: 0.68rem; font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: all 0.15s; white-space: nowrap; }
+    .action-bar-btn:hover { color: #0073ea; background: #f0f6ff; }
+    .action-bar-btn svg { width: 20px; height: 20px; stroke-width: 1.5; }
+    .action-bar-close { background: none; border: none; color: #c5c7d0; cursor: pointer; margin-left: 8px; padding: 6px; border-radius: 4px; display: flex; }
+    .action-bar-close:hover { color: #323338; background: #f5f6f8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Tarefas</h1>
+</div>
+
+<div class="monday-group">
+    <div class="monday-group-header">
+        <span class="monday-group-arrow">&#9660;</span>
+        <span class="monday-group-title">Atividades concluidas</span>
+        <span class="monday-group-count">{{ tarefas|length }} tarefas</span>
+        <a href="{% url 'tarefas:lista' %}" class="back-link">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Voltar
+        </a>
+    </div>
+
+    {% if tarefas %}
+    <table class="monday-table">
+        <thead>
+            <tr>
+                <th style="width:14%;">Atividade</th>
+                <th style="width:7%;">Tipo de atividade</th>
+                <th style="width:3%;">Resp.</th>
+                <th style="width:5%;">Participantes</th>
+                <th style="width:7%;">Hora de inicio</th>
+                <th style="width:8%;">Hora de termino</th>
+                <th style="width:7%;">Prioridade</th>
+                <th style="width:7%;">Prazo</th>
+                <th style="width:7%;">Regiao</th>
+                <th style="width:7%;">Cidade</th>
+                <th style="width:7%;">Coordenador</th>
+                <th style="width:7%;">Cabo Eleitoral</th>
+                <th style="width:8%;">Concluida em</th>
+            </tr>
+        </thead>
+        <tbody id="doneBody">
+            {% for t in tarefas %}
+            <tr data-id="{{ t.id }}">
+                <td>
+                    <div class="cell-title-wrap">
+                        <input type="checkbox" class="cell-cb" onchange="atualizarBar()">
+                        <span class="cell-task-name">{{ t.titulo }}</span>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge-tipo {{ t.tipo }}">{{ t.get_tipo_display }}</span>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        {% if t.responsavel %}
+                        <span class="cell-avatar has-user" title="{{ t.responsavel.get_full_name }}">{{ t.responsavel.first_name|first }}{{ t.responsavel.last_name|first }}</span>
+                        {% else %}
+                        <span class="cell-avatar">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <div class="cell-avatars">
+                            {% for p in t.participantes.all %}
+                            <span class="cell-avatar has-user mini" title="{{ p.get_full_name }}">{{ p.first_name|first }}{{ p.last_name|first }}</span>
+                            {% empty %}
+                            <span class="cell-avatar mini">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date">{% if t.data_hora_inicio %}{{ t.data_hora_inicio|date:"d/m/Y H:i" }}{% else %}—{% endif %}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date">{% if t.data_hora_termino %}{{ t.data_hora_termino|date:"d/m/Y H:i" }}{% else %}—{% endif %}</span>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge-prio {{ t.prioridade }}">{{ t.get_prioridade_display }}</span>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date">{% if t.prazo %}{{ t.prazo|date:"d/m/Y" }}{% else %}—{% endif %}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date">{{ t.regiao.sigla|default:"—" }}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date">{{ t.cidade.nome|default:"—" }}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date" title="{{ t.coordenador_nome }}">{{ t.coordenador_nome|default:"—"|truncatechars:18 }}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date" title="{{ t.cabos_nomes }}">{{ t.cabos_nomes|default:"—"|truncatechars:18 }}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-center">
+                        <span class="cell-date">{% if t.concluida_em %}{{ t.concluida_em|date:"d/m/Y H:i" }}{% else %}—{% endif %}</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <p>Nenhuma atividade concluida.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:16px 0;">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" style="padding:6px 16px;border-radius:6px;font-size:0.8rem;color:#00c875;text-decoration:none;border:1px solid #d0d4e4;background:#fff;">&laquo; Anterior</a>
+    {% endif %}
+    <span style="font-size:0.8rem;color:#676879;">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" style="padding:6px 16px;border-radius:6px;font-size:0.8rem;color:#00c875;text-decoration:none;border:1px solid #d0d4e4;background:#fff;">Proxima &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Action bar -->
+<div class="action-bar hidden" id="actionBar">
+    <div class="action-bar-count">
+        <span class="action-bar-badge" id="actionCount">0</span>
+        <span id="actionLabel">Selecionada</span>
+    </div>
+    <div class="action-bar-divider"></div>
+    <button class="action-bar-btn" onclick="reabrirSelecionadas()" title="Reabrir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>
+        Reabrir
+    </button>
+    <div class="action-bar-divider"></div>
+    <button class="action-bar-close" onclick="desmarcar()" title="Fechar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+function getSelectedIds() {
+    const ids = [];
+    document.querySelectorAll('#doneBody tr[data-id] .cell-cb:checked').forEach(cb => {
+        ids.push(parseInt(cb.closest('tr').dataset.id));
+    });
+    return ids;
+}
+
+function atualizarBar() {
+    const ids = getSelectedIds();
+    const bar = document.getElementById('actionBar');
+    if (ids.length > 0) {
+        bar.classList.remove('hidden');
+        document.getElementById('actionCount').textContent = ids.length;
+        document.getElementById('actionLabel').textContent = ids.length === 1 ? 'Selecionada' : 'Selecionadas';
+    } else {
+        bar.classList.add('hidden');
+    }
+    document.querySelectorAll('#doneBody tr[data-id]').forEach(row => {
+        row.classList.toggle('row-selected', row.querySelector('.cell-cb').checked);
+    });
+}
+
+function desmarcar() {
+    document.querySelectorAll('.cell-cb').forEach(cb => { cb.checked = false; });
+    atualizarBar();
+}
+
+function reabrirSelecionadas() {
+    const ids = getSelectedIds();
+    if (!ids.length) return;
+    if (!confirm('Reabrir ' + ids.length + ' tarefa(s)? Elas voltarao para "A Fazer".')) return;
+    fetch('/tarefas/api/mover-fase/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ ids: ids, fase: 'a_fazer' }),
+    }).then(r => r.json()).then(data => {
+        if (!data.ok) return;
+        ids.forEach(id => {
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+            if (row) { row.style.transition='opacity .3s'; row.style.opacity='0'; setTimeout(()=>row.remove(),300); }
+        });
+        setTimeout(() => atualizarBar(), 350);
+    });
+}
+</script>
+{% endblock %}

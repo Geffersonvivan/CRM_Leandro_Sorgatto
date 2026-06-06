@@ -1,0 +1,136 @@
+{% extends 'pwa/base.html' %}
+{% block nav_apoiador %}active{% endblock %}
+{% block title %}Novo Apoiador — LS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tipo-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .tipo-option {
+        position: relative;
+    }
+    .tipo-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .tipo-option label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1.5px solid #d1d5db;
+        border-radius: 10px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.15s;
+        background: #fff;
+    }
+    .tipo-option input[type="radio"]:checked + label {
+        border-color: #002776;
+        background: #eff6ff;
+        color: #002776;
+        font-weight: 600;
+    }
+    .tipo-option label::before {
+        content: '';
+        width: 18px;
+        height: 18px;
+        border: 2px solid #d1d5db;
+        border-radius: 50%;
+        flex-shrink: 0;
+        transition: all 0.15s;
+    }
+    .tipo-option input[type="radio"]:checked + label::before {
+        border-color: #002776;
+        background: #002776;
+        box-shadow: inset 0 0 0 3px #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">Cadastrar Apoiador</div>
+    <form method="post" id="formApoiador">
+        {% csrf_token %}
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Nome *</label>
+            {{ form.nome }}
+            {{ form.nome.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Tipo *</label>
+            <div class="tipo-grid">
+                {% for radio in form.tipo %}
+                <div class="tipo-option">
+                    {{ radio.tag }}
+                    <label for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                </div>
+                {% endfor %}
+            </div>
+            {{ form.tipo.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Região</label>
+            {{ form.regiao }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Cidade *</label>
+            {{ form.cidade }}
+            {{ form.cidade.errors }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Telefone</label>
+            {{ form.telefone }}
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Instagram</label>
+            <div class="pwa-input-wrapper">
+                <span class="pwa-at-prefix">@</span>
+                {{ form.instagram }}
+            </div>
+        </div>
+
+        <div class="pwa-form-group">
+            <label class="pwa-label">Observações</label>
+            {{ form.observacoes }}
+        </div>
+
+        <button type="submit" class="pwa-btn pwa-btn-primary">Cadastrar Apoiador</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('id_regiao').addEventListener('change', function() {
+    const regiaoId = this.value;
+    const cidadeSelect = document.getElementById('id_cidade');
+    cidadeSelect.innerHTML = '<option value="">Selecione...</option>';
+    if (!regiaoId) return;
+    fetch(`/app/api/cidades/${regiaoId}/`)
+        .then(r => r.json())
+        .then(cidades => {
+            cidades.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.nome;
+                cidadeSelect.appendChild(opt);
+            });
+        });
+});
+</script>
+{% endblock %}

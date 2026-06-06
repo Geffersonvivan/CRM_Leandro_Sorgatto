@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#002776">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/app/manifest.json">
+    <title>{% block title %}LS Apoiadores{% endblock %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #f0f2f5;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #1a1a1a;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .pwa-shell {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            background: #f0f2f5;
+        }
+        .pwa-scroll {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+
+        /* Top bar */
+        .topbar {
+            background: linear-gradient(135deg, #002776 0%, #003da5 100%);
+            color: #fff;
+            padding-top: max(8px, env(safe-area-inset-top));
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-main {
+            text-align: center;
+            padding: 12px 20px 8px;
+        }
+        .topbar-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+        .topbar-subtitle {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+        .topbar-user-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 20px;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+        .topbar-logout {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-size: 0.7rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 3px 10px;
+            border-radius: 20px;
+            transition: all 0.2s;
+        }
+        .topbar-logout:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Content */
+        .content {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 16px;
+            padding-bottom: 16px;
+        }
+
+        /* Bottom nav */
+        .bottom-nav {
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-decoration: none;
+            color: #9ca3af;
+            font-size: 0.65rem;
+            font-weight: 500;
+            gap: 2px;
+            padding: 4px 12px;
+            border-radius: 8px;
+            transition: all 0.15s;
+        }
+        .nav-item.active { color: #002776; }
+        .nav-item svg { width: 22px; height: 22px; }
+
+        /* Cards */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .card-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        /* Forms */
+        .pwa-form-group {
+            margin-bottom: 14px;
+        }
+        .pwa-label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+        .pwa-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #fff;
+            color: #1a1a1a;
+            -webkit-appearance: none;
+            transition: border-color 0.15s;
+        }
+        .pwa-input:focus {
+            outline: none;
+            border-color: #002776;
+            box-shadow: 0 0 0 3px rgba(0,39,118,0.1);
+        }
+        .pwa-input-wrapper {
+            position: relative;
+        }
+        .pwa-input-wrapper .pwa-at-prefix {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            color: #6b7280;
+            font-weight: 600;
+            pointer-events: none;
+        }
+        .pwa-input-wrapper .pwa-input {
+            padding-left: 30px;
+        }
+        select.pwa-input {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        /* Buttons */
+        .pwa-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .pwa-btn-primary {
+            background: #002776;
+            color: #fff;
+        }
+        .pwa-btn-primary:hover { background: #003da5; }
+        .pwa-btn-primary:active { transform: scale(0.98); }
+        .pwa-btn-green {
+            background: #047857;
+            color: #fff;
+        }
+        .pwa-btn-green:hover { background: #059669; }
+        .pwa-btn-outline {
+            background: #fff;
+            color: #374151;
+            border: 1.5px solid #d1d5db;
+        }
+
+        /* Messages */
+        .pwa-messages {
+            list-style: none;
+            margin-bottom: 12px;
+        }
+        .pwa-messages li {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .pwa-messages .success {
+            background: #d1fae5;
+            color: #047857;
+        }
+        .pwa-messages .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Error list */
+        .errorlist {
+            list-style: none;
+            color: #dc2626;
+            font-size: 0.78rem;
+            margin-top: 4px;
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+<div class="pwa-shell">
+    <div class="topbar">
+        <div class="topbar-main">
+            <div class="topbar-title">Apoiadores Leandro Sorgatto <span class="topbar-subtitle">PL22</span></div>
+        </div>
+        {% if user.is_authenticated %}
+        <div class="topbar-user-bar">
+            <span>Olá, {{ user.first_name|default:user.username }}</span>
+            <a href="{% url 'pwa:logout' %}" class="topbar-logout">Sair</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="pwa-scroll">
+        <div class="content">
+            {% if messages %}
+            <ul class="pwa-messages">
+                {% for message in messages %}
+                <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="bottom-nav">
+        <a href="{% url 'pwa:dashboard' %}" class="nav-item {% block nav_home %}{% endblock %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Início
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+    {% block extra_js %}{% endblock %}
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/app/sw.js');
+        }
+    </script>
+</body>
+</html>

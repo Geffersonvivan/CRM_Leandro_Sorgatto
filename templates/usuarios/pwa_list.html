@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .badge-cabo { background: #d1fae5; color: #047857; }
+    .badge-replicador { background: #fef3c7; color: #92400e; }
+    .badge-total { background: #ede9fe; color: #5b21b6; }
+    .actions { display: flex; gap: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1 class="page-title" data-tip="Coordenadores, cabos eleitorais e replicadores com acesso ao aplicativo móvel para cadastro de apoiadores.">Usuários PWA <span class="page-subtitle">{{ total }} registros</span></h1>
+    <a href="{% url 'usuarios:pwa_create' %}" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo Usuário PWA
+    </a>
+</div>
+
+<div class="filters-card">
+    <form method="get">
+        <div class="filters-row">
+            <div class="filter-group">
+                <label>Busca</label>
+                <input type="text" name="busca" placeholder="Nome, usuário, telefone..." value="{{ busca }}">
+            </div>
+            <div class="filter-group">
+                <label>Vínculo</label>
+                <select name="vinculo">
+                    <option value="">Todos</option>
+                    {% for value, label in vinculo_choices %}
+                    <option value="{{ value }}" {% if vinculo_filtro == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+                <a href="{% url 'usuarios:pwa_list' %}" class="btn btn-outline btn-sm">Limpar</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Usuário</th>
+                <th>Vínculo</th>
+                <th>Telefone</th>
+                <th>Instagram</th>
+                <th>Região</th>
+                <th>Cidade</th>
+                <th>Convidado por</th>
+                <th>Apoiadores</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td>{{ u.get_full_name|default:u.username }}</td>
+                <td>{{ u.username }}</td>
+                <td>
+                    {% if u.vinculo %}
+                    <span class="badge badge-{{ u.vinculo }}">{{ u.get_vinculo_display }}</span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>{{ u.telefone|default:"-" }}</td>
+                <td>{{ u.instagram|default:"-" }}</td>
+                <td>{{ u.regiao.sigla|default:"-" }}</td>
+                <td>{{ u.cidade|default:"-" }}</td>
+                <td>{% if u.convidado_por %}{{ u.convidado_por.get_full_name|default:u.convidado_por.username }}{% else %}-{% endif %}</td>
+                <td><span class="badge badge-total">{{ u.total_apoiadores }}</span></td>
+                <td>
+                    {% if u.is_active %}
+                    <span class="badge badge-ativo">Ativo</span>
+                    {% else %}
+                    <span class="badge badge-inativo">Inativo</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="actions">
+                        <a href="{% url 'usuarios:pwa_edit' u.pk %}" class="btn btn-primary btn-sm">Editar</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="11" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum usuário PWA encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

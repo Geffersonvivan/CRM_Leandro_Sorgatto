@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    .form-card { max-width: 900px; }
+    .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .section-title { font-size: 1rem; font-weight: 700; color: #002776; margin-top: 28px; margin-bottom: 16px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
+    .pontos-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    .pontos-table th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+    .pontos-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+    .pontos-table td .form-input { margin: 0; }
+    .btn-add { padding: 7px 16px; font-size: 0.8rem; background: #f0f4ff; color: #002776; border: 1.5px solid #c7d2fe; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+    .btn-add:hover { background: #e0e7ff; }
+    .delete-check { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: #ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ titulo }}</h1>
+</div>
+
+<div class="form-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="id_titulo">Título *</label>
+                {{ form.titulo }}
+                {{ form.titulo.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_data">Data *</label>
+                {{ form.data }}
+                {{ form.data.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_regiao">Região Principal *</label>
+                {{ form.regiao }}
+                {{ form.regiao.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_motorista">Motorista</label>
+                {{ form.motorista }}
+                {{ form.motorista.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_status">Status</label>
+                {{ form.status }}
+                {{ form.status.errors }}
+            </div>
+            <div class="form-group full">
+                <label for="id_observacoes">Observações</label>
+                {{ form.observacoes }}
+                {{ form.observacoes.errors }}
+            </div>
+        </div>
+
+        <h3 class="section-title">Paradas do Roteiro</h3>
+
+        {{ formset.management_form }}
+
+        <table class="pontos-table" id="pontos-table">
+            <thead>
+                <tr>
+                    <th style="width:70px;">Ordem</th>
+                    <th>Compromisso</th>
+                    <th>Observação</th>
+                    <th style="width:70px;">Excluir</th>
+                </tr>
+            </thead>
+            <tbody id="pontos-body">
+                {% for pf in formset %}
+                <tr class="ponto-row">
+                    <td>{{ pf.ordem }}{{ pf.id }}</td>
+                    <td>{{ pf.compromisso }}{{ pf.compromisso.errors }}</td>
+                    <td>{{ pf.observacao_ponto }}{{ pf.observacao_ponto.errors }}</td>
+                    <td>
+                        {% if pf.instance.pk %}
+                        <label class="delete-check">{{ pf.DELETE }} Rem.</label>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="button" class="btn-add" onclick="addPontoRow()">+ Adicionar Parada</button>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Salvar{% else %}Cadastrar{% endif %}</button>
+            <a href="{% url 'agenda:roteiro_list' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addPontoRow() {
+    const tbody = document.getElementById('pontos-body');
+    const totalInput = document.getElementById('id_pontos-TOTAL_FORMS');
+    const idx = parseInt(totalInput.value);
+
+    const emptyRow = tbody.querySelector('.ponto-row');
+    if (!emptyRow) return;
+
+    const newRow = emptyRow.cloneNode(true);
+    newRow.querySelectorAll('input, select, textarea').forEach(el => {
+        el.name = el.name.replace(/-\d+-/, `-${idx}-`);
+        el.id = el.id.replace(/-\d+-/, `-${idx}-`);
+        if (el.tagName === 'SELECT') el.selectedIndex = 0;
+        else el.value = '';
+    });
+
+    // Remove hidden id field value (new row)
+    const idField = newRow.querySelector('input[name$="-id"]');
+    if (idField) idField.value = '';
+
+    // Remove delete checkbox for new rows
+    const deleteCell = newRow.cells[newRow.cells.length - 1];
+    deleteCell.innerHTML = '';
+
+    tbody.appendChild(newRow);
+    totalInput.value = idx + 1;
+}
+</script>
+{% endblock %}

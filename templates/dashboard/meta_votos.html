@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    /* Progress bar */
+    .progress-bar-container { background: rgba(255,255,255,0.2); border-radius: 8px; height: 10px; margin-top: 10px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: #FFD700; border-radius: 8px; transition: width 0.6s ease; }
+    .summary-card.hero .summary-sub { color: rgba(255,255,255,0.6); }
+
+    /* Badges */
+    .badge-cabo { background: #d1fae5; color: #047857; }
+    .badge-replicador { background: #fef3c7; color: #92400e; }
+
+    /* Sections */
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .section-icon { width: 20px; height: 20px; color: #002776; }
+
+    /* Vinculo grid */
+    .vinculo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .vinculo-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .vinculo-card-title { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 4px; }
+    .vinculo-card-value { font-size: 1.6rem; font-weight: 800; color: #1e293b; }
+
+    /* Region table */
+    .region-table { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .region-table table { width: 100%; border-collapse: collapse; }
+    .region-table th { background: #f8fafc; padding: 10px 16px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; }
+    .region-table td { padding: 10px 16px; font-size: 0.83rem; color: #374151; border-bottom: 1px solid #f1f5f9; }
+    .region-table tr:hover td { background: #f8fafc; }
+    .region-table .text-right { text-align: right; }
+    .region-bar { background: #e2e8f0; border-radius: 4px; height: 6px; min-width: 60px; }
+    .region-bar-fill { height: 100%; background: #002776; border-radius: 4px; }
+
+    /* Ranking table */
+    .ranking-table { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .ranking-table table { width: 100%; border-collapse: collapse; }
+    .ranking-table th { background: #f8fafc; padding: 10px 16px; text-align: left; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; }
+    .ranking-table td { padding: 10px 16px; font-size: 0.83rem; color: #374151; border-bottom: 1px solid #f1f5f9; }
+    .ranking-table tr:hover td { background: #f8fafc; }
+    .ranking-table .text-right { text-align: right; }
+    .ranking-pos { width: 28px; height: 28px; border-radius: 8px; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #64748b; }
+    .ranking-pos.top1 { background: #fef3c7; color: #92400e; }
+    .ranking-pos.top2 { background: #e5e7eb; color: #374151; }
+    .ranking-pos.top3 { background: #fed7aa; color: #9a3412; }
+    .total-highlight { font-weight: 800; color: #002776; font-size: 0.95rem; }
+
+    /* Page link pagination */
+    .page-link { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.82rem; color: #475569; text-decoration: none; background: #fff; transition: all 0.15s; }
+    .page-link:hover { background: #f8fafc; border-color: #3b82f6; color: #3b82f6; }
+    .page-link.active { background: #002776; color: #fff; border-color: #002776; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title" data-tip="Painel de acompanhamento da meta de 45 mil votos para eleição do LS em 2026.">Meta de Votos</h1>
+</div>
+
+<!-- Resumo -->
+<div class="summary-grid">
+    <div class="summary-card hero">
+        <div class="summary-label" data-tip="Total de votos necessários para eleger o candidato LS em 2026.">Meta</div>
+        <div class="summary-value">{{ meta_votos|floatformat:0 }}</div>
+        <div class="summary-sub">votos necessários</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: {% if percentual > 100 %}100{% else %}{{ percentual }}{% endif %}%"></div>
+        </div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label" data-tip="Total de apoiadores cadastrados por coordenadores, cabos eleitorais e replicadores.">Votos Captados</div>
+        <div class="summary-value">{{ total_votos }}</div>
+        <div class="summary-sub">{{ percentual }}% da meta</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label" data-tip="Quantidade de votos restantes para atingir a meta estabelecida.">Faltam</div>
+        <div class="summary-value">{{ faltam }}</div>
+        <div class="summary-sub">votos para a meta</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-label" data-tip="Usuários PWA (coordenadores, cabos e replicadores) que cadastraram pelo menos 1 apoiador.">Captadores Ativos</div>
+        <div class="summary-value">{{ page_obj.paginator.count }}</div>
+        <div class="summary-sub">com pelo menos 1 voto</div>
+    </div>
+</div>
+
+<!-- Por Vínculo -->
+<div class="section">
+    <div class="section-title">
+        <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        <span data-tip="Soma dos votos captados por cada tipo de vínculo na rede. Inclui cadastros diretos e via replicadores.">Votos por Vínculo</span>
+    </div>
+    <div class="vinculo-grid">
+        <div class="vinculo-card">
+            <div class="vinculo-card-title" data-tip="Votos captados por coordenadores regionais (diretos + rede).">Coordenadores</div>
+            <div class="vinculo-card-value">{{ totais_vinculo.coordenador }}</div>
+        </div>
+        <div class="vinculo-card">
+            <div class="vinculo-card-title" data-tip="Votos captados por cabos eleitorais (diretos + rede).">Cabos Eleitorais</div>
+            <div class="vinculo-card-value">{{ totais_vinculo.cabo }}</div>
+        </div>
+        <div class="vinculo-card">
+            <div class="vinculo-card-title" data-tip="Votos captados por replicadores (somente diretos).">Replicadores</div>
+            <div class="vinculo-card-value">{{ totais_vinculo.replicador }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Por Região -->
+<div class="section">
+    <div class="section-title">
+        <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span data-tip="Distribuição geográfica dos votos captados, agrupados por associação de municípios (região).">Votos por Região</span>
+    </div>
+    <div class="region-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Região</th>
+                    <th class="text-right">Coordenadores</th>
+                    <th class="text-right">Cabos</th>
+                    <th class="text-right">Replicadores</th>
+                    <th class="text-right">Total</th>
+                    <th style="min-width:100px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for regiao, dados in regioes_ranking %}
+                <tr>
+                    <td><strong>{{ regiao }}</strong></td>
+                    <td class="text-right">{{ dados.coordenador }}</td>
+                    <td class="text-right">{{ dados.cabo }}</td>
+                    <td class="text-right">{{ dados.replicador }}</td>
+                    <td class="text-right total-highlight">{{ dados.total }}</td>
+                    <td>
+                        {% if regioes_ranking.0.1.total > 0 %}
+                        <div class="region-bar">
+                            <div class="region-bar-fill" style="width: {% widthratio dados.total regioes_ranking.0.1.total 100 %}%"></div>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Ranking Individual -->
+<div class="section">
+    <div class="section-title">
+        <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+        <span data-tip="Classificação individual de cada captador. Diretos = apoiadores que ele cadastrou. Via Rede = apoiadores cadastrados pelos replicadores que ele criou.">Ranking Individual</span>
+        <span class="section-badge">{{ page_obj.paginator.count }} cadastrados</span>
+    </div>
+
+    <div class="filters-card">
+        <form method="get">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label>Busca</label>
+                    <input type="text" name="busca" placeholder="Nome..." value="{{ busca }}">
+                </div>
+                <div class="filter-group">
+                    <label>Vínculo</label>
+                    <select name="vinculo">
+                        <option value="">Todos</option>
+                        {% for value, label in vinculo_choices %}
+                        <option value="{{ value }}" {% if vinculo_filtro == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Região</label>
+                    <select name="regiao">
+                        <option value="">Todas</option>
+                        {% for r in regioes_list %}
+                        <option value="{{ r.sigla }}" {% if regiao_filtro == r.sigla %}selected{% endif %}>{{ r.sigla }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+                    <a href="{% url 'dashboard:meta_votos' %}" class="btn btn-outline btn-sm">Limpar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="ranking-table">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:50px;">#</th>
+                    <th>Nome</th>
+                    <th>Vínculo</th>
+                    <th>Região</th>
+                    <th>Cidade</th>
+                    <th class="text-right" data-tip="Apoiadores cadastrados diretamente por este captador.">Diretos</th>
+                    <th class="text-right" data-tip="Apoiadores cadastrados pelos replicadores que este captador criou.">Via Rede</th>
+                    <th class="text-right" data-tip="Quantidade de replicadores criados por este captador.">Replicadores</th>
+                    <th class="text-right" data-tip="Soma de cadastros diretos + cadastros via rede de replicadores.">Total Votos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in page_obj %}
+                <tr>
+                    <td>
+                        {% with pos=page_obj.start_index|add:forloop.counter0 %}
+                        <span class="ranking-pos {% if pos == 1 %}top1{% elif pos == 2 %}top2{% elif pos == 3 %}top3{% endif %}">
+                            {{ pos }}
+                        </span>
+                        {% endwith %}
+                    </td>
+                    <td><strong>{{ r.nome }}</strong></td>
+                    <td><span class="badge badge-{{ r.vinculo_raw }}">{{ r.vinculo }}</span></td>
+                    <td>{{ r.regiao }}</td>
+                    <td>{{ r.cidade }}</td>
+                    <td class="text-right">{{ r.diretos }}</td>
+                    <td class="text-right">{{ r.rede }}</td>
+                    <td class="text-right">{{ r.replicadores }}</td>
+                    <td class="text-right total-highlight">{{ r.total }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum resultado encontrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginação -->
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if vinculo_filtro %}&vinculo={{ vinculo_filtro }}{% endif %}{% if regiao_filtro %}&regiao={{ regiao_filtro }}{% endif %}" class="page-link">&laquo; Anterior</a>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <span class="page-link active">{{ num }}</span>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <a href="?page={{ num }}{% if busca %}&busca={{ busca }}{% endif %}{% if vinculo_filtro %}&vinculo={{ vinculo_filtro }}{% endif %}{% if regiao_filtro %}&regiao={{ regiao_filtro }}{% endif %}" class="page-link">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if vinculo_filtro %}&vinculo={{ vinculo_filtro }}{% endif %}{% if regiao_filtro %}&regiao={{ regiao_filtro }}{% endif %}" class="page-link">Próxima &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
