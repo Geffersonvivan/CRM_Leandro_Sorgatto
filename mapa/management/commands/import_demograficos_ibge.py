@@ -8,10 +8,28 @@ Dados buscados:
 
 Uso: python manage.py import_demograficos_ibge
 """
-import requests
+import gzip
+import json
+import urllib.request
 from django.core.management.base import BaseCommand
 from liderancas.models import Cidade
 from mapa.models import IndicadorMunicipal
+
+
+def _ibge_get(url, timeout=60):
+    """Fetch JSON from IBGE API using urllib (no requests dependency)."""
+    req = urllib.request.Request(url, headers={
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip',
+        'User-Agent': 'CRM-Sorgatto/1.0',
+    })
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read()
+        try:
+            text = raw.decode('utf-8')
+        except UnicodeDecodeError:
+            text = gzip.decompress(raw).decode('utf-8')
+        return json.loads(text)
 
 IBGE_SC = '42'  # Código SC
 
@@ -38,9 +56,7 @@ class Command(BaseCommand):
         self.stdout.write('Buscando população urbana/rural...')
         try:
             url = f'https://servicodados.ibge.gov.br/api/v3/agregados/4709/periodos/2022/variaveis/93?localidades=N6[N3[{IBGE_SC}]]&classificacao=1[1,2]'
-            resp = requests.get(url, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
+            data = _ibge_get(url)
 
             if data and data[0].get('resultados'):
                 for resultado in data[0]['resultados']:
@@ -73,9 +89,7 @@ class Command(BaseCommand):
         try:
             # Tabela 9514 - Pop por grupo de idade
             url = f'https://servicodados.ibge.gov.br/api/v3/agregados/9514/periodos/2022/variaveis/93?localidades=N6[N3[{IBGE_SC}]]&classificacao=287[100362,93084,93085,93086,93087,49108,49109,60040,60041,93088,93089,93090,93091,93092,93093,93094,93095,100363]'
-            resp = requests.get(url, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
+            data = _ibge_get(url)
 
             idosos_count = 0
             jovens_count = 0
