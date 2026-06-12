@@ -443,6 +443,13 @@
         </div>
 
         <!-- Painel Perfil Ideológico -->
+        <div id="cityActionPanel" style="display:none;position:absolute;top:14px;right:14px;z-index:520;background:rgba(255,255,255,.98);backdrop-filter:blur(2px);border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.16);width:300px;font-size:.8rem;max-height:calc(100% - 28px);overflow-y:auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #f1f5f9;">
+                <strong id="capTitulo" style="font-size:.92rem;color:#0f172a;">—</strong>
+                <button onclick="closeCityActionPanel()" style="border:none;background:none;font-size:1.1rem;color:#64748b;cursor:pointer;">&times;</button>
+            </div>
+            <div id="capBody" style="padding:12px 14px;"></div>
+        </div>
         <div id="perfilPanel" style="display:none;position:absolute;top:14px;left:14px;z-index:500;background:rgba(255,255,255,.97);backdrop-filter:blur(2px);border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;box-shadow:0 6px 20px rgba(15,23,42,.12);width:280px;font-size:.8rem;max-height:calc(100% - 28px);overflow-y:auto;">
             <!-- Presets -->
             <div style="font-size:.66rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Cenários</div>
@@ -1181,16 +1188,164 @@ case 'transferencia': {
     }
 
     // ── Roteiros Dashboard ─────────────────────────────────────
+    // ── Roteiros: construtor visual + painel de ação ──────────────
+    const rotBuilder = { ativo: false, stops: [] };
+
+    function _amanha() {
+        const d = new Date(Date.now() + 86400000);
+        return d.toISOString().slice(0, 10);
+    }
+
+    function getCookie(name) {
+        const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+
     function renderRoteirosDashboard() {
+        const urgCores = [['#dc2626','Crítico'],['#f97316','Alto'],['#eab308','Médio'],['#86efac','Baixo'],['#d1d5db','Em dia']];
         let html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">';
-        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Roteiros</span>';
-        html += '<span class="legend-item"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,2"/></svg>Planejado</span>';
+        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Urgência de visita</span>';
+        for (const [cor, lbl] of urgCores) {
+            html += `<span class="legend-item"><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:${cor};margin-right:4px;"></span>${lbl}</span>`;
+        }
+        html += '<span style="color:#cbd5e1;">|</span>';
+        html += '<span class="legend-item"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,2"/></svg>Roteiro planejado</span>';
         html += '<span class="legend-item"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#f97316" stroke-width="2"/></svg>Em andamento</span>';
-        html += '<span class="legend-item"><svg width="24" height="4"><line x1="0" y1="2" x2="24" y2="2" stroke="#22c55e" stroke-width="2" opacity="0.4"/></svg>Concluido</span>';
-        html += '</div>';
+        html += '<span style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+        html += `<input type="date" id="rotBuilderData" value="${_amanha()}" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.76rem;">`;
+        html += `<button id="rotBuilderToggle" onclick="toggleRotBuilder()" class="btn btn-sm" style="padding:5px 12px;border-radius:7px;border:1px solid #002776;background:${rotBuilder.ativo ? '#002776' : '#fff'};color:${rotBuilder.ativo ? '#fff' : '#002776'};font-weight:700;font-size:.76rem;cursor:pointer;">🧭 Montar roteiro${rotBuilder.ativo ? ' (ON)' : ''}</button>`;
+        if (rotBuilder.ativo) {
+            html += `<span id="rotBuilderCount" style="font-size:.76rem;font-weight:700;color:#002776;">${rotBuilder.stops.length} parada(s)</span>`;
+            html += `<button onclick="criarRoteiroVisual()" ${rotBuilder.stops.length ? '' : 'disabled'} style="padding:5px 12px;border-radius:7px;border:none;background:${rotBuilder.stops.length ? '#16a34a' : '#cbd5e1'};color:#fff;font-weight:700;font-size:.76rem;cursor:pointer;">✓ Criar roteiro</button>`;
+            html += `<button onclick="limparRotBuilder()" style="padding:5px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-size:.76rem;cursor:pointer;">Limpar</button>`;
+        }
+        html += '</span></div>';
+        if (rotBuilder.ativo) {
+            html += '<div style="margin-top:6px;font-size:.74rem;color:#64748b;">Entre numa região e <strong>clique nas cidades</strong> para adicionar paradas — a ordem é otimizada pela proximidade. Depois clique em <strong>✓ Criar roteiro</strong>.</div>';
+            if (rotBuilder.stops.length) {
+                html += '<div style="margin-top:4px;font-size:.76rem;color:#1e293b;">' +
+                    rotBuilder.stops.map(s => `<span style="display:inline-flex;align-items:center;gap:4px;background:#eef4ff;border:1px solid #c7d7f5;border-radius:999px;padding:2px 10px;margin:2px 4px 2px 0;">${s.ordem}. ${s.name} <a onclick="removeRotStop('${s.slug}')" style="cursor:pointer;color:#dc2626;font-weight:700;">×</a></span>`).join('') +
+                    '</div>';
+            }
+        }
         dashEl.innerHTML = html;
         dashEl.classList.remove('map-dashboard-hidden');
     }
+
+    window.toggleRotBuilder = function () {
+        rotBuilder.ativo = !rotBuilder.ativo;
+        if (!rotBuilder.ativo) { rotBuilder.stops = []; map.setBuilderStops([]); }
+        renderRoteirosDashboard();
+    };
+
+    window.limparRotBuilder = function () {
+        rotBuilder.stops = [];
+        map.setBuilderStops([]);
+        renderRoteirosDashboard();
+    };
+
+    window.removeRotStop = function (slug) {
+        rotBuilder.stops = rotBuilder.stops.filter(s => s.slug !== slug);
+        otimizarRotStops();
+        renderRoteirosDashboard();
+        map.setBuilderStops(rotBuilder.stops);
+    };
+
+    function otimizarRotStops() {
+        // vizinho mais próximo a partir da primeira parada (lat/lng das cidades)
+        const stops = rotBuilder.stops;
+        if (stops.length > 2) {
+            const restante = stops.slice(1);
+            const ordenado = [stops[0]];
+            while (restante.length) {
+                const atual = ordenado[ordenado.length - 1];
+                restante.sort((a, b) => {
+                    const da = (a.lat - atual.lat) ** 2 + (a.lng - atual.lng) ** 2;
+                    const db = (b.lat - atual.lat) ** 2 + (b.lng - atual.lng) ** 2;
+                    return da - db;
+                });
+                ordenado.push(restante.shift());
+            }
+            rotBuilder.stops = ordenado;
+        }
+        rotBuilder.stops.forEach((s, i) => { s.ordem = i + 1; });
+    }
+
+    function addRotStop(info) {
+        if (rotBuilder.stops.some(s => s.slug === info.slug)) return;
+        rotBuilder.stops.push({ slug: info.slug, name: info.nome || info.name, id: info.id, lat: info.lat, lng: info.lng, ordem: rotBuilder.stops.length + 1 });
+        otimizarRotStops();
+        renderRoteirosDashboard();
+        map.setBuilderStops(rotBuilder.stops);
+    }
+
+    window.addRotStopFromPanel = function (slug) {
+        const c = (map._visitUrgencyData?.cities || {})[slug];
+        if (!c) return;
+        if (!rotBuilder.ativo) { rotBuilder.ativo = true; }
+        addRotStop({ slug, name: c.name, id: c.id, lat: c.lat, lng: c.lng });
+        closeCityActionPanel();
+    };
+
+    window.criarRoteiroVisual = function () {
+        if (!rotBuilder.stops.length) return;
+        const data = document.getElementById('rotBuilderData')?.value || _amanha();
+        fetch('/agenda/api/roteiro-construir/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ data: data, cidades: rotBuilder.stops.map(s => s.id) }),
+        })
+            .then(r => r.json())
+            .then(d => {
+                if (d.ok) { window.location.href = d.url; }
+                else { alert(d.error || 'Não foi possível criar o roteiro.'); }
+            })
+            .catch(() => alert('Erro de conexão.'));
+    };
+
+    window.closeCityActionPanel = function () {
+        const el = document.getElementById('cityActionPanel');
+        if (el) el.style.display = 'none';
+    };
+
+    async function openCityActionPanel(slug) {
+        const panel = document.getElementById('cityActionPanel');
+        const body = document.getElementById('capBody');
+        document.getElementById('capTitulo').textContent = 'Carregando...';
+        body.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:18px 0;">…</div>';
+        panel.style.display = 'block';
+        let d;
+        try { d = await API.roteiros.cityAction(slug); }
+        catch (e) { body.innerHTML = '<div style="color:#dc2626;">Erro ao carregar.</div>'; return; }
+
+        document.getElementById('capTitulo').textContent = `${d.nome} · ${d.regiao}`;
+        const dataSel = document.getElementById('rotBuilderData')?.value || _amanha();
+        let html = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">';
+        html += `<span style="background:#fee2e2;color:#991b1b;font-weight:700;border-radius:8px;padding:3px 9px;font-size:.74rem;">${d.vencidos} vencidos</span>`;
+        html += `<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:3px 9px;font-size:.74rem;">${d.nunca} nunca</span>`;
+        if (d.alta) html += `<span style="background:#ffedd5;color:#c2410c;border-radius:8px;padding:3px 9px;font-size:.74rem;">⭐ ${d.alta} alta</span>`;
+        html += '</div>';
+        html += `<div style="font-size:.76rem;color:#475569;margin-bottom:4px;">Última visita do candidato: <strong>${d.ultima_visita_dias === null ? 'nunca' : 'há ' + d.ultima_visita_dias + ' dias'}</strong></div>`;
+        html += `<div style="font-size:.76rem;color:#475569;margin-bottom:10px;">Próximo compromisso: <strong>${d.proximo ? d.proximo.data + ' — ' + d.proximo.titulo : 'nenhum'}</strong></div>`;
+        if (d.top_vencidos.length) {
+            html += '<div style="font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;">Quem visitar primeiro</div>';
+            for (const c of d.top_vencidos) {
+                const badge = c.dias === null ? '<span style="color:#991b1b;font-weight:700;">Nunca</span>' : `<span style="color:#c2410c;font-weight:700;">${c.dias}d</span>`;
+                html += `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #f8fafc;font-size:.78rem;">` +
+                    `<span>${c.prioridade === 'alta' ? '⭐ ' : ''}${c.nome} <span style="color:#94a3b8;font-size:.68rem;">(${c.tipo})</span></span>${badge}</div>`;
+            }
+        } else {
+            html += '<div style="color:#16a34a;font-weight:600;font-size:.78rem;">Relacionamento em dia nesta cidade. 🎉</div>';
+        }
+        html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
+        html += `<a href="/agenda/compromissos/?cidade=${d.id}&data=${dataSel}" style="flex:1;text-align:center;background:#002776;color:#fff;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;text-decoration:none;">+ Compromisso</a>`;
+        html += `<button onclick="addRotStopFromPanel('${d.slug}')" style="flex:1;background:#fff;border:1px solid #002776;color:#002776;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;cursor:pointer;">🧭 + Roteiro</button>`;
+        html += '</div>';
+        body.innerHTML = html;
+    }
+
+    map.onCityAction = openCityActionPanel;
 
     // ── Estrategico Dashboard ──────────────────────────────────
     const strategicColors = {
@@ -1819,6 +1974,13 @@ case 'transferencia': {
         map.doacoesEnabled = false;
         map.concorrenciaEnabled = false;
         map.perfilIdeologicoEnabled = false;
+        map.visitUrgencyEnabled = false;
+        if (mode !== 'roteiros') {
+            closeCityActionPanel();
+            rotBuilder.ativo = false;
+            rotBuilder.stops = [];
+            map.setBuilderStops([]);
+        }
 
         // Limpar modos especiais ao sair
         if (mode !== 'concorrencia') {
@@ -1855,6 +2017,7 @@ case 'transferencia': {
                 break;
             case 'roteiros':
                 await map.setItineraries(true, false);
+                await map.setVisitUrgency(true);
                 break;
             case 'estrategico':
                 await map.setStrategic(true);

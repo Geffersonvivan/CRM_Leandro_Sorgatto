@@ -36,6 +36,8 @@ const API = {
     },
     roteiros: {
         mapData: (showCompleted) => apiGet(`/mapa/api/roteiros/?completed=${showCompleted}`),
+        urgency: () => apiGet('/mapa/api/urgencia-visita/'),
+        cityAction: (slug) => apiGet(`/mapa/api/cidade-acao/${slug}/`),
     },
     perfilIdeologico: {
         _cache: null,

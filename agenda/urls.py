@@ -42,4 +42,5 @@ urlpatterns = [
     path('api/compromissos/<int:pk>/tarefas/criar/', views.api_criar_tarefa_compromisso, name='api_criar_tarefa_compromisso'),
     path('api/tarefas/<int:tarefa_id>/toggle/', views.api_toggle_tarefa_compromisso, name='api_toggle_tarefa_compromisso'),
     path('api/compromissos/<int:pk>/followup/', views.api_followup_compromisso, name='api_followup_compromisso'),
+    path('api/roteiro-construir/', views.api_roteiro_construir, name='api_roteiro_construir'),
 ]

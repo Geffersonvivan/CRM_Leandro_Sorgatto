@@ -33,4 +33,6 @@ urlpatterns = [
     path('api/neighbor-deputies/', views.NeighborDeputiesAPI.as_view(), name='api_neighbor_deputies'),
     path('api/competicao/', views.CompeticaoMapAPI.as_view(), name='api_competicao'),
     path('api/perfil-ideologico/', views.PerfilIdeologicoAPI.as_view(), name='api_perfil_ideologico'),
+    path('api/urgencia-visita/', views.VisitUrgencyAPI.as_view(), name='api_urgencia_visita'),
+    path('api/cidade-acao/<slug:slug>/', views.CityActionAPI.as_view(), name='api_cidade_acao'),
 ]

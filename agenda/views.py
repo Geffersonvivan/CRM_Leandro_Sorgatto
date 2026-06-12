@@ -970,3 +970,65 @@ def api_salvar_roteiro(request):
         })
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e), 'trace': traceback.format_exc()}, status=500)
+
+
+@secao_required('demandas:roteiros')
+def api_roteiro_construir(request):
+    """Construtor visual do mapa: cria Roteiro + compromissos-rascunho a partir
+    de uma lista ordenada de cidades. POST JSON {data, cidades[], hora_inicio?, titulo?}."""
+    import json as json_mod
+    from datetime import datetime as dt, time as time_t, timedelta as td
+    from django.utils import timezone as tz
+    from liderancas.models import Cidade
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método não permitido.'}, status=405)
+    try:
+        payload = json_mod.loads(request.body)
+    except json_mod.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido.'}, status=400)
+
+    data_str = payload.get('data')
+    cidade_ids = payload.get('cidades') or []
+    if not data_str or not cidade_ids:
+        return JsonResponse({'ok': False, 'error': 'Informe a data e ao menos uma cidade.'}, status=400)
+
+    mapa_cidades = {c.pk: c for c in Cidade.objects.filter(pk__in=cidade_ids).select_related('regiao')}
+    ordenadas = [mapa_cidades[i] for i in cidade_ids if i in mapa_cidades]
+    if not ordenadas:
+        return JsonResponse({'ok': False, 'error': 'Nenhuma cidade válida.'}, status=400)
+
+    try:
+        data_rot = dt.strptime(data_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Data inválida.'}, status=400)
+    try:
+        h, m = [int(x) for x in (payload.get('hora_inicio') or '08:30').split(':')]
+        atual = tz.make_aware(dt.combine(data_rot, time_t(h, m)))
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Horário inválido.'}, status=400)
+
+    regiao = ordenadas[0].regiao
+    roteiro = Roteiro.objects.create(
+        titulo=payload.get('titulo') or f'Roteiro {regiao.sigla} — {data_rot:%d/%m/%Y}',
+        data=data_rot,
+        regiao=regiao,
+        cadastrado_por=request.user,
+        observacoes='Criado pelo construtor visual do mapa. Ajuste horários e detalhes de cada parada.',
+    )
+    for i, cid in enumerate(ordenadas, start=1):
+        comp = Compromisso.objects.create(
+            titulo=f'Visita — {cid.nome}',
+            tipo='visita',
+            regiao=cid.regiao,
+            cidade=cid,
+            data_hora_inicio=atual,
+            data_hora_fim=atual + td(hours=1),
+            status='pendente',
+            descricao='Parada criada pelo construtor de roteiro no mapa.',
+            cadastrado_por=request.user,
+        )
+        RoteiroPonto.objects.create(roteiro=roteiro, compromisso=comp, ordem=i)
+        atual += td(hours=1, minutes=30)
+
+    return JsonResponse({'ok': True, 'id': roteiro.pk, 'url': f'/agenda/roteiros/{roteiro.pk}/', 'paradas': len(ordenadas)})

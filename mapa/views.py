@@ -2135,3 +2135,146 @@ class PerfilIdeologicoAPI(APIView):
                 ],
             },
         })
+
+
+# ─── API: ROTEIROS INTELIGENTES (urgência de visita + painel de ação) ──────
+
+class VisitUrgencyAPI(APIView):
+    """Urgência de visita por cidade: contatos com relacionamento vencido
+    (Fila) + tempo desde o último compromisso realizado do candidato."""
+
+    def get(self, request):
+        from django.db.models import Max
+        from liderancas.views import FREQ_PRAZOS
+        agora = timezone.now()
+
+        por_cidade = defaultdict(lambda: {'vencidos': 0, 'nunca': 0, 'alta': 0})
+
+        def acumular(qs, campo_cidade):
+            for c in qs.annotate(ultima=Max('interacoes__data')):
+                prazo = FREQ_PRAZOS.get(c.frequencia_relacionamento, 30)
+                dias = (agora - c.ultima).days if c.ultima else None
+                if dias is not None and dias <= prazo:
+                    continue
+                d = por_cidade[getattr(c, campo_cidade)]
+                d['vencidos'] += 1
+                if dias is None:
+                    d['nunca'] += 1
+                if c.prioridade == 'alta':
+                    d['alta'] += 1
+
+        acumular(CaboEleitoral.objects.all(), 'cidade_id')
+        acumular(Apoiador.objects.all(), 'cidade_id')
+        acumular(CoordenadorRegional.objects.all(), 'cidade_base_id')
+
+        realizados = dict(
+            Compromisso.objects.filter(status='realizado')
+            .values('cidade_id').annotate(m=Max('data_hora_inicio'))
+            .values_list('cidade_id', 'm')
+        )
+        futuros = dict(
+            Compromisso.objects.filter(data_hora_inicio__gte=agora)
+            .exclude(status='cancelado')
+            .values('cidade_id').annotate(n=Count('id'))
+            .values_list('cidade_id', 'n')
+        )
+
+        cities, regions = {}, {}
+        for cid in Cidade.objects.select_related('regiao'):
+            d = por_cidade.get(cid.id, {'vencidos': 0, 'nunca': 0, 'alta': 0})
+            ultima = realizados.get(cid.id)
+            v = d['vencidos']
+            if v == 0:
+                nivel = 0
+            elif v <= 3:
+                nivel = 1
+            elif v <= 10:
+                nivel = 2
+            elif v <= 25:
+                nivel = 3
+            else:
+                nivel = 4
+            if d['alta'] > 0 and nivel < 4:
+                nivel += 1
+            cities[cid.slug] = {
+                'id': cid.id,
+                'name': cid.nome,
+                'region_slug': cid.regiao.slug,
+                'vencidos': v,
+                'nunca': d['nunca'],
+                'alta': d['alta'],
+                'dias_visita': (agora - ultima).days if ultima else None,
+                'proximos': futuros.get(cid.id, 0),
+                'nivel': nivel,
+                'lat': cid.latitude,
+                'lng': cid.longitude,
+            }
+            r = regions.setdefault(cid.regiao.slug, {'vencidos': 0, 'nivel': 0, 'pior': '', 'pior_v': -1})
+            r['vencidos'] += v
+            r['nivel'] = max(r['nivel'], nivel)
+            if v > r['pior_v']:
+                r['pior_v'] = v
+                r['pior'] = cid.nome
+        return Response({'cities': cities, 'regions': regions})
+
+
+class CityActionAPI(APIView):
+    """Painel de ação de uma cidade no modo Roteiros: vencidos, última visita,
+    próximo compromisso e top contatos para visitar."""
+
+    def get(self, request, slug):
+        from django.db.models import Max
+        from liderancas.views import FREQ_PRAZOS
+        agora = timezone.now()
+        cid = Cidade.objects.select_related('regiao').filter(slug=slug).first()
+        if not cid:
+            return Response({'error': 'Cidade não encontrada'}, status=404)
+
+        contatos = []
+        fontes = [
+            ('coordenador', CoordenadorRegional.objects.filter(cidade_base=cid)),
+            ('cabo', CaboEleitoral.objects.filter(cidade=cid)),
+            ('apoiador', Apoiador.objects.filter(cidade=cid)),
+        ]
+        for tipo, qs in fontes:
+            for c in qs.annotate(ultima=Max('interacoes__data')):
+                prazo = FREQ_PRAZOS.get(c.frequencia_relacionamento, 30)
+                dias = (agora - c.ultima).days if c.ultima else None
+                contatos.append({
+                    'id': c.pk, 'tipo': tipo, 'nome': c.nome,
+                    'telefone': c.telefone, 'prioridade': c.prioridade,
+                    'dias': dias,
+                    'vencido': dias is None or dias > prazo,
+                })
+
+        vencidos = [c for c in contatos if c['vencido']]
+        ordem_pr = {'alta': 0, 'media': 1, 'baixa': 2}
+        vencidos.sort(key=lambda x: (
+            ordem_pr.get(x['prioridade'], 1),
+            0 if x['dias'] is None else 1,
+            -(x['dias'] or 0),
+        ))
+
+        ultima = Compromisso.objects.filter(cidade=cid, status='realizado') \
+            .aggregate(m=Max('data_hora_inicio'))['m']
+        proximo = Compromisso.objects.filter(cidade=cid, data_hora_inicio__gte=agora) \
+            .exclude(status='cancelado').order_by('data_hora_inicio').first()
+
+        return Response({
+            'id': cid.id,
+            'nome': cid.nome,
+            'slug': cid.slug,
+            'regiao': cid.regiao.sigla,
+            'lat': cid.latitude,
+            'lng': cid.longitude,
+            'total_contatos': len(contatos),
+            'vencidos': len(vencidos),
+            'nunca': sum(1 for c in vencidos if c['dias'] is None),
+            'alta': sum(1 for c in vencidos if c['prioridade'] == 'alta'),
+            'ultima_visita_dias': (agora - ultima).days if ultima else None,
+            'proximo': {
+                'titulo': proximo.titulo,
+                'data': timezone.localtime(proximo.data_hora_inicio).strftime('%d/%m %H:%M'),
+            } if proximo else None,
+            'top_vencidos': vencidos[:6],
+        })

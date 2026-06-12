@@ -23,6 +23,9 @@ class SCMap {
         this.neighborDeputiesEnabled = false;
         this.elections2022Enabled = false;
         this.doacoesEnabled = false;
+        this.visitUrgencyEnabled = false;
+        this._visitUrgencyData = null;
+        this.onCityAction = null;
         this._demandsData = null;
         this._itinerariesData = null;
         this._strategicData = null;
@@ -37,6 +40,87 @@ class SCMap {
         this._stateGeojson = null;
         this._regionGeojson = null;
         this._itineraryColors = ['#3b82f6', '#f97316', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#06b6d4', '#ef4444'];
+    }
+
+    _urgencyColor(nivel) {
+        return ['#d1d5db', '#86efac', '#eab308', '#f97316', '#dc2626'][nivel] || '#d1d5db';
+    }
+
+    async setVisitUrgency(enabled) {
+        // Não chama _resetToNeutral: convive com as linhas dos roteiros.
+        this.visitUrgencyEnabled = enabled;
+        if (enabled && !this._visitUrgencyData) {
+            try {
+                this._visitUrgencyData = await API.roteiros.urgency();
+            } catch (e) {
+                this._visitUrgencyData = null;
+            }
+        }
+        if (this.currentLevel === 'state' && this._stateGeojson) {
+            this._applyStateColors(true);
+        } else if (this.currentLevel === 'region' && this._regionGeojson) {
+            this._applyRegionColors(true);
+        }
+    }
+
+    _urgencyCityTipHtml(p) {
+        const c = (this._visitUrgencyData?.cities || {})[p.slug];
+        let html = `<div class="tooltip-title">${p.name}</div>`;
+        if (!c) return html + '<div class="tooltip-row"><span style="color:#9ca3af">Sem dados</span></div>';
+        html += `<div class="tooltip-row"><span class="tooltip-label">Contatos vencidos:</span> <span class="tooltip-value" style="color:${this._urgencyColor(c.nivel)};font-weight:700">${c.vencidos}</span></div>`;
+        if (c.nunca) html += `<div class="tooltip-row"><span class="tooltip-label">Nunca contatados:</span> <span class="tooltip-value">${c.nunca}</span></div>`;
+        if (c.alta) html += `<div class="tooltip-row"><span class="tooltip-label">Prioridade alta:</span> <span class="tooltip-value" style="color:#dc2626;font-weight:700">${c.alta} ⭐</span></div>`;
+        html += `<div class="tooltip-row"><span class="tooltip-label">Última visita:</span> <span class="tooltip-value">${c.dias_visita === null ? 'nunca' : 'há ' + c.dias_visita + 'd'}</span></div>`;
+        if (c.proximos) html += `<div class="tooltip-row"><span class="tooltip-label">Compromissos futuros:</span> <span class="tooltip-value">${c.proximos}</span></div>`;
+        html += '<div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para o painel de ação</span></div>';
+        return html;
+    }
+
+    _urgencyRegionTipHtml(p) {
+        const r = (this._visitUrgencyData?.regions || {})[p.slug];
+        let html = `<div class="tooltip-title">${p.name}</div>`;
+        if (!r) return html + '<div class="tooltip-row"><span style="color:#9ca3af">Sem dados</span></div>';
+        html += `<div class="tooltip-row"><span class="tooltip-label">Contatos vencidos:</span> <span class="tooltip-value" style="color:${this._urgencyColor(r.nivel)};font-weight:700">${r.vencidos}</span></div>`;
+        if (r.pior) html += `<div class="tooltip-row"><span class="tooltip-label">Cidade mais crítica:</span> <span class="tooltip-value">${r.pior}</span></div>`;
+        html += '<div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para ver as cidades</span></div>';
+        return html;
+    }
+
+    // ── Construtor visual de roteiro (paradas numeradas no mapa) ──
+    setBuilderStops(stops) {
+        this.g.selectAll('.builder-marker,.builder-line').remove();
+        if (!stops || !stops.length) return;
+        const self = this;
+        const pontos = [];
+        for (const stop of stops) {
+            const node = this.g.selectAll('path.city')
+                .filter(d => d.properties.slug === stop.slug).node();
+            if (!node) continue;
+            const b = node.getBBox();
+            pontos.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, ordem: stop.ordem });
+        }
+        if (pontos.length > 1) {
+            this.g.append('polyline')
+                .attr('class', 'builder-line')
+                .attr('points', pontos.map(pt => `${pt.x},${pt.y}`).join(' '))
+                .attr('fill', 'none')
+                .attr('stroke', '#002776')
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '6,4')
+                .attr('opacity', 0.85);
+        }
+        for (const pt of pontos) {
+            const grp = this.g.append('g').attr('class', 'builder-marker');
+            grp.append('circle')
+                .attr('cx', pt.x).attr('cy', pt.y).attr('r', 11)
+                .attr('fill', '#002776').attr('stroke', '#fff').attr('stroke-width', 2.5);
+            grp.append('text')
+                .attr('x', pt.x).attr('y', pt.y)
+                .attr('text-anchor', 'middle').attr('dy', '0.35em')
+                .attr('font-size', '11px').attr('font-weight', '800')
+                .attr('fill', '#fff').attr('pointer-events', 'none')
+                .text(pt.ordem);
+        }
     }
 
     _strategicColor(classification) {
@@ -666,7 +750,7 @@ class SCMap {
         this.g.selectAll('path.city').style('display', null).attr('fill', '#e2e8f0').attr('fill-opacity', 0.85);
         this.g.selectAll('text').style('display', null);
         // Remove overlay elements from special modes
-        this.g.selectAll('.itinerary-line,.itinerary-marker,.transfer-arrow,.transfer-marker,.transfer-city,.concorrencia-city,.perfil-city').remove();
+        this.g.selectAll('.itinerary-line,.itinerary-marker,.transfer-arrow,.transfer-marker,.transfer-city,.concorrencia-city,.perfil-city,.builder-marker,.builder-line').remove();
     }
 
     setHeatmap(enabled) {
@@ -1474,6 +1558,10 @@ class SCMap {
         const sel = this.g.selectAll('path.region');
         const t = instant ? sel : sel.transition().duration(400);
         t.attr('fill', function(d) {
+                if (self.visitUrgencyEnabled && self._visitUrgencyData) {
+                    const r = (self._visitUrgencyData.regions || {})[d.properties.slug];
+                    return self._urgencyColor(r ? r.nivel : 0);
+                }
                 if (self.voteTransferEnabled && self._voteTransferData) {
                     // Colorir região pela classificação cruzada mais relevante
                     const cities = self._voteTransferData.cities.filter(c => c.region_slug === d.properties.slug);
@@ -1525,7 +1613,7 @@ class SCMap {
                 if (self.itinerariesEnabled) return self._desaturate(baseColor);
                 return baseColor;
             })
-            .attr('fill-opacity', (self.itinerariesEnabled ? 0.45 : (self.voteTransferEnabled) ? 0.5 : (self.heatmapEnabled || self.demandsEnabled || self.strategicEnabled || self.plNetworkEnabled || self.zoneRankingEnabled || self.neighborDeputiesEnabled || self.elections2022Enabled || self.doacoesEnabled) ? 0.85 : 0.75));
+            .attr('fill-opacity', (self.visitUrgencyEnabled ? 0.8 : self.itinerariesEnabled ? 0.45 : (self.voteTransferEnabled) ? 0.5 : (self.heatmapEnabled || self.demandsEnabled || self.strategicEnabled || self.plNetworkEnabled || self.zoneRankingEnabled || self.neighborDeputiesEnabled || self.elections2022Enabled || self.doacoesEnabled) ? 0.85 : 0.75));
 
         // Cursor: desabilitar pointer no modo eleições
         this.g.selectAll('path.region')
@@ -1548,7 +1636,9 @@ class SCMap {
         // Atualizar tooltips
         const tipHtmls = new Map();
         for (const f of this._stateGeojson.features) {
-            if (self.voteTransferEnabled) {
+            if (self.visitUrgencyEnabled) {
+                tipHtmls.set(f.properties.slug, self._urgencyRegionTipHtml(f.properties));
+            } else if (self.voteTransferEnabled) {
                 // Tooltip com info cruzada da região
                 const cities = (self._voteTransferData?.cities || []).filter(c => c.region_slug === f.properties.slug);
                 const counts = {};
@@ -1632,6 +1722,10 @@ class SCMap {
         const sel = this.g.selectAll('path.city');
         const t = instant ? sel : sel.transition().duration(400);
         t.attr('fill', function(d) {
+                if (self.visitUrgencyEnabled && self._visitUrgencyData) {
+                    const c = (self._visitUrgencyData.cities || {})[d.properties.slug];
+                    return self._urgencyColor(c ? c.nivel : 0);
+                }
                 if (self.voteTransferEnabled && self._voteTransferData) {
                     const city = self._voteTransferData.cities.find(c => c.slug === d.properties.slug);
                     return city ? self._transferOppColor(city.opp_class) : '#d1d5db';
@@ -1666,7 +1760,9 @@ class SCMap {
         // Atualizar tooltips
         const tipHtmls = new Map();
         for (const f of this._regionGeojson.features) {
-            if (self.voteTransferEnabled) {
+            if (self.visitUrgencyEnabled) {
+                tipHtmls.set(f.properties.slug, self._urgencyCityTipHtml(f.properties));
+            } else if (self.voteTransferEnabled) {
                 const city = (self._voteTransferData?.cities || []).find(c => c.slug === f.properties.slug);
                 if (city) {
                     let html = `<div class="tooltip-title">${f.properties.name}</div>`;
@@ -1715,6 +1811,15 @@ class SCMap {
         this.g.selectAll('path.city')
             .on('mouseenter', (event, d) => {
                 this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY);
+            })
+            .on('click', (event, d) => {
+                this._hideTip();
+                if (self.visitUrgencyEnabled && self.onCityAction) {
+                    self.onCityAction(d.properties.slug);
+                    return;
+                }
+                if (self.onCityClick) self.onCityClick(d.properties.slug);
+                else window.location.href = `/mapa/cidade/${d.properties.slug}/?mapa=${self.mapMode}`;
             });
     }
 
@@ -1879,6 +1984,10 @@ class SCMap {
                 })
                 .on('click', (event, d) => {
                     this._hideTip();
+                    if (this.visitUrgencyEnabled && this.onCityAction) {
+                        this.onCityAction(d.properties.slug);
+                        return;
+                    }
                     if (this.onCityClick) this.onCityClick(d.properties.slug);
                     else window.location.href = `/mapa/cidade/${d.properties.slug}/?mapa=${this.mapMode}`;
                 });
@@ -1903,6 +2012,8 @@ class SCMap {
                 .text(d => d.properties.name);
 
             this.svg.transition().duration(300).call(this.zoom.transform, d3.zoomIdentity);
+
+            if (this.visitUrgencyEnabled) this._applyRegionColors(true);
 
         } catch (e) {
             console.error('Erro zoom regiao:', e);
