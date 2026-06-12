@@ -149,12 +149,8 @@
         <thead>
             <tr>
                 {% sortable_th "nome" "Nome" "" %}
-                <th>Telefone</th>
-                <th>Email</th>
-                <th>Redes Sociais</th>
+                <th>Canais</th>
                 {% sortable_th "cidade_nome" "Cidade" "" %}
-                {% sortable_th "estado" "UF" "" %}
-                <th>Região</th>
                 {% sortable_th "curso" "Curso" "" %}
                 {% sortable_th "instituicao" "Instituição" "" %}
                 <th>Contato</th>
@@ -165,20 +161,26 @@
         <tbody>
             {% for e in page_obj %}
             <tr>
-                <td class="col-nome">{{ e.nome }}</td>
-                <td class="col-tel">{{ e.telefone|whatsapp_link }}</td>
-                <td class="col-email">{{ e.email|default:"-" }}</td>
-                <td class="col-email">{{ e.instagram|instagram_link }}</td>
-                <td class="col-nome">{{ e.cidade_nome|default:"-" }}</td>
-                <td>{{ e.estado|default:"-" }}</td>
-                <td>{% if e.cidade %}<span class="badge">{{ e.cidade.regiao.sigla }}</span>{% else %}-{% endif %}</td>
+                <td class="col-nome">
+                    <span class="cell-main">{{ e.nome }}</span>
+                    {% if e.telefone %}<div class="cell-sub">{{ e.telefone|whatsapp_link }}</div>{% endif %}
+                </td>
+                <td>
+                    <span class="chan-icons">{{ e.email|email_icon }}{{ e.instagram|instagram_icon }}{% if not e.email and not e.instagram %}<span class="cell-muted">–</span>{% endif %}</span>
+                </td>
+                <td class="col-cidade">
+                    {{ e.cidade_nome|default:"-" }}{% if e.estado and e.estado != 'SC' %} <span style="color:#94a3b8;font-size:0.7rem;font-weight:600;">{{ e.estado }}</span>{% endif %}
+                    {% if e.cidade %} <span class="badge">{{ e.cidade.regiao.sigla }}</span>{% endif %}
+                </td>
                 <td class="col-curso">{{ e.curso|default:"-" }}</td>
                 <td class="col-curso">{{ e.instituicao|default:"-" }}</td>
                 <td class="col-contato">{{ e.ultima_interacao|contact_badge }}</td>
-                <td class="col-obs">
+                <td class="col-sm">
                     {% if e.observacoes %}
-                    <span class="obs-link" onclick="openObs(this)" data-nome="{{ e.nome|escapejs }}" data-obs="{{ e.observacoes|escapejs }}">{{ e.observacoes|truncatechars:15 }}</span>
-                    {% else %}-{% endif %}
+                    <button type="button" class="btn-icon obs-btn" title="Ver observações" onclick="openObs(this)" data-nome="{{ e.nome|escapejs }}" data-obs="{{ e.observacoes|escapejs }}" style="border:1px solid #d1d5db;border-radius:6px;background:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;color:#64748b;cursor:pointer;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </button>
+                    {% else %}<span class="cell-muted">–</span>{% endif %}
                 </td>
                 <td class="col-acoes">
                     <div class="actions">
@@ -188,21 +190,28 @@
                         <button type="button" class="btn-icon" title="Registrar interação" onclick="openInteracao('egresso', {{ e.pk }}, '{{ e.nome|escapejs }}')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         </button>
-                        <button type="button" class="btn-icon" title="Histórico" onclick="showInteracoes('egresso', {{ e.pk }})">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <button type="button" class="btn-icon" title="Mais ações" data-row-menu>
+                            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
                         </button>
-                        <form method="post" action="{% url 'liderancas:egresso_delete' e.pk %}" onsubmit="return confirm('Remover este egresso?')" style="display:inline;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-icon danger" title="Excluir">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <div class="row-menu">
+                            <button type="button" onclick="showInteracoes('egresso', {{ e.pk }})">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                Histórico
                             </button>
-                        </form>
+                            <form method="post" action="{% url 'liderancas:egresso_delete' e.pk %}" onsubmit="return confirm('Remover este egresso?')">
+                                {% csrf_token %}
+                                <button type="submit" class="danger">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    Excluir
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="12" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum egresso encontrado.</td>
+                <td colspan="8" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum egresso encontrado.</td>
             </tr>
             {% endfor %}
         </tbody>

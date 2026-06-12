@@ -92,3 +92,47 @@ def contact_badge(ultima_interacao):
         color, bg = '#991b1b', '#fee2e2'
         label = f'{delta}d'
     return mark_safe(f'<span class="badge" style="background:{bg};color:{color};font-size:0.62rem;" title="{ultima_interacao:%d/%m/%Y}">{label}</span>')
+
+@register.filter
+def email_icon(email):
+    """Ícone de e-mail clicável (vazio quando não há e-mail)."""
+    if not email:
+        return ''
+    e = escape(email)
+    return mark_safe(
+        f'<a href="mailto:{e}" class="chan-icon" title="{e}">'
+        f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+        f'<rect x="2" y="4" width="20" height="16" rx="2"/>'
+        f'<path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></a>'
+    )
+
+
+@register.filter
+def instagram_icon(username):
+    """Ícone do Instagram clicável (vazio quando não há perfil)."""
+    if not username:
+        return ''
+    handle = re.sub(r'[^a-zA-Z0-9._]', '', username.lstrip('@'))
+    u = escape(username)
+    return mark_safe(
+        f'<a href="https://instagram.com/{handle}" target="_blank" class="chan-icon" title="{u}">'
+        f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+        f'<rect x="2" y="2" width="20" height="20" rx="5"/>'
+        f'<circle cx="12" cy="12" r="5"/>'
+        f'<circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>'
+    )
+
+
+@register.filter
+def relacionamento_dot(obj):
+    """Ponto colorido pela prioridade, com o detalhe completo no tooltip."""
+    prio = getattr(obj, 'prioridade', '')
+    partes = [f'Prioridade: {obj.get_prioridade_display()}']
+    if hasattr(obj, 'get_grau_influencia_display'):
+        partes.append(f'Influência: {obj.get_grau_influencia_display()}')
+    if hasattr(obj, 'get_frequencia_relacionamento_display'):
+        partes.append(f'Frequência: {obj.get_frequencia_relacionamento_display()}')
+    cores = {'alta': '#dc2626', 'media': '#f59e0b', 'baixa': '#10b981'}
+    cor = cores.get(prio, '#94a3b8')
+    title = escape(' · '.join(partes))
+    return mark_safe(f'<span class="prio-dot" style="background:{cor}" title="{title}"></span>')

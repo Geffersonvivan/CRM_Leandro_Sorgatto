@@ -81,3 +81,25 @@
         initFilterCityLoader: initFilterCityLoader,
     };
 })();
+
+// ===== Menu "⋯" das linhas de listagem =====
+// (o arquivo pode ser incluído 2x — base.html e extra_js — então registra uma vez só)
+if (!window.__rowMenuBound) {
+window.__rowMenuBound = true;
+document.addEventListener('click', function (e) {
+    const trigger = e.target.closest('[data-row-menu]');
+    document.querySelectorAll('.row-menu.open').forEach(function (m) {
+        if (!trigger || m !== trigger.nextElementSibling) m.classList.remove('open');
+    });
+    if (!trigger) return;
+    const menu = trigger.nextElementSibling;
+    if (!menu || !menu.classList.contains('row-menu')) return;
+    if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
+    const r = trigger.getBoundingClientRect();
+    menu.classList.add('open');
+    const h = menu.offsetHeight || 90;
+    const top = (r.bottom + h + 8 > window.innerHeight) ? (r.top - h - 4) : (r.bottom + 4);
+    menu.style.top = top + 'px';
+    menu.style.left = Math.max(8, r.right - 165) + 'px';
+});
+}

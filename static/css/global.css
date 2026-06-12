@@ -250,6 +250,38 @@ input[type="date"].form-input, input[type="date"].g-input { color: #475569; }
 .pagination-pages .disabled { color: #cbd5e1; cursor: default; }
 .pagination-pages .ellipsis { border: none; background: transparent; color: #94a3b8; min-width: 20px; }
 
+/* ---------- Listagens compactas (células compostas) ---------- */
+.cell-main { font-weight: 600; color: #1e293b; white-space: nowrap; }
+.cell-sub { font-size: 0.7rem; color: #64748b; white-space: nowrap; margin-top: 1px; }
+.cell-sub a { color: #64748b !important; }
+.cell-muted { color: #cbd5e1; }
+.chan-icons { display: inline-flex; gap: 5px; align-items: center; }
+.chan-icon {
+    display: inline-flex; width: 26px; height: 26px;
+    border: 1px solid #e2e8f0; border-radius: 6px;
+    align-items: center; justify-content: center; color: #64748b; transition: all 0.15s;
+}
+.chan-icon:hover { border-color: #002776; color: #002776; background: #eef4ff; }
+.chan-icon svg { width: 14px; height: 14px; }
+.prio-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; cursor: help; }
+.obs-btn svg { width: 14px; height: 14px; }
+.row-menu {
+    display: none; position: fixed; z-index: 300;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.14); min-width: 160px; padding: 4px;
+}
+.row-menu.open { display: block; }
+.row-menu form { margin: 0; }
+.row-menu button {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 8px 10px; border: none; background: none; font-size: 0.78rem;
+    color: #374151; border-radius: 6px; cursor: pointer; text-align: left;
+}
+.row-menu button:hover { background: #f1f5f9; }
+.row-menu button.danger { color: #dc2626; }
+.row-menu button.danger:hover { background: #fef2f2; }
+.row-menu svg { width: 14px; height: 14px; }
+
 /* ---------- Form Modal (cadastro/edição via AJAX) ---------- */
 .form-modal-box {
     background: #fff; border-radius: 16px; width: 1080px; max-width: 96vw;
