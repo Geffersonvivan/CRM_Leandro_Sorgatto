@@ -527,8 +527,8 @@
 <!-- Dashboard contextual abaixo do mapa -->
 <div class="map-wrapper map-dashboard map-dashboard-hidden" id="mapDashboard"></div>
 
-<script src="{% static 'js/map/api.js' %}?v=7"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=7"></script>
+<script src="{% static 'js/map/api.js' %}?v=8"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=8"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -1179,50 +1179,133 @@ case 'transferencia': {
     }
 
     // ── Demandas Dashboard ─────────────────────────────────────
+    let _demandLayer = 'status';
+    let _demandTipo = '';
+
+    window.trocarCamadaDemanda = function (layer) {
+        _demandLayer = layer;
+        if (window.mapApp) window.mapApp.setDemandLayer(layer);
+        if (window._demandData) renderDemandasDashboard(window._demandData);
+    };
+    window.trocarTipoDemanda = async function (tipo) {
+        _demandTipo = tipo;
+        if (window.mapApp) { window.mapApp.demandTipo = tipo; await window.mapApp.setDemands(true); }
+        if (window.mapApp && window.mapApp._demandsFull) renderDemandasDashboard(window.mapApp._demandsFull);
+    };
+
     function renderDemandasDashboard(data) {
-        const items = Array.isArray(data) ? data : [];
-        const totalOverdue = items.reduce((s, r) => s + (r.overdue || 0), 0);
-        const totalActive = items.reduce((s, r) => s + (r.active || 0), 0);
-        const totalCompleted = items.reduce((s, r) => s + (r.completed || 0), 0);
+        window._demandData = data;
+        // compat: se vier array (cache antigo), normaliza
+        if (Array.isArray(data)) data = { regions: data, urgentes: [], summary: {}, tipos: [] };
+        const sum = data.summary || {};
+        const tipos = data.tipos || [];
+        const regions = data.regions || [];
+        const urg = data.urgentes || [];
 
-        let html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
-        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Status das Demandas</span>';
-        html += '<span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>Em dia</span>';
-        html += '<span class="legend-item"><span class="legend-dot" style="background:#eab308"></span>Proximo do prazo</span>';
-        html += '<span class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>Em atraso</span>';
-        html += '<span class="legend-item"><span class="legend-dot" style="background:#d1d5db"></span>Sem demandas</span>';
+        let html = '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px;">';
+        // toggle de camada
+        html += '<div style="display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;">';
+        html += `<button onclick="trocarCamadaDemanda('status')" style="padding:5px 12px;border:none;font-size:.78rem;font-weight:700;cursor:pointer;background:${_demandLayer==='status'?'#002776':'#fff'};color:${_demandLayer==='status'?'#fff':'#475569'};">Status</button>`;
+        html += `<button onclick="trocarCamadaDemanda('mismatch')" style="padding:5px 12px;border:none;border-left:1px solid #cbd5e1;font-size:.78rem;font-weight:700;cursor:pointer;background:${_demandLayer==='mismatch'?'#002776':'#fff'};color:${_demandLayer==='mismatch'?'#fff':'#475569'};">Esforço × Oportunidade</button>`;
+        html += `<button onclick="trocarCamadaDemanda('promessas')" style="padding:5px 12px;border:none;border-left:1px solid #cbd5e1;font-size:.78rem;font-weight:700;cursor:pointer;background:${_demandLayer==='promessas'?'#002776':'#fff'};color:${_demandLayer==='promessas'?'#fff':'#475569'};">Promessas ao eleitor</button>`;
+        html += '</div>';
+        // filtro de tipo
+        html += '<select onchange="trocarTipoDemanda(this.value)" style="padding:5px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:.78rem;font-weight:600;cursor:pointer;">';
+        html += `<option value="">Todos os tipos</option>`;
+        for (const t of tipos) html += `<option value="${t.value}" ${t.value===_demandTipo?'selected':''}>${t.label} (${t.count})</option>`;
+        html += '</select>';
+        // legenda dinâmica
+        if (_demandLayer === 'promessas') {
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#dc2626"></span>Pouco entregue</span>';
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#eab308"></span>Parcial</span>';
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#16a34a"></span>Entregue</span>';
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#e2e8f0"></span>Sem promessas</span>';
+        } else if (_demandLayer === 'mismatch') {
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#dc2626"></span>Oportunidade ignorada</span>';
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#f1f5f9;border:1px solid #cbd5e1"></span>Equilibrado</span>';
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span>Esforço concentrado</span>';
+        } else {
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>Em atraso</span>';
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>Em dia</span>';
+            html += '<span class="legend-item"><span class="legend-dot" style="background:#d1d5db"></span>Sem demandas</span>';
+        }
         html += '</div>';
 
-        // Summary stats
-        html += '<div class="dash-summary-stats" style="margin-bottom:12px">';
-        html += `<span style="color:#ef4444;font-weight:600">${totalOverdue} em atraso</span>`;
-        html += `<span>${totalActive} ativas</span>`;
-        html += `<span>${totalCompleted} concluidas</span>`;
+        // ── Camada Promessas: painel próprio ──
+        if (_demandLayer === 'promessas') {
+            const pd = (window.mapApp && window.mapApp._promessasData) ? window.mapApp._promessasData : { summary:{}, ultimas:[] };
+            const ps = pd.summary || {};
+            let ph = '<div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 14px;align-items:flex-end;">';
+            const pcards = [['Promessas', ps.total||0, '#1e293b'], ['Entregues', ps.entregues||0, '#16a34a'], ['Pendentes', ps.pendentes||0, '#dc2626'], ['Taxa de entrega', (ps.taxa||0)+'%', '#2563eb']];
+            for (const [l,v,c] of pcards) ph += `<div><div style="font-size:1.5rem;font-weight:800;color:${c};line-height:1;">${v}</div><div style="font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;">${l}</div></div>`;
+            ph += '</div>';
+            const ult = pd.ultimas || [];
+            if (ult.length) {
+                ph += '<div class="dash-table-wrap"><div class="dash-table-header"><h3>Promessas registradas</h3><span>'+ult.length+' recentes</span></div>';
+                ph += '<table class="dash-table"><thead><tr><th>Demanda</th><th>Cidade</th><th>Bairro/Linha</th><th>Status</th><th>Responsável</th><th>Registro</th></tr></thead><tbody>';
+                for (const p of ult) {
+                    const cor = p.status_key==='entregue'?'#16a34a':p.status_key==='cancelada'?'#94a3b8':'#ea580c';
+                    ph += `<tr><td><strong>${p.descricao}</strong></td><td>${p.cidade}</td><td>${p.bairro||'—'}</td><td><span class="perf-badge" style="background:${cor}">${p.status}</span></td><td>${p.responsavel||'—'}</td><td>${p.data}</td></tr>`;
+                }
+                ph += '</tbody></table></div>';
+            } else {
+                ph += '<div style="padding:30px;text-align:center;color:#94a3b8;">Nenhuma promessa registrada ainda. Cadastre em <a href="/admin/tarefas/promessa/add/" style="color:#002776;font-weight:600;">Admin → Promessas</a> para mapear as demandas do eleitor por cidade.</div>';
+            }
+            dashEl.innerHTML = html + ph;
+            dashEl.classList.remove('map-dashboard-hidden');
+            return;
+        }
+
+        // cards de resumo
+        html += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end;">';
+        const cards = [
+            ['Total', sum.total||0, '#1e293b'], ['Ativas', sum.active||0, '#2563eb'],
+            ['Vencidas', sum.overdue||0, '#dc2626'], ['Concluídas', sum.completed||0, '#16a34a'],
+        ];
+        for (const [l,v,c] of cards) html += `<div><div style="font-size:1.5rem;font-weight:800;color:${c};line-height:1;">${fmt.number(v)}</div><div style="font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;">${l}</div></div>`;
         html += '</div>';
 
-        // Table
+        // alertas de mismatch
+        if ((sum.negligencia||0) + (sum.desperdicio||0) > 0) {
+            html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">';
+            if (sum.negligencia) html += `<span style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:6px 12px;font-size:.76rem;font-weight:700;">🚨 ${sum.negligencia} regiões com oportunidade negligenciada (muito voto, zero trabalho)</span>`;
+            if (sum.desperdicio) html += `<span style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:8px;padding:6px 12px;font-size:.76rem;font-weight:700;">↩ ${sum.desperdicio} regiões com esforço onde há pouco a ganhar</span>`;
+            html += '</div>';
+        }
+
+        // lista de urgentes
+        if (urg.length) {
+            html += '<div class="dash-table-wrap" style="margin-bottom:14px;"><div class="dash-table-header"><h3>🔴 Demandas mais urgentes</h3><span>vencidas, clique para agir</span></div>';
+            html += '<table class="dash-table"><thead><tr><th>Demanda</th><th>Tipo</th><th>Cidade</th><th class="text-right">Atraso</th><th>Prioridade</th><th>Responsável</th></tr></thead><tbody>';
+            for (const t of urg) {
+                const click = t.cidade_slug ? ` style="cursor:pointer;" onclick="openCityActionPanel('${t.cidade_slug}')"` : '';
+                html += `<tr${click}><td><strong>${t.titulo}</strong></td><td>${t.tipo}</td><td>${t.cidade}</td>`;
+                html += `<td class="text-right"><strong style="color:#dc2626;">${t.dias_atraso}d</strong></td><td>${t.prioridade}</td><td>${t.responsavel||'—'}</td></tr>`;
+            }
+            html += '</tbody></table></div>';
+        }
+
+        // tabela de regiões
+        const ord = _demandLayer === 'mismatch'
+            ? [...regions].sort((a,b)=>(b.mismatch||0)-(a.mismatch||0))
+            : [...regions].sort((a,b)=>(b.overdue||0)-(a.overdue||0));
         html += '<div class="dash-table-wrap"><div class="dash-table-header">';
-        html += `<h3>Demandas por Regiao</h3><span>${items.length} regioes</span>`;
-        html += '</div><table class="dash-table"><thead><tr>';
-        html += '<th>Regiao</th><th>Status</th><th class="text-right">Total</th>';
-        html += '<th class="text-right">Ativas</th><th class="text-right">Vencidas</th>';
-        html += '<th class="text-right">Concluidas</th>';
-        html += '</tr></thead><tbody>';
-
-        const sorted = [...items].sort((a, b) => (b.overdue || 0) - (a.overdue || 0));
-        for (const r of sorted) {
-            const statusColor = r.status === 'overdue' ? '#ef4444' : r.status === 'ok' ? '#22c55e' : '#d1d5db';
-            const statusLabel = r.status === 'overdue' ? 'Em atraso' : r.status === 'ok' ? 'Em dia' : 'Sem demandas';
-            html += '<tr>';
+        html += `<h3>Regiões</h3><span>${regions.length}</span></div>`;
+        html += '<table class="dash-table"><thead><tr><th>Região</th><th class="text-right">Votos disponíveis</th><th class="text-right">Tarefas ativas</th><th class="text-right">Vencidas</th><th>Diagnóstico</th></tr></thead><tbody>';
+        for (const r of ord) {
+            let diag = '<span style="color:#94a3b8;">equilibrado</span>';
+            if (r.alerta === 'negligencia') diag = '<span style="color:#dc2626;font-weight:700;">🚨 negligenciada</span>';
+            else if (r.alerta === 'desperdicio') diag = '<span style="color:#2563eb;font-weight:700;">↩ esforço sobrando</span>';
+            else if (r.overdue > 0) diag = '<span style="color:#ea580c;font-weight:600;">tem vencidas</span>';
+            html += `<tr style="cursor:pointer;" onclick="window.mapApp.zoomToRegion('${r.slug}')">`;
             html += `<td><strong>${r.name}</strong></td>`;
-            html += `<td><span class="perf-badge" style="background:${statusColor}">${statusLabel}</span></td>`;
-            html += `<td class="text-right">${r.total || 0}</td>`;
-            html += `<td class="text-right">${r.active || 0}</td>`;
-            html += `<td class="text-right" style="color:${r.overdue > 0 ? '#ef4444' : 'inherit'};font-weight:${r.overdue > 0 ? '700' : 'normal'}">${r.overdue || 0}</td>`;
-            html += `<td class="text-right">${r.completed || 0}</td>`;
-            html += '</tr>';
+            html += `<td class="text-right">+${fmt.number(r.gap||0)}</td>`;
+            html += `<td class="text-right">${r.active||0}</td>`;
+            html += `<td class="text-right" style="color:${r.overdue>0?'#ef4444':'inherit'};font-weight:${r.overdue>0?'700':'normal'}">${r.overdue||0}</td>`;
+            html += `<td>${diag}</td></tr>`;
         }
         html += '</tbody></table></div>';
+
         dashEl.innerHTML = html;
         dashEl.classList.remove('map-dashboard-hidden');
     }

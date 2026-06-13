@@ -34,7 +34,10 @@ const API = {
         mapData: () => apiGet('/mapa/api/doacoes/'),
     },
     demandas: {
-        mapStatus: () => apiGet('/mapa/api/demandas/'),
+        mapStatus: (tipo) => apiGet('/mapa/api/demandas/' + (tipo ? '?tipo=' + tipo : '')),
+    },
+    promessas: {
+        map: () => apiGet('/mapa/api/promessas/'),
     },
     roteiros: {
         mapData: (showCompleted) => apiGet(`/mapa/api/roteiros/?completed=${showCompleted}`),

@@ -895,54 +895,124 @@ class DoacoesMapAPI(APIView):
 
 
 class DemandasMapAPI(APIView):
-    """Demandas/tarefas por região para choropleth."""
+    """Demandas/tarefas por região e cidade, cruzadas com a oportunidade de
+    votos (esforço × oportunidade), com filtro por tipo e lista de urgentes.
+
+    Mantém compatibilidade: a resposta tem 'regions' (lista, formato antigo) +
+    'cities', 'urgentes', 'summary', 'tipos'."""
+
     def get(self, request):
+        from tarefas.models import Tarefa
         today = timezone.now().date()
-        regions = Regiao.objects.annotate(
-            total_tarefas=Count(
-                'cidades__tarefas',
-                filter=Q(cidades__tarefas__excluida_em__isnull=True),
-            ),
-            tarefas_vencidas=Count(
-                'cidades__tarefas',
-                filter=Q(
-                    cidades__tarefas__excluida_em__isnull=True,
-                    cidades__tarefas__prazo__lt=today,
-                ) & ~Q(cidades__tarefas__fase='concluida'),
-            ),
-            tarefas_concluidas=Count(
-                'cidades__tarefas',
-                filter=Q(
-                    cidades__tarefas__excluida_em__isnull=True,
-                    cidades__tarefas__fase='concluida',
-                ),
-            ),
-        )
-        data = []
-        for r in regions:
-            total = r.total_tarefas
-            vencidas = r.tarefas_vencidas
-            concluidas = r.tarefas_concluidas
-            abertas = total - concluidas
+        tipo = request.GET.get('tipo', '')
 
-            if vencidas > 0:
-                status = 'overdue'
-            elif abertas > 0:
-                status = 'ok'
+        base = Tarefa.objects.filter(excluida_em__isnull=True)
+        if tipo:
+            base = base.filter(tipo=tipo)
+
+        # contagens por cidade
+        from collections import defaultdict
+        cdata = defaultdict(lambda: {'total': 0, 'active': 0, 'overdue': 0, 'completed': 0})
+        for t in base.values('cidade_id', 'fase', 'prazo'):
+            if not t['cidade_id']:
+                continue
+            d = cdata[t['cidade_id']]
+            d['total'] += 1
+            if t['fase'] == 'concluida':
+                d['completed'] += 1
             else:
-                status = 'empty'
+                d['active'] += 1
+                if t['prazo'] and t['prazo'] < today:
+                    d['overdue'] += 1
 
-            data.append({
-                'slug': r.slug,
-                'name': r.sigla,
-                'total': total,
-                'active': abertas,
-                'overdue': vencidas,
-                'completed': concluidas,
-                'open': abertas,
-                'status': status,
+        # tipos disponíveis (contagem global, sem filtro)
+        tipos_count = dict(
+            Tarefa.objects.filter(excluida_em__isnull=True)
+            .values_list('tipo').annotate(n=Count('id'))
+        )
+        tipos = [{'value': v, 'label': l, 'count': tipos_count.get(v, 0)}
+                 for v, l in Tarefa.TIPO_CHOICES]
+
+        # meta sugerida p/ oportunidade (mesma fórmula do Vitória)
+        TARGET_PEN, GROWTH = 0.012, 1.4
+
+        cities, regions = {}, {}
+        for cid in Cidade.objects.select_related('regiao'):
+            d = cdata.get(cid.id, {'total': 0, 'active': 0, 'overdue': 0, 'completed': 0})
+            v = cid.votos_sorgatto_2022 or 0
+            elei = cid.eleitores or 0
+            meta = cid.meta_votos or int(round(max(v * GROWTH, elei * TARGET_PEN) / 10) * 10)
+            gap = max(0, meta - v)
+            status = 'overdue' if d['overdue'] > 0 else ('ok' if d['active'] > 0 else 'empty')
+            cities[cid.slug] = {
+                'id': cid.id, 'name': cid.nome, 'region_slug': cid.regiao.slug,
+                'total': d['total'], 'active': d['active'], 'overdue': d['overdue'],
+                'completed': d['completed'], 'status': status,
+                'gap': gap, 'lat': cid.latitude, 'lng': cid.longitude,
+            }
+            rg = regions.setdefault(cid.regiao.slug, {
+                'slug': cid.regiao.slug, 'name': cid.regiao.sigla, 'nome': cid.regiao.nome,
+                'total': 0, 'active': 0, 'overdue': 0, 'completed': 0, 'gap': 0,
             })
-        return Response(data)
+            for k in ('total', 'active', 'overdue', 'completed'):
+                rg[k] += d[k]
+            rg['gap'] += gap
+
+        # esforço × oportunidade: normaliza e calcula mismatch por região
+        max_esf = max((r['active'] for r in regions.values()), default=0) or 1
+        max_gap = max((r['gap'] for r in regions.values()), default=0) or 1
+        for r in regions.values():
+            esf = r['active'] / max_esf
+            opo = r['gap'] / max_gap
+            r['mismatch'] = round((opo - esf) * 100)   # >0 oportunidade ignorada; <0 esforço sobrando
+            r['status'] = 'overdue' if r['overdue'] > 0 else ('ok' if r['active'] > 0 else 'empty')
+            if r['active'] == 0 and opo >= 0.5:
+                r['alerta'] = 'negligencia'
+            elif esf >= 0.5 and opo <= 0.25:
+                r['alerta'] = 'desperdicio'
+            else:
+                r['alerta'] = None
+
+        # mesma lógica de mismatch por cidade (para a cor no nível de cidade)
+        max_esf_c = max((c['active'] for c in cities.values()), default=0) or 1
+        max_gap_c = max((c['gap'] for c in cities.values()), default=0) or 1
+        for c in cities.values():
+            esf = c['active'] / max_esf_c
+            opo = c['gap'] / max_gap_c
+            c['mismatch'] = round((opo - esf) * 100)
+            c['alerta'] = 'negligencia' if (c['active'] == 0 and opo >= 0.4) else None
+
+        # urgentes (mais vencidas primeiro)
+        urgentes = []
+        for t in base.exclude(fase='concluida').filter(prazo__lt=today).select_related('cidade', 'responsavel').order_by('prazo')[:20]:
+            urgentes.append({
+                'id': t.id, 'titulo': t.titulo, 'tipo': t.get_tipo_display(),
+                'cidade': t.cidade.nome if t.cidade else '—',
+                'cidade_slug': t.cidade.slug if t.cidade else '',
+                'prazo': t.prazo.strftime('%d/%m') if t.prazo else '',
+                'dias_atraso': (today - t.prazo).days if t.prazo else 0,
+                'prioridade': t.get_prioridade_display(),
+                'responsavel': t.responsavel.get_full_name() if t.responsavel else '',
+            })
+
+        regions_list = sorted(regions.values(), key=lambda r: -r['overdue'])
+        summary = {
+            'total': sum(r['total'] for r in regions.values()),
+            'active': sum(r['active'] for r in regions.values()),
+            'overdue': sum(r['overdue'] for r in regions.values()),
+            'completed': sum(r['completed'] for r in regions.values()),
+            'negligencia': sum(1 for r in regions.values() if r['alerta'] == 'negligencia'),
+            'desperdicio': sum(1 for r in regions.values() if r['alerta'] == 'desperdicio'),
+        }
+        return Response({
+            'regions': regions_list,
+            'regions_map': {r['slug']: r for r in regions.values()},
+            'cities': cities,
+            'urgentes': urgentes,
+            'summary': summary,
+            'tipos': tipos,
+            'tipo_ativo': tipo,
+        })
 
 
 class RoteirosMapAPI(APIView):
@@ -2277,6 +2347,59 @@ class CityActionAPI(APIView):
                 'data': timezone.localtime(proximo.data_hora_inicio).strftime('%d/%m %H:%M'),
             } if proximo else None,
             'top_vencidos': vencidos[:6],
+        })
+
+
+class PromessasMapAPI(APIView):
+    """Promessas/demandas do eleitor por cidade: feitas × entregues (lealdade)."""
+
+    def get(self, request):
+        from tarefas.models import Promessa
+        from collections import defaultdict
+        por_cidade = defaultdict(lambda: {'total': 0, 'entregues': 0, 'pendentes': 0})
+        for p in Promessa.objects.exclude(status='cancelada').values('cidade_id', 'status'):
+            d = por_cidade[p['cidade_id']]
+            d['total'] += 1
+            if p['status'] == 'entregue':
+                d['entregues'] += 1
+            else:
+                d['pendentes'] += 1
+
+        cities, regions = {}, defaultdict(lambda: {'total': 0, 'entregues': 0, 'pendentes': 0})
+        for cid in Cidade.objects.select_related('regiao'):
+            d = por_cidade.get(cid.id)
+            if not d:
+                cities[cid.slug] = {'name': cid.nome, 'total': 0, 'entregues': 0,
+                                    'pendentes': 0, 'taxa': None, 'nivel': 0}
+            else:
+                taxa = round(d['entregues'] / d['total'] * 100) if d['total'] else 0
+                # nível: 0 sem promessas; cor por taxa de entrega (vermelho=pendente, verde=entregue)
+                nivel = 1 if taxa < 34 else 2 if taxa < 67 else 3
+                cities[cid.slug] = {
+                    'name': cid.nome, 'total': d['total'], 'entregues': d['entregues'],
+                    'pendentes': d['pendentes'], 'taxa': taxa, 'nivel': nivel,
+                }
+                rg = regions[cid.regiao.slug]
+                rg['total'] += d['total']
+                rg['entregues'] += d['entregues']
+                rg['pendentes'] += d['pendentes']
+
+        total = sum(c['total'] for c in cities.values())
+        entregues = sum(c['entregues'] for c in cities.values())
+        ultimas = [{
+            'descricao': p.descricao, 'cidade': p.cidade.nome,
+            'bairro': p.bairro_linha, 'status': p.get_status_display(),
+            'status_key': p.status, 'data': p.data_registro.strftime('%d/%m/%Y'),
+            'responsavel': p.responsavel,
+        } for p in Promessa.objects.exclude(status='cancelada').select_related('cidade').order_by('-data_registro')[:20]]
+
+        return Response({
+            'cities': cities,
+            'regions': {k: dict(v) for k, v in regions.items()},
+            'summary': {'total': total, 'entregues': entregues,
+                        'pendentes': total - entregues,
+                        'taxa': round(entregues / total * 100) if total else 0},
+            'ultimas': ultimas,
         })
 
 

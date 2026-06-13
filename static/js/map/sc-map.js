@@ -15,6 +15,11 @@ class SCMap {
         this.height = 550;
         this.heatmapEnabled = false;
         this.demandsEnabled = false;
+        this.demandLayer = 'status';
+        this.demandTipo = '';
+        this._demandsCities = null;
+        this._demandsFull = null;
+        this._promessasData = null;
         this.itinerariesEnabled = false;
         this.strategicEnabled = false;
         this.plNetworkEnabled = false;
@@ -1517,13 +1522,15 @@ class SCMap {
         }
         if (enabled) {
             try {
-                this._demandsData = {};
-                const data = await API.demandas.mapStatus();
-                for (const d of data) {
-                    this._demandsData[d.slug] = d;
+                const data = await API.demandas.mapStatus(this.demandTipo);
+                this._demandsFull = data;
+                this._demandsData = data.regions_map || {};
+                this._demandsCities = data.cities || {};
+                if (!this._promessasData) {
+                    try { this._promessasData = await API.promessas.map(); } catch (e2) { this._promessasData = null; }
                 }
             } catch (e) {
-                this._demandsData = {};
+                this._demandsData = {}; this._demandsCities = {}; this._demandsFull = null;
             }
         }
         if (this.currentLevel === 'state' && this._stateGeojson) {
@@ -1531,6 +1538,64 @@ class SCMap {
         } else if (this.currentLevel === 'region' && this._regionGeojson) {
             this._applyRegionColors(true);
         }
+    }
+
+    setDemandLayer(layer) {
+        this.demandLayer = layer;
+        if (this.currentLevel === 'state' && this._stateGeojson) this._applyStateColors(false);
+        else if (this.currentLevel === 'region' && this._regionGeojson) this._applyRegionColors(false);
+    }
+
+    _promessaColor(taxa) {
+        if (taxa === null || taxa === undefined) return '#e2e8f0';  // sem promessas
+        return d3.scaleLinear().domain([0, 50, 100]).range(['#dc2626', '#eab308', '#16a34a']).clamp(true)(taxa);
+    }
+
+    _promessaRegionTaxa(slug) {
+        const r = (this._promessasData?.regions || {})[slug];
+        if (!r || !r.total) return null;
+        return Math.round(r.entregues / r.total * 100);
+    }
+
+    _mismatchColor(m) {
+        // >0 oportunidade ignorada (vermelho), <0 esforço sobrando (azul)
+        if (m === null || m === undefined) return '#e2e8f0';
+        const sc = d3.scaleLinear().domain([-50, 0, 50]).range(['#3b82f6', '#f1f5f9', '#dc2626']).clamp(true);
+        return sc(m);
+    }
+
+    _demandTipHtml(slug, level) {
+        const src = level === 'region' ? this._demandsData : this._demandsCities;
+        const o = (src || {})[slug];
+        const nome = o ? o.name : slug;
+        let html = `<div class="tooltip-title">${nome || ''}</div>`;
+        if (!o) return html + '<div class="tooltip-row"><span style="color:#9ca3af">Sem dados</span></div>';
+        if (this.demandLayer === 'promessas') {
+            const pc = (this._promessasData?.cities || {})[slug] || (level==='region' ? null : null);
+            const reg = level === 'region' ? (this._promessasData?.regions || {})[slug] : pc;
+            const tot = reg ? reg.total : 0, ent = reg ? reg.entregues : 0;
+            if (!tot) { html += '<div class="tooltip-row"><span style="color:#9ca3af">Sem promessas registradas</span></div>'; }
+            else {
+                const taxa = Math.round(ent / tot * 100);
+                html += `<div class="tooltip-row"><span class="tooltip-label">Promessas:</span> <span class="tooltip-value">${tot}</span></div>`;
+                html += `<div class="tooltip-row"><span class="tooltip-label">Entregues:</span> <span class="tooltip-value" style="color:${this._promessaColor(taxa)};font-weight:800">${ent} (${taxa}%)</span></div>`;
+                html += `<div class="tooltip-row"><span class="tooltip-label">Pendentes:</span> <span class="tooltip-value">${tot-ent}</span></div>`;
+            }
+        } else if (this.demandLayer === 'mismatch') {
+            const lbl = o.mismatch > 15 ? 'Oportunidade ignorada' : o.mismatch < -15 ? 'Esforço concentrado' : 'Equilibrado';
+            html += `<div class="tooltip-row"><span class="tooltip-label">Esforço × oportunidade:</span> <span class="tooltip-value" style="color:${this._mismatchColor(o.mismatch)};font-weight:800">${lbl}</span></div>`;
+            html += `<div class="tooltip-row"><span class="tooltip-label">Votos disponíveis:</span> <span class="tooltip-value">+${(o.gap||0).toLocaleString('pt-BR')}</span></div>`;
+            html += `<div class="tooltip-row"><span class="tooltip-label">Tarefas ativas:</span> <span class="tooltip-value">${o.active||0}</span></div>`;
+            if (o.alerta === 'negligencia') html += '<div class="tooltip-row"><span class="tooltip-value" style="color:#dc2626;font-weight:700">🚨 Oportunidade negligenciada</span></div>';
+            if (o.alerta === 'desperdicio') html += '<div class="tooltip-row"><span class="tooltip-value" style="color:#2563eb;font-weight:700">↩ Esforço onde já temos pouco a ganhar</span></div>';
+        } else {
+            const lbl = o.status === 'overdue' ? 'Em atraso' : o.status === 'ok' ? 'Em dia' : 'Sem demandas';
+            html += `<div class="tooltip-row"><span class="tooltip-label">Status:</span> <span class="tooltip-value" style="color:${this._demandColor(o.status)};font-weight:700">${lbl}</span></div>`;
+            html += `<div class="tooltip-row"><span class="tooltip-label">Total / ativas:</span> <span class="tooltip-value">${o.total||0} / ${o.active||0}</span></div>`;
+            if (o.overdue) html += `<div class="tooltip-row"><span class="tooltip-label">Vencidas:</span> <span class="tooltip-value" style="color:#ef4444;font-weight:700">${o.overdue}</span></div>`;
+        }
+        if (level !== 'region') html += '<div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para o painel de ação</span></div>';
+        return html;
     }
 
     _desaturate(hex) {
@@ -1735,7 +1800,9 @@ class SCMap {
                     return self._strategicColor(self._strategicRegionClass(d.properties.slug));
                 }
                 if (self.demandsEnabled) {
+                    if (self.demandLayer === 'promessas') return self._promessaColor(self._promessaRegionTaxa(d.properties.slug));
                     const dd = (self._demandsData || {})[d.properties.slug];
+                    if (self.demandLayer === 'mismatch') return self._mismatchColor(dd ? dd.mismatch : null);
                     return self._demandColor(dd ? dd.status : 'empty');
                 }
                 if (self.elections2022Enabled && self._elections2022Data) {
@@ -1785,7 +1852,9 @@ class SCMap {
         // Atualizar tooltips
         const tipHtmls = new Map();
         for (const f of this._stateGeojson.features) {
-            if (self.heatmapEnabled && self._heatLayersData) {
+            if (self.demandsEnabled) {
+                tipHtmls.set(f.properties.slug, self._demandTipHtml(f.properties.slug, 'region'));
+            } else if (self.heatmapEnabled && self._heatLayersData) {
                 tipHtmls.set(f.properties.slug, self._heatTipHtml(f.properties, 'region'));
             } else if (self.victoryEnabled) {
                 tipHtmls.set(f.properties.slug, self._victoryRegionTipHtml(f.properties));
@@ -1875,6 +1944,15 @@ class SCMap {
         const sel = this.g.selectAll('path.city');
         const t = instant ? sel : sel.transition().duration(400);
         t.attr('fill', function(d) {
+                if (self.demandsEnabled) {
+                    if (self.demandLayer === 'promessas') {
+                        const pc = (self._promessasData?.cities || {})[d.properties.slug];
+                        return self._promessaColor(pc ? pc.taxa : null);
+                    }
+                    const c = (self._demandsCities || {})[d.properties.slug];
+                    if (self.demandLayer === 'mismatch') return self._mismatchColor(c ? c.mismatch : null);
+                    return self._demandColor(c ? c.status : 'empty');
+                }
                 if (self.victoryEnabled && self._victoryData) {
                     const c = (self._victoryData.cities || {})[d.properties.slug];
                     return self._victoryColor(c ? c.nivel : 0);
@@ -1913,12 +1991,14 @@ class SCMap {
                 const pct = self._penetracao(d.properties.votes_2022, d.properties.registered_voters);
                 return colorScale(pct);
             })
-            .attr('fill-opacity', (this.heatmapEnabled || this.strategicEnabled || this.plNetworkEnabled || this.zoneRankingEnabled || this.voteTransferEnabled || this.neighborDeputiesEnabled || this.doacoesEnabled) ? 0.85 : 0.7);
+            .attr('fill-opacity', (this.heatmapEnabled || this.strategicEnabled || this.plNetworkEnabled || this.zoneRankingEnabled || this.voteTransferEnabled || this.neighborDeputiesEnabled || this.doacoesEnabled || this.demandsEnabled || this.victoryEnabled) ? 0.85 : 0.7);
 
         // Atualizar tooltips
         const tipHtmls = new Map();
         for (const f of this._regionGeojson.features) {
-            if (self.heatmapEnabled && self._heatLayersData) {
+            if (self.demandsEnabled) {
+                tipHtmls.set(f.properties.slug, self._demandTipHtml(f.properties.slug, 'city'));
+            } else if (self.heatmapEnabled && self._heatLayersData) {
                 tipHtmls.set(f.properties.slug, self._heatTipHtml(f.properties, 'city'));
             } else if (self.victoryEnabled) {
                 tipHtmls.set(f.properties.slug, self._victoryCityTipHtml(f.properties));
@@ -1976,7 +2056,7 @@ class SCMap {
             })
             .on('click', (event, d) => {
                 this._hideTip();
-                if ((self.visitUrgencyEnabled || self.victoryEnabled || self.heatmapEnabled) && self.onCityAction) {
+                if ((self.visitUrgencyEnabled || self.victoryEnabled || self.heatmapEnabled || self.demandsEnabled) && self.onCityAction) {
                     self.onCityAction(d.properties.slug);
                     return;
                 }
@@ -2146,7 +2226,7 @@ class SCMap {
                 })
                 .on('click', (event, d) => {
                     this._hideTip();
-                    if ((this.visitUrgencyEnabled || this.victoryEnabled || this.heatmapEnabled) && this.onCityAction) {
+                    if ((this.visitUrgencyEnabled || this.victoryEnabled || this.heatmapEnabled || this.demandsEnabled) && this.onCityAction) {
                         this.onCityAction(d.properties.slug);
                         return;
                     }
@@ -2175,7 +2255,7 @@ class SCMap {
 
             this.svg.transition().duration(300).call(this.zoom.transform, d3.zoomIdentity);
 
-            if (this.visitUrgencyEnabled || this.victoryEnabled || this.heatmapEnabled) this._applyRegionColors(true);
+            if (this.visitUrgencyEnabled || this.victoryEnabled || this.heatmapEnabled || this.demandsEnabled) this._applyRegionColors(true);
 
         } catch (e) {
             console.error('Erro zoom regiao:', e);

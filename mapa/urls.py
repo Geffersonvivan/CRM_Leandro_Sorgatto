@@ -37,4 +37,5 @@ urlpatterns = [
     path('api/cidade-acao/<slug:slug>/', views.CityActionAPI.as_view(), name='api_cidade_acao'),
     path('api/vitoria/', views.VictoryMapAPI.as_view(), name='api_vitoria'),
     path('api/calor-camadas/', views.HeatLayersAPI.as_view(), name='api_calor_camadas'),
+    path('api/promessas/', views.PromessasMapAPI.as_view(), name='api_promessas'),
 ]

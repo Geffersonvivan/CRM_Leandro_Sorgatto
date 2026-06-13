@@ -210,3 +210,42 @@ class TarefaHistorico(models.Model):
 
     def __str__(self):
         return f'{self.tarefa} — {self.campo} ({self.created_at:%d/%m/%Y %H:%M})'
+
+
+class Promessa(models.Model):
+    """Demanda do eleitor / compromisso firmado com a cidade — moeda de voto.
+    Ex.: 'Linha Guairapo quer máquinas agrícolas'. Rastreia feita × entregue."""
+
+    STATUS_CHOICES = [
+        ('registrada', 'Registrada'),
+        ('em_andamento', 'Em andamento'),
+        ('entregue', 'Entregue'),
+        ('cancelada', 'Cancelada'),
+    ]
+
+    cidade = models.ForeignKey(
+        'liderancas.Cidade', on_delete=models.CASCADE, related_name='promessas',
+    )
+    bairro_linha = models.CharField('Bairro / Linha', max_length=200, blank=True)
+    descricao = models.CharField('Demanda', max_length=300)
+    solicitante = models.CharField('Quem pediu', max_length=200, blank=True)
+    responsavel = models.CharField('Responsável pela entrega', max_length=200, blank=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='registrada', db_index=True)
+    data_registro = models.DateField(default=timezone.localdate)
+    data_entrega = models.DateField(null=True, blank=True)
+    observacoes = models.TextField('Observações', blank=True)
+
+    cadastrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='promessas_cadastradas',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Promessa / Demanda do Eleitor'
+        verbose_name_plural = 'Promessas / Demandas do Eleitor'
+        ordering = ['-data_registro']
+
+    def __str__(self):
+        return f'{self.descricao} — {self.cidade} ({self.get_status_display()})'

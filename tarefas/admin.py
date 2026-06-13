@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Tarefa, Comentario, TarefaHistorico
+from .models import Tarefa, Comentario, TarefaHistorico, Promessa
 
 
 class ComentarioInline(admin.TabularInline):
@@ -34,3 +34,12 @@ class TarefaHistoricoAdmin(admin.ModelAdmin):
     list_filter = ['campo']
     readonly_fields = ['tarefa', 'usuario', 'campo', 'valor_anterior', 'valor_novo', 'created_at']
     date_hierarchy = 'created_at'
+
+
+@admin.register(Promessa)
+class PromessaAdmin(admin.ModelAdmin):
+    list_display = ['descricao', 'cidade', 'bairro_linha', 'status', 'responsavel', 'data_registro', 'data_entrega']
+    list_filter = ['status', 'cidade__regiao', 'data_registro']
+    search_fields = ['descricao', 'solicitante', 'responsavel', 'cidade__nome', 'bairro_linha']
+    raw_id_fields = ['cidade']
+    date_hierarchy = 'data_registro'
