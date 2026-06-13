@@ -1488,7 +1488,7 @@ case 'transferencia': {
         html += `<a href="/agenda/compromissos/?cidade=${d.id}&data=${dataSel}" style="flex:1;text-align:center;background:#002776;color:#fff;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;text-decoration:none;">+ Compromisso</a>`;
         html += `<button onclick="addRotStopFromPanel('${d.slug}')" style="flex:1;background:#fff;border:1px solid #002776;color:#002776;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;cursor:pointer;">🧭 + Roteiro</button>`;
         html += '</div>';
-        html += `<a href="/tarefas/promessas/nova/?cidade=${d.id}" onclick="return openFormModal(this.href, 'Nova Promessa — ' + d.nome)" style="display:block;text-align:center;margin-top:8px;background:#fff;border:1px solid #16a34a;color:#16a34a;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;text-decoration:none;">🤝 + Registrar promessa do eleitor</a>`;
+        html += `<a href="/tarefas/promessas/nova/?cidade=${d.id}" onclick="return openFormModal(this.href, 'Nova Promessa')" style="display:block;text-align:center;margin-top:8px;background:#fff;border:1px solid #16a34a;color:#16a34a;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;text-decoration:none;">🤝 + Registrar promessa do eleitor</a>`;
         body.innerHTML = html;
     }
 
