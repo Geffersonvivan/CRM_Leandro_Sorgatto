@@ -199,10 +199,10 @@ class SCMap {
 
     _strategicColor(classification) {
         const map = {
-            base_forte: '#15803d',
-            aliado_fraco: '#86efac',
-            potencial_oculto: '#eab308',
-            territorio_hostil: '#dc2626',
+            maquina_voto: '#15803d',
+            aliado_ativar: '#f59e0b',
+            construir: '#f97316',
+            hostil: '#dc2626',
             neutro: '#9ca3af',
         };
         return map[classification] || '#d1d5db';
@@ -1927,14 +1927,22 @@ class SCMap {
         if (!this._strategicData) return '';
         const city = this._strategicData.cities.find(c => c.slug === p.slug);
         if (!city) return this._cityTipHtml(p);
-        const labels = { base_forte: 'Base Forte', aliado_fraco: 'Aliado Fraco', potencial_oculto: 'Potencial Oculto', territorio_hostil: 'Território Hostil', neutro: 'Neutro' };
+        const labels = { maquina_voto: '🏭 Máquina de voto', aliado_ativar: '🤝 Aliado a ativar', construir: '🏗️ Construir', hostil: '🚫 Hostil', neutro: '⚪ Neutro' };
         const color = this._strategicColor(city.classification);
+        const po = city.politicos || {};
         let html = `<div class="tooltip-title">${p.name}</div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Classificação</span> <span class="tooltip-value" style="color:${color};font-weight:bold">${labels[city.classification] || city.classification}</span></div>`;
-        html += `<div class="tooltip-row"><span class="tooltip-label">Score</span> <span class="tooltip-value">${city.score}/100</span></div>`;
-        html += `<div class="tooltip-row"><span class="tooltip-label">Prefeito</span> <span class="tooltip-value">${city.mayor_name || '-'} (${city.mayor_party || '-'})</span></div>`;
-        html += `<div class="tooltip-row"><span class="tooltip-label">Votos LS 2022</span> <span class="tooltip-value">${(city.votes_2022 || 0).toLocaleString('pt-BR')}</span></div>`;
-        html += `<div class="tooltip-row"><span class="tooltip-label">Penetração</span> <span class="tooltip-value">${city.penetration.toFixed(2)}%</span></div>`;
+        if (po.aliados) {
+            const partes = [];
+            if (po.prefeito) partes.push(po.prefeito + ' prefeito');
+            if (po.vereador) partes.push(po.vereador + ' vereador(es)');
+            if (po.presidente) partes.push('diretório PL');
+            html += `<div class="tooltip-row"><span class="tooltip-label">Aliados políticos</span> <span class="tooltip-value">${partes.join(', ') || po.aliados}</span></div>`;
+            html += `<div class="tooltip-row"><span class="tooltip-label">Cabos engajados</span> <span class="tooltip-value" style="color:${po.cabos ? '#15803d' : '#dc2626'};font-weight:700">${po.cabos}${po.cabos ? '' : ' — dormindo!'}</span></div>`;
+            if (po.meta_transferir) html += `<div class="tooltip-row"><span class="tooltip-label">Meta transferência</span> <span class="tooltip-value">${po.meta_transferir.toLocaleString('pt-BR')} votos</span></div>`;
+        }
+        html += `<div class="tooltip-row"><span class="tooltip-label">Votos LS 2022</span> <span class="tooltip-value">${(city.votes_2022 || 0).toLocaleString('pt-BR')} (${city.penetration.toFixed(2)}%)</span></div>`;
+        if (city.gap) html += `<div class="tooltip-row"><span class="tooltip-label">Votos disponíveis</span> <span class="tooltip-value">+${city.gap.toLocaleString('pt-BR')}</span></div>`;
         return html;
     }
 

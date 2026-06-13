@@ -519,7 +519,7 @@ class CityDashboardAPI(APIView):
 
 class StrategicAnalysisAPI(APIView):
     """Análise estratégica: classificação de cidades com IBGE + Rede PL + CRM."""
-    @method_decorator(cache_page(60 * 15))
+    @method_decorator(cache_page(60))  # cache curto: reflete cadastros de políticos quase na hora
     def get(self, request):
         today = timezone.now().date()
         cities = (
@@ -549,6 +549,27 @@ class StrategicAnalysisAPI(APIView):
             .order_by('regiao__nome', 'nome')
         )
 
+        # Ativos políticos AO VIVO a partir do Apoiador.cargo (fonte da verdade:
+        # o cadastro). Quem é cadastrado como prefeito/vereador/etc. já conta aqui.
+        from collections import defaultdict
+        politicos = defaultdict(lambda: {
+            'prefeito': 0, 'vice': 0, 'vereador': 0, 'presidente': 0,
+            'votos_maquina': 0, 'meta_transferir': 0,
+        })
+        for ap in Apoiador.objects.filter(tipo='politico', status='ativo').values(
+            'cidade_id', 'cargo', 'votos_referencia', 'meta_votos_transferir',
+        ):
+            d = politicos[ap['cidade_id']]
+            mapa_cargo = {'prefeito': 'prefeito', 'vice_prefeito': 'vice',
+                          'vereador': 'vereador', 'presidente_diretorio': 'presidente'}
+            chave = mapa_cargo.get(ap['cargo'])
+            if chave:
+                d[chave] += 1
+            d['votos_maquina'] += ap['votos_referencia'] or 0
+            d['meta_transferir'] += ap['meta_votos_transferir'] or 0
+
+        TARGET_PEN, GROWTH = 0.012, 1.4
+
         totals = Cidade.objects.aggregate(
             total_votes=Sum('votos_sorgatto_2022'),
             total_voters=Sum('eleitores'),
@@ -574,8 +595,8 @@ class StrategicAnalysisAPI(APIView):
 
         result = []
         summary = {
-            'base_forte': 0, 'potencial_oculto': 0,
-            'aliado_fraco': 0, 'territorio_hostil': 0, 'neutro': 0,
+            'maquina_voto': 0, 'aliado_ativar': 0,
+            'construir': 0, 'hostil': 0, 'neutro': 0,
         }
 
         for city in cities:
@@ -584,30 +605,38 @@ class StrategicAnalysisAPI(APIView):
             penetration = (votes / voters * 100) if voters > 0 else 0
             mayor_party = (city.prefeito_partido or '').upper().strip()
 
-            if mayor_party in ALLIED_PARTIES:
-                alignment = 'allied'
-            elif mayor_party in ADVERSARY_PARTIES:
+            # ativos políticos aliados desta cidade (do cadastro)
+            pol = politicos.get(city.id, {'prefeito': 0, 'vice': 0, 'vereador': 0,
+                                          'presidente': 0, 'votos_maquina': 0, 'meta_transferir': 0})
+            tem_diretorio = pol['presidente'] > 0 or bool(city.presidente_pl)
+            aliados = pol['prefeito'] + pol['vice'] + pol['vereador'] + (1 if tem_diretorio else 0)
+            cabos = city.cabo_count or 0
+            meta = city.meta_votos or int(round(max(votes * GROWTH, voters * TARGET_PEN) / 10) * 10)
+            gap = max(0, meta - votes)
+
+            # alinhamento (aliado = temos políticos; adversário = partido do prefeito)
+            if mayor_party in ADVERSARY_PARTIES:
                 alignment = 'adversary'
+            elif aliados > 0 or mayor_party in ALLIED_PARTIES:
+                alignment = 'allied'
             else:
                 alignment = 'neutral'
 
-            good = penetration >= avg_penetration
-            if alignment == 'allied' and good:
-                cls = 'base_forte'
-            elif alignment == 'adversary' and good:
-                cls = 'potencial_oculto'
-            elif alignment == 'allied' and not good:
-                cls = 'aliado_fraco'
-            elif alignment == 'adversary' and not good:
-                cls = 'territorio_hostil'
+            # classificação pelo CAMINHO POLÍTICO até o voto
+            if alignment == 'adversary':
+                cls = 'hostil'
+            elif aliados > 0:
+                cls = 'maquina_voto' if cabos > 0 else 'aliado_ativar'
+            elif gap >= 120:
+                cls = 'construir'
             else:
-                cls = 'potencial_oculto' if good else 'neutro'
+                cls = 'neutro'
 
-            align_score = {'allied': 100, 'neutral': 50, 'adversary': 0}[alignment]
-            ver_pct = (city.num_vereadores_pl / city.num_vereadores * 100) if city.num_vereadores else 0
+            ver_pct = (pol['vereador'] * 20)  # aproximação de cobertura
             pen_norm = min(penetration / max(avg_penetration * 2, 0.01) * 100, 100)
-            has_struct = 100 if city.presidente_pl else 0
-            score = round(align_score * 0.30 + ver_pct * 0.20 + pen_norm * 0.35 + has_struct * 0.15)
+            has_struct = 100 if tem_diretorio else 0
+            align_score = {'allied': 100, 'neutral': 50, 'adversary': 0}[alignment]
+            score = round(align_score * 0.30 + min(ver_pct, 100) * 0.20 + pen_norm * 0.35 + has_struct * 0.15)
 
             summary[cls] += 1
 
@@ -650,14 +679,14 @@ class StrategicAnalysisAPI(APIView):
 
             # Alertas estratégicos
             alertas = []
-            if cls == 'base_forte' and city.total_apoiadores == 0 and city.total_compromissos == 0:
-                alertas.append('base_acomodada')
-            if cls == 'neutro' and ibge.get('bf_pct', 100) < 5 and ibge.get('renda_per_capita', 0) > 1500:
-                alertas.append('falso_neutro_conservador')
+            if cls == 'aliado_ativar':
+                alertas.append('aliado_dormindo')   # tem político aliado mas sem cabo
+            if cls == 'maquina_voto' and pol['meta_transferir'] == 0:
+                alertas.append('sem_meta_transferencia')
+            if cls == 'construir':
+                alertas.append('recrutar_lideranca')
             if pl_network_score >= 40 and penetration < avg_penetration:
                 alertas.append('estrutura_sem_conversao')
-            if penetration >= avg_penetration and pl_network_score < 20:
-                alertas.append('voto_organico_fragil')
             if city.demandas_vencidas > 0:
                 alertas.append('demandas_atrasadas')
             if not (city.coord_count or 0) > 0:
@@ -683,14 +712,29 @@ class StrategicAnalysisAPI(APIView):
                 'pl_network_score': pl_network_score,
                 'crm': crm,
                 'alertas': alertas,
+                'gap': gap,
+                'politicos': {
+                    'prefeito': pol['prefeito'], 'vice': pol['vice'],
+                    'vereador': pol['vereador'], 'presidente': pol['presidente'],
+                    'aliados': aliados, 'cabos': cabos,
+                    'votos_maquina': pol['votos_maquina'],
+                    'meta_transferir': pol['meta_transferir'],
+                },
             }
             if ibge:
                 entry['ibge'] = ibge
             result.append(entry)
 
+        votos_maquina_total = sum(p['votos_maquina'] for p in politicos.values())
+        meta_transferir_total = sum(p['meta_transferir'] for p in politicos.values())
         return Response({
             'avg_penetration': round(avg_penetration, 2),
             'summary': summary,
+            'totais_politicos': {
+                'votos_maquina': votos_maquina_total,
+                'meta_transferir': meta_transferir_total,
+                'aliados': sum(1 for p in politicos.values() if (p['prefeito'] + p['vice'] + p['vereador'] + p['presidente']) > 0),
+            },
             'cities': result,
         })
 

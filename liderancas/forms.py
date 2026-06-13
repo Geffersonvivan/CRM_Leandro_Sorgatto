@@ -168,7 +168,8 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
         model = Apoiador
         fields = [
             'nome', 'telefone', 'email', 'cidade',
-            'tipo', 'cargo', 'origem_contato', 'instagram',
+            'tipo', 'cargo', 'votos_referencia', 'meta_votos_transferir',
+            'origem_contato', 'instagram',
             'prioridade', 'grau_influencia',
             'frequencia_relacionamento',
             'status', 'observacoes',
@@ -180,6 +181,8 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
             'cidade': forms.Select(attrs={'class': 'form-input', 'id': 'id_cidade'}),
             'tipo': forms.Select(attrs={'class': 'form-input'}),
             'cargo': forms.Select(attrs={'class': 'form-input'}),
+            'votos_referencia': forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '0'}),
+            'meta_votos_transferir': forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '0'}),
             'origem_contato': forms.TextInput(attrs={'class': 'form-input'}),
             'instagram': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '@usuario'}),
             'prioridade': forms.Select(attrs={'class': 'form-input'}),

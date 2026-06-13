@@ -345,6 +345,14 @@ class Apoiador(SoftDeleteMixin, models.Model):
         max_length=25, choices=CARGO_CHOICES, blank=True,
         verbose_name='Cargo Político',
     )
+    votos_referencia = models.IntegerField(
+        default=0, verbose_name='Votos de referência',
+        help_text='Votos que este político obteve na última eleição (base da máquina de voto).',
+    )
+    meta_votos_transferir = models.IntegerField(
+        default=0, verbose_name='Meta de votos a transferir',
+        help_text='Quantos votos deste político a campanha quer transferir para o LS.',
+    )
     origem_contato = models.CharField(max_length=200, blank=True, verbose_name='Origem do Contato')
     instagram = models.CharField(max_length=100, blank=True)
     prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media', verbose_name='Prioridade Comunicação')

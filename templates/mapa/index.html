@@ -527,8 +527,8 @@
 <!-- Dashboard contextual abaixo do mapa -->
 <div class="map-wrapper map-dashboard map-dashboard-hidden" id="mapDashboard"></div>
 
-<script src="{% static 'js/map/api.js' %}?v=9"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=9"></script>
+<script src="{% static 'js/map/api.js' %}?v=10"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=10"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -947,6 +947,7 @@
                 }
                 case 'estrategico': {
                     const data = await API.dashboard.strategic();
+                    window._strategicData = data;
                     renderStrategicDashboard(data);
                     break;
                 }
@@ -1585,67 +1586,86 @@ case 'transferencia': {
 
     // ── Estrategico Dashboard ──────────────────────────────────
     const strategicColors = {
-        base_forte: '#15803d', aliado_fraco: '#86efac',
-        potencial_oculto: '#eab308', territorio_hostil: '#dc2626', neutro: '#9ca3af',
+        maquina_voto: '#15803d', aliado_ativar: '#f59e0b',
+        construir: '#f97316', hostil: '#dc2626', neutro: '#9ca3af',
     };
     const strategicLabels = {
-        base_forte: 'Base Forte', aliado_fraco: 'Aliado Fraco',
-        potencial_oculto: 'Potencial Oculto', territorio_hostil: 'Territorio Hostil', neutro: 'Neutro',
+        maquina_voto: '🏭 Máquina de voto', aliado_ativar: '🤝 Aliado a ativar',
+        construir: '🏗️ Construir', hostil: '🚫 Hostil', neutro: '⚪ Neutro',
+    };
+    const strategicDesc = {
+        maquina_voto: 'Aliado político + cabos trabalhando — colher',
+        aliado_ativar: 'Aliado político SEM cabo engajado — ativar (alavanca)',
+        construir: 'Voto disponível, zero aliado — recrutar liderança',
+        hostil: 'Adversário no comando — baixo retorno',
+        neutro: 'Sem aliados e pouca oportunidade',
     };
 
     function renderStrategicDashboard(data) {
         const summary = data.summary || {};
         const cities = data.cities || [];
         const avgPen = data.avg_penetration || 0;
+        const tp = data.totais_politicos || {};
 
-        // Legend
-        let html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
-        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Analise Estrategica</span>';
-        for (const [key, label] of Object.entries(strategicLabels)) {
-            html += `<span class="legend-item"><span class="legend-dot" style="background:${strategicColors[key]}"></span>${label}</span>`;
-        }
-        html += `<span style="font-size:.75rem;color:#94a3b8;margin-left:auto;">Penetracao media: <strong>${avgPen.toFixed(2)}%</strong></span>`;
+        let html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">';
+        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Terreno político — caminho até o voto</span>';
+        html += `<span style="font-size:.75rem;color:#94a3b8;margin-left:auto;">${tp.aliados || 0} cidades com aliado político · penetração média ${avgPen.toFixed(2)}%</span>`;
         html += '</div>';
 
-        // Cards
-        html += '<div class="perf-cards">';
-        for (const [key, label] of Object.entries(strategicLabels)) {
-            html += `<div class="perf-card" style="background:${strategicColors[key]}">`;
-            html += `<div class="perf-card-number">${summary[key] || 0}</div>`;
-            html += `<div class="perf-card-label">${label}</div>`;
+        // Cards de classificação (clicáveis = filtro)
+        html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px;">';
+        for (const key of ['maquina_voto','aliado_ativar','construir','hostil','neutro']) {
+            const ativo = _stratFiltro === key;
+            html += `<div onclick="filtrarEstrategico('${key}')" style="cursor:pointer;border:2px solid ${strategicColors[key]};background:${ativo ? strategicColors[key] : '#fff'};border-radius:10px;padding:9px 11px;">`;
+            html += `<div style="font-size:1.3rem;font-weight:800;color:${ativo ? '#fff' : strategicColors[key]};">${summary[key] || 0}</div>`;
+            html += `<div style="font-size:.72rem;font-weight:700;color:${ativo ? '#fff' : '#1e293b'};">${strategicLabels[key]}</div>`;
+            html += `<div style="font-size:.62rem;color:${ativo ? 'rgba(255,255,255,.85)' : '#94a3b8'};line-height:1.2;margin-top:2px;">${strategicDesc[key]}</div>`;
             html += '</div>';
         }
         html += '</div>';
 
-        // Table
-        html += '<div class="dash-table-wrap"><div class="dash-table-header">';
-        html += `<h3>Classificacao Estrategica por Cidade</h3><span>${cities.length} cidades</span>`;
-        html += '</div><table class="dash-table"><thead><tr>';
-        html += '<th>Cidade</th><th>Regiao</th><th>Classificacao</th>';
-        html += '<th class="text-right">Score</th><th>Prefeito</th><th>Partido</th>';
-        html += '<th class="text-right">Ver. PL</th><th class="text-right">Votos 2022</th>';
-        html += '<th class="text-right">Penetracao</th>';
-        html += '</tr></thead><tbody>';
+        // Destaque: aliados dormindo (a maior alavanca)
+        const dormindo = cities.filter(c => c.classification === 'aliado_ativar');
+        if (dormindo.length) {
+            html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:.78rem;color:#92400e;">🤝 <strong>${dormindo.length} cidades têm aliado político mas nenhum cabo engajado.</strong> Cada um é uma máquina de voto esperando ser ligada — a alavanca mais barata da campanha.</div>`;
+        }
+        if (tp.meta_transferir) {
+            html += `<div style="font-size:.8rem;color:#1e293b;margin-bottom:10px;">Meta de transferência somada: <strong>${tp.meta_transferir.toLocaleString('pt-BR')} votos</strong> dos aliados.</div>`;
+        }
 
-        const sorted = [...cities].sort((a, b) => b.score - a.score);
-        for (const c of sorted) {
+        // Tabela (com filtro)
+        let lista = _stratFiltro ? cities.filter(c => c.classification === _stratFiltro) : cities;
+        lista = [...lista].sort((a, b) => (b.politicos?.aliados || 0) - (a.politicos?.aliados || 0) || b.gap - a.gap);
+        const titulo = _stratFiltro ? strategicLabels[_stratFiltro] : 'Todas as cidades';
+        html += `<div class="dash-table-wrap"><div class="dash-table-header"><h3>${titulo}</h3><span>${lista.length} cidades${_stratFiltro ? ' · <a onclick="filtrarEstrategico(null)" style="cursor:pointer;color:#002776;">limpar</a>' : ''}</span></div>`;
+        html += '<table class="dash-table"><thead><tr><th>Cidade</th><th>Região</th><th>Classificação</th><th class="text-right">Aliados</th><th class="text-right">Cabos</th><th class="text-right">Votos disp.</th><th>Diagnóstico</th></tr></thead><tbody>';
+        for (const c of lista.slice(0, 60)) {
             const cls = c.classification || 'neutro';
-            html += '<tr>';
-            html += `<td><strong>${c.name}</strong></td>`;
-            html += `<td>${c.region_name}</td>`;
+            const po = c.politicos || {};
+            let diag = '';
+            if (c.alertas?.includes('aliado_dormindo')) diag = '<span style="color:#b45309;font-weight:700;">⚡ ativar cabo</span>';
+            else if (c.alertas?.includes('recrutar_lideranca')) diag = '<span style="color:#c2410c;font-weight:600;">recrutar liderança</span>';
+            else if (c.alertas?.includes('sem_meta_transferencia')) diag = '<span style="color:#2563eb;font-weight:600;">definir meta transferência</span>';
+            else if (cls === 'hostil') diag = '<span style="color:#94a3b8;">adversário</span>';
+            else diag = '<span style="color:#16a34a;">ok</span>';
+            html += `<tr style="cursor:pointer;" onclick="window.mapApp.zoomToRegion('${c.region_slug}')">`;
+            html += `<td><strong>${c.name}</strong></td><td>${c.region_name}</td>`;
             html += `<td><span class="perf-badge" style="background:${strategicColors[cls]}">${strategicLabels[cls]}</span></td>`;
-            html += `<td class="text-right"><strong>${c.score}</strong></td>`;
-            html += `<td>${c.mayor_name || '-'}</td>`;
-            html += `<td>${c.mayor_party || '-'}</td>`;
-            html += `<td class="text-right">${c.num_vereadores_pl || 0}/${c.num_vereadores || 0}</td>`;
-            html += `<td class="text-right">${fmt.number(c.votes_2022)}</td>`;
-            html += `<td class="text-right" style="color:${c.penetration >= avgPen ? '#15803d' : '#f97316'}">${c.penetration.toFixed(2)}%</td>`;
-            html += '</tr>';
+            html += `<td class="text-right">${po.aliados || 0}</td>`;
+            html += `<td class="text-right" style="color:${po.cabos ? '#15803d' : '#dc2626'};font-weight:${po.cabos ? '400' : '700'}">${po.cabos || 0}</td>`;
+            html += `<td class="text-right">+${fmt.number(c.gap || 0)}</td>`;
+            html += `<td>${diag}</td></tr>`;
         }
         html += '</tbody></table></div>';
         dashEl.innerHTML = html;
         dashEl.classList.remove('map-dashboard-hidden');
     }
+
+    let _stratFiltro = null;
+    window.filtrarEstrategico = function (key) {
+        _stratFiltro = (_stratFiltro === key) ? null : key;
+        if (window._strategicData) renderStrategicDashboard(window._strategicData);
+    };
 
     // ── Rede PL Dashboard ──────────────────────────────────────
     const plColors = {forte: '#1e3a8a', moderada: '#2563eb', fraca: '#93c5fd', ausente: '#d1d5db'};

@@ -53,6 +53,16 @@
                 {{ form.cargo.errors }}
             </div>
             <div class="form-group">
+                <label for="id_votos_referencia">Votos de referência</label>
+                {{ form.votos_referencia }}
+                {{ form.votos_referencia.errors }}
+            </div>
+            <div class="form-group">
+                <label for="id_meta_votos_transferir">Meta de votos a transferir</label>
+                {{ form.meta_votos_transferir }}
+                {{ form.meta_votos_transferir.errors }}
+            </div>
+            <div class="form-group">
                 <label for="id_origem_contato">Origem do Contato</label>
                 {{ form.origem_contato }}
                 {{ form.origem_contato.errors }}
