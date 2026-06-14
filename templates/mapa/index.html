@@ -541,8 +541,8 @@
     </div>
 </div>
 
-<script src="{% static 'js/map/api.js' %}?v=19"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=19"></script>
+<script src="{% static 'js/map/api.js' %}?v=20"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=20"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -1920,15 +1920,7 @@ case 'transferencia': {
             method: 'POST', credentials: 'same-origin',
             headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
         }).then(r => r.json()).then(d => {
-            if (d.ok && window.mapApp) {
-                map._voteTransferData = null;
-                API.dashboard.voteTransfer().then(data => {
-                    window._transferData = data; map._voteTransferData = data;
-                    if (map.currentLevel === 'state') map._applyStateColors(false);
-                    else map._applyRegionColors(false);
-                    renderTransferDashboard(data);
-                });
-            }
+            if (d.ok && window.mapApp) { _refreshTransferAfterAliado(); }
         }).catch(() => alert('Erro ao alternar aliado.'));
     };
 
@@ -1944,13 +1936,12 @@ case 'transferencia': {
         document.getElementById('aliadosModal').style.display = 'none';
     };
     function _refreshTransferAfterAliado() {
-        // recarrega dados do mapa e o painel de toggles
+        // recarrega os dados (servidor já limpou o cache) e re-renderiza o mapa + tooltips
         map._voteTransferData = null;
-        API.dashboard.voteTransfer().then(data => {
+        return API.dashboard.voteTransfer().then(data => {
             window._transferData = data; map._voteTransferData = data;
             if (currentMode === 'transferencia') {
-                if (map.currentLevel === 'state') map._applyStateColors(false);
-                else map._applyRegionColors(false);
+                if (map.voteTransferEnabled && map._allCitiesGeojson) map._renderTransferCityMap();
                 renderTransferDashboard(data);
             }
         });
