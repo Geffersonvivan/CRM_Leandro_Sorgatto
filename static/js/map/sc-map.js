@@ -1101,26 +1101,23 @@ class SCMap {
             cityMap[c.slug] = c;
         }
 
-        // Pre-computar tooltips
-        const tipHtmls = new Map();
-        for (const f of geojson.features) {
-            const city = cityMap[f.properties.slug];
-            if (city) {
-                let html = `<div class="tooltip-title">${f.properties.name}</div>`;
-                html += `<div class="tooltip-row"><span class="tooltip-label">Classificação</span> <span class="tooltip-value" style="color:${self._transferOppColor(city.opp_class)};font-weight:bold">${self._transferOppLabel(city.opp_class)}</span></div>`;
-                html += `<div class="tooltip-row"><span class="tooltip-label">LS Penetração</span> <span class="tooltip-value" style="color:#15803d;font-weight:bold">${city.penetration}% (${(city.votes||0).toLocaleString('pt-BR')})</span></div>`;
-                for (const a of (city.aliados || [])) {
-                    const forte = (city.aliados_fortes || []).includes(a.nome);
-                    html += `<div class="tooltip-row"><span class="tooltip-label">${a.nome}</span> <span class="tooltip-value" style="color:${a.cor};font-weight:${forte?'700':'400'}">${(a.votes||0).toLocaleString('pt-BR')} (${a.pct||0}%)${forte?' ★':''}</span></div>`;
-                }
-                if (city.votos_carona) html += `<div class="tooltip-row"><span class="tooltip-label">Votos de carona</span> <span class="tooltip-value" style="color:#7c3aed;font-weight:700">${city.votos_carona.toLocaleString('pt-BR')}</span></div>`;
-                if ((city.agenda_aliados||[]).length) html += `<div class="tooltip-row"><span class="tooltip-value" style="color:#dc2626;font-weight:700">📅 Aliado com visita marcada!</span></div>`;
-                html += '<div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para agendar com o aliado</span></div>';
-                tipHtmls.set(f.properties.slug, html);
-            } else {
-                tipHtmls.set(f.properties.slug, `<div class="tooltip-title">${f.properties.name}</div><div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Sem dados</span></div>`);
+        // Tooltip montado AO VIVO no hover (lê _voteTransferData atual → nunca fica
+        // defasado em relação ao painel quando um aliado é adicionado/removido).
+        const buildTip = (name, slug) => {
+            const city = (self._voteTransferData?.cities || []).find(c => c.slug === slug);
+            if (!city) return `<div class="tooltip-title">${name}</div><div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Sem dados</span></div>`;
+            let html = `<div class="tooltip-title">${name}</div>`;
+            html += `<div class="tooltip-row"><span class="tooltip-label">Classificação</span> <span class="tooltip-value" style="color:${self._transferOppColor(city.opp_class)};font-weight:bold">${self._transferOppLabel(city.opp_class)}</span></div>`;
+            html += `<div class="tooltip-row"><span class="tooltip-label">LS Penetração</span> <span class="tooltip-value" style="color:#15803d;font-weight:bold">${city.penetration}% (${(city.votes||0).toLocaleString('pt-BR')})</span></div>`;
+            for (const a of (city.aliados || [])) {
+                const forte = (city.aliados_fortes || []).includes(a.nome);
+                html += `<div class="tooltip-row"><span class="tooltip-label">${a.nome}</span> <span class="tooltip-value" style="color:${a.cor};font-weight:${forte?'700':'400'}">${(a.votes||0).toLocaleString('pt-BR')} (${a.pct||0}%)${forte?' ★':''}</span></div>`;
             }
-        }
+            if (city.votos_carona) html += `<div class="tooltip-row"><span class="tooltip-label">Votos de carona</span> <span class="tooltip-value" style="color:#7c3aed;font-weight:700">${city.votos_carona.toLocaleString('pt-BR')}</span></div>`;
+            if ((city.agenda_aliados||[]).length) html += `<div class="tooltip-row"><span class="tooltip-value" style="color:#dc2626;font-weight:700">📅 Aliado com visita marcada!</span></div>`;
+            html += '<div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para agendar com o aliado</span></div>';
+            return html;
+        };
 
         // Desenhar polígonos das cidades
         this.g.selectAll('path.transfer-city')
@@ -1138,7 +1135,7 @@ class SCMap {
             .attr('stroke-width', 0.4)
             .attr('cursor', 'pointer')
             .on('mouseenter', (event, d) => {
-                self._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY);
+                self._showTip(buildTip(d.properties.name, d.properties.slug), event.pageX, event.pageY);
             })
             .on('mousemove', (event) => { self._moveTip(event.pageX, event.pageY); })
             .on('mouseleave', () => { self._hideTip(); })
