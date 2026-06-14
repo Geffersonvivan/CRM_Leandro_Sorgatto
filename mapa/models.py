@@ -103,6 +103,15 @@ class AliadoChapa(models.Model):
         max_length=120,
         help_text='Termos que devem aparecer no nome do candidato em 2022 (ex.: "CAROL TONI").',
     )
+    candidato_numero = models.CharField(
+        max_length=10, blank=True,
+        help_text='Número na urna em 2022. Quando preenchido, o cruzamento de votos é exato.',
+    )
+    cargo_2022 = models.CharField(
+        max_length=30, blank=True, verbose_name='Cargo em 2022',
+        help_text='governador, senador, deputado_federal ou deputado_estadual.',
+    )
+    partido = models.CharField(max_length=30, blank=True)
     cargo_2026 = models.CharField(max_length=60, blank=True, verbose_name='Cargo em 2026')
     cor = models.CharField(max_length=7, default='#2563eb')
     ativo = models.BooleanField(default=True, help_text='Marcado no mapa de Transferência.')

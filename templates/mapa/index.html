@@ -541,8 +541,8 @@
     </div>
 </div>
 
-<script src="{% static 'js/map/api.js' %}?v=17"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=17"></script>
+<script src="{% static 'js/map/api.js' %}?v=18"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=18"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -1934,6 +1934,7 @@ case 'transferencia': {
 
     // ─── Gerenciar aliados (CRUD via modal) ───────────────────────────
     let _aliadoEditId = null;
+    let _alCands = [];
     window.openAliadosModal = function () {
         _aliadoEditId = null;
         document.getElementById('aliadosModal').style.display = 'flex';
@@ -1973,7 +1974,7 @@ case 'transferencia': {
             html += `<div style="display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;${a.ativo ? '' : 'opacity:.55;'}">`;
             html += `<span style="width:14px;height:14px;border-radius:50%;background:${a.cor};flex-shrink:0;"></span>`;
             html += `<div style="flex:1;min-width:0;"><div style="font-weight:700;color:#1e293b;font-size:.86rem;">${a.nome}${a.ativo ? '' : ' <span style=\"font-size:.66rem;color:#94a3b8;font-weight:400;\">(oculto)</span>'}</div>`;
-            html += `<div style="font-size:.7rem;color:#94a3b8;">${a.cargo_2026 || '—'} · busca: <code>${a.termos_busca}</code></div></div>`;
+            html += `<div style="font-size:.7rem;color:#94a3b8;">${a.cargo_2026 || '—'}${a.partido ? ' · ' + a.partido : ''}${a.candidato_numero ? ' · nº ' + a.candidato_numero : ' · <span style=\"color:#f59e0b;\">por nome</span>'}</div></div>`;
             html += `<button onclick="toggleAliadoModal(${a.id})" title="${a.ativo ? 'Ocultar do mapa' : 'Mostrar no mapa'}" style="border:none;background:none;cursor:pointer;font-size:1rem;">${a.ativo ? '👁️' : '🚫'}</button>`;
             html += `<button onclick="editAliado(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;font-size:.95rem;">✏️</button>`;
             html += `<button onclick="deleteAliado(${a.id}, '${a.nome.replace(/'/g, "\\'")}')" title="Excluir" style="border:none;background:none;cursor:pointer;font-size:.95rem;">🗑️</button>`;
@@ -1982,16 +1983,36 @@ case 'transferencia': {
         html += '</div>';
         // Form (edição/novo) ou botão de adicionar
         if (e || isNew) {
-            const v = e || { nome: '', termos_busca: '', cargo_2026: '', cor: '#2563eb', ativo: true, ordem: aliados.length };
+            const v = e || { nome: '', termos_busca: '', candidato_numero: '', cargo_2022: '', partido: '', cargo_2026: '', cor: '#2563eb', ativo: true, ordem: aliados.length };
+            const cargos = [['governador','Governador'],['senador','Senador'],['deputado_federal','Dep. Federal'],['deputado_estadual','Dep. Estadual']];
             html += `<div style="border-top:1px solid #e2e8f0;padding-top:14px;">`;
             html += `<div style="font-weight:700;color:#1e293b;font-size:.86rem;margin-bottom:10px;">${e ? 'Editar' : 'Novo'} aliado</div>`;
+            // Bloco: buscar candidato de 2022 (preenche tudo)
+            html += `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:11px;margin-bottom:12px;">`;
+            html += `<div style="font-size:.72rem;font-weight:700;color:#334155;margin-bottom:7px;">🔎 Buscar candidato de 2022 <span style="font-weight:400;color:#94a3b8;">— preenche nome, partido e cruza os votos</span></div>`;
+            html += `<div style="display:flex;gap:7px;">`;
+            html += `<select id="al_cargo2022" onchange="alBuscaCandidatos()" style="padding:7px;border:1px solid #cbd5e1;border-radius:7px;font-size:.78rem;">`;
+            html += `<option value="">Cargo…</option>`;
+            for (const [val,lab] of cargos) html += `<option value="${val}" ${v.cargo_2022===val?'selected':''}>${lab}</option>`;
+            html += `</select>`;
+            html += `<input id="al_q" oninput="alBuscaCandidatosDebounced()" placeholder="Digite o nome…" style="flex:1;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;font-size:.8rem;">`;
+            html += `</div>`;
+            html += `<div id="al_resultados" style="margin-top:7px;max-height:170px;overflow-y:auto;"></div>`;
+            html += `</div>`;
+            // vínculo selecionado
+            html += `<div id="al_vinculo">${alVinculoHtml(v)}</div>`;
+            // campos editáveis
             html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
-            html += `<label style="font-size:.74rem;color:#475569;grid-column:1/3;">Nome<input id="al_nome" value="${(v.nome||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Carol De Toni" style="width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;"></label>`;
+            html += `<label style="font-size:.74rem;color:#475569;grid-column:1/3;">Nome<input id="al_nome" value="${(v.nome||'').replace(/"/g,'&quot;')}" placeholder="Selecione um candidato acima" style="width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;"></label>`;
             html += `<label style="font-size:.74rem;color:#475569;">Cargo em 2026<input id="al_cargo" value="${(v.cargo_2026||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Senadora" style="width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;"></label>`;
             html += `<label style="font-size:.74rem;color:#475569;">Cor<input id="al_cor" type="color" value="${v.cor||'#2563eb'}" style="width:100%;height:34px;padding:2px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;"></label>`;
-            html += `<label style="font-size:.74rem;color:#475569;grid-column:1/3;">Termos de busca no resultado de 2022 <span style="color:#94a3b8;">(maiúsculas, espaço = E)</span><input id="al_termos" value="${(v.termos_busca||'').replace(/"/g,'&quot;')}" placeholder="Ex.: CAROL TONI" style="width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;text-transform:uppercase;"></label>`;
             html += `<label style="font-size:.74rem;color:#475569;display:flex;align-items:center;gap:6px;grid-column:1/3;"><input id="al_ativo" type="checkbox" ${v.ativo ? 'checked' : ''}> Mostrar no mapa de Transferência</label>`;
             html += `</div>`;
+            // estado oculto preenchido pelo seletor
+            html += `<input type="hidden" id="al_numero" value="${(v.candidato_numero||'')}">`;
+            html += `<input type="hidden" id="al_cargo2022_sel" value="${(v.cargo_2022||'')}">`;
+            html += `<input type="hidden" id="al_partido" value="${(v.partido||'')}">`;
+            html += `<input type="hidden" id="al_termos" value="${(v.termos_busca||'').replace(/"/g,'&quot;')}">`;
             html += `<div id="al_erro" style="color:#dc2626;font-size:.74rem;margin-top:8px;min-height:1em;"></div>`;
             html += `<div style="display:flex;gap:8px;margin-top:6px;">`;
             html += `<button onclick="saveAliado()" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;cursor:pointer;">Salvar</button>`;
@@ -2002,6 +2023,63 @@ case 'transferencia': {
         }
         document.getElementById('aliadosModalBody').innerHTML = html;
     }
+    function alVinculoHtml(v) {
+        if (!v || !v.candidato_numero) return '';
+        return `<div style="display:flex;align-items:center;gap:8px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:7px 11px;margin-bottom:10px;font-size:.74rem;color:#065f46;">`
+            + `✅ Vinculado a <strong>${v.nome}</strong>`
+            + (v.partido ? ` · ${v.partido}` : '')
+            + ` · nº ${v.candidato_numero}`
+            + `<span style="margin-left:auto;color:#94a3b8;cursor:pointer;" onclick="alLimparVinculo()" title="Remover vínculo">✕</span></div>`;
+    }
+    window.alLimparVinculo = function () {
+        for (const id of ['al_numero','al_cargo2022_sel','al_partido','al_termos']) {
+            const el = document.getElementById(id); if (el) el.value = '';
+        }
+        document.getElementById('al_vinculo').innerHTML = '';
+    };
+    let _alBuscaTimer = null;
+    window.alBuscaCandidatosDebounced = function () {
+        clearTimeout(_alBuscaTimer); _alBuscaTimer = setTimeout(alBuscaCandidatos, 280);
+    };
+    window.alBuscaCandidatos = function () {
+        const cargo = document.getElementById('al_cargo2022').value;
+        const q = document.getElementById('al_q').value.trim();
+        const box = document.getElementById('al_resultados');
+        if (!cargo) { box.innerHTML = '<div style="font-size:.72rem;color:#94a3b8;padding:4px;">Escolha o cargo primeiro.</div>'; return; }
+        const grande = (cargo === 'deputado_estadual' || cargo === 'deputado_federal');
+        if (grande && q.length < 2) { box.innerHTML = '<div style="font-size:.72rem;color:#94a3b8;padding:4px;">Digite ao menos 2 letras do nome.</div>'; return; }
+        box.innerHTML = '<div style="font-size:.72rem;color:#94a3b8;padding:4px;">Buscando…</div>';
+        fetch(`/mapa/api/candidatos-2022/?cargo=${cargo}&q=${encodeURIComponent(q)}`, { credentials: 'same-origin', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json()).then(d => {
+                _alCands = d.candidatos || [];
+                if (!_alCands.length) { box.innerHTML = '<div style="font-size:.72rem;color:#94a3b8;padding:4px;">Nenhum candidato encontrado.</div>'; return; }
+                let h = '';
+                _alCands.forEach((c, i) => {
+                    h += `<div onclick="alPickCandidato(${i})" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:.78rem;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">`;
+                    h += `<span style="width:10px;height:10px;border-radius:50%;background:${c.cor};flex-shrink:0;"></span>`;
+                    h += `<span style="flex:1;min-width:0;color:#1e293b;font-weight:600;">${c.nome}</span>`;
+                    h += `<span style="color:#64748b;">${c.partido}</span>`;
+                    h += `<span style="color:#0f766e;font-weight:700;">${fmt.number(c.votos)}${c.eleito ? ' ✓' : ''}</span>`;
+                    h += `</div>`;
+                });
+                box.innerHTML = h;
+            }).catch(() => { box.innerHTML = '<div style="font-size:.72rem;color:#dc2626;padding:4px;">Erro na busca.</div>'; });
+    };
+    window.alPickCandidato = function (i) {
+        const c = _alCands[i]; if (!c) return;
+        const cargo = document.getElementById('al_cargo2022').value;
+        document.getElementById('al_nome').value = c.nome;
+        document.getElementById('al_numero').value = c.numero;
+        document.getElementById('al_cargo2022_sel').value = cargo;
+        document.getElementById('al_partido').value = c.partido;
+        document.getElementById('al_termos').value = c.nome;  // fallback de nome
+        document.getElementById('al_cor').value = c.cor;
+        const cargoEl = document.getElementById('al_cargo');
+        if (!cargoEl.value.trim()) cargoEl.value = c.cargo_2026_sugestao || '';
+        document.getElementById('al_vinculo').innerHTML = alVinculoHtml({ nome: c.nome, partido: c.partido, candidato_numero: c.numero });
+        document.getElementById('al_resultados').innerHTML = '';
+        document.getElementById('al_q').value = '';
+    };
     window.newAliado = function () { _aliadoEditId = 'novo'; loadAliadosModal(); };
     window.editAliado = function (id) { _aliadoEditId = id; loadAliadosModal(); };
     window.cancelAliadoForm = function () { _aliadoEditId = null; loadAliadosModal(); };
@@ -2019,15 +2097,21 @@ case 'transferencia': {
             .catch(() => alert('Erro ao excluir.'));
     };
     window.saveAliado = function () {
+        const nome = document.getElementById('al_nome').value.trim();
+        const numero = document.getElementById('al_numero').value.trim();
+        const termos = (document.getElementById('al_termos').value.trim() || nome).toUpperCase();
         const payload = {
-            nome: document.getElementById('al_nome').value.trim(),
+            nome: nome,
             cargo_2026: document.getElementById('al_cargo').value.trim(),
             cor: document.getElementById('al_cor').value,
-            termos_busca: document.getElementById('al_termos').value.trim().toUpperCase(),
+            termos_busca: termos,
+            candidato_numero: numero,
+            cargo_2022: document.getElementById('al_cargo2022_sel').value.trim(),
+            partido: document.getElementById('al_partido').value.trim(),
             ativo: document.getElementById('al_ativo').checked,
         };
         const erro = document.getElementById('al_erro');
-        if (!payload.nome || !payload.termos_busca) { erro.textContent = 'Nome e termos de busca são obrigatórios.'; return; }
+        if (!payload.nome) { erro.textContent = 'Selecione um candidato de 2022 (ou digite o nome).'; return; }
         const editing = _aliadoEditId && _aliadoEditId !== 'novo';
         const url = editing ? ('/mapa/api/aliados/' + _aliadoEditId + '/') : '/mapa/api/aliados/';
         fetch(url, {

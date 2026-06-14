@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/aliado/<int:pk>/toggle/', views.AliadoToggleAPI.as_view(), name='api_aliado_toggle'),
     path('api/aliados/', views.AliadoChapaListCreateAPI.as_view(), name='api_aliados'),
     path('api/aliados/<int:pk>/', views.AliadoChapaDetailAPI.as_view(), name='api_aliados_detail'),
+    path('api/candidatos-2022/', views.Candidatos2022API.as_view(), name='api_candidatos_2022'),
     path('api/vitoria/', views.VictoryMapAPI.as_view(), name='api_vitoria'),
     path('api/calor-camadas/', views.HeatLayersAPI.as_view(), name='api_calor_camadas'),
     path('api/promessas/', views.PromessasMapAPI.as_view(), name='api_promessas'),

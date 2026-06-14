@@ -1351,10 +1351,16 @@ class VoteTransferAPI(APIView):
         aliados_obj = list(AliadoChapa.objects.filter(ativo=True))
         aliados_votes = {a.id: {} for a in aliados_obj}
         for a in aliados_obj:
-            termos = [t for t in a.termos_busca.upper().split() if t]
             qs = ResultadoCandidato.objects.filter(eleicao__ano=2022).select_related('cidade')
-            for t in termos:
-                qs = qs.filter(candidato_nome__icontains=t)
+            if a.candidato_numero:
+                # casamento exato por número da urna (+ cargo, pois números repetem entre cargos)
+                qs = qs.filter(candidato_numero=a.candidato_numero)
+                if a.cargo_2022:
+                    qs = qs.filter(eleicao__tipo=a.cargo_2022)
+            else:
+                # fallback: termos no nome (cadastros antigos sem número)
+                for t in [t for t in a.termos_busca.upper().split() if t]:
+                    qs = qs.filter(candidato_nome__icontains=t)
             for r in qs:
                 slug = r.cidade.slug
                 cur = aliados_votes[a.id].get(slug)
@@ -2570,8 +2576,51 @@ class AliadoToggleAPI(APIView):
 def _aliado_dict(a):
     return {
         'id': a.id, 'nome': a.nome, 'termos_busca': a.termos_busca,
+        'candidato_numero': a.candidato_numero, 'cargo_2022': a.cargo_2022,
+        'partido': a.partido,
         'cargo_2026': a.cargo_2026, 'cor': a.cor, 'ativo': a.ativo, 'ordem': a.ordem,
     }
+
+
+# Cor sugerida por partido (legenda partidária aproximada)
+PARTIDO_COR = {
+    'PL': '#1d4ed8', 'PT': '#dc2626', 'PP': '#0ea5e9', 'PSD': '#f59e0b',
+    'MDB': '#16a34a', 'REPUBLICANOS': '#2563eb', 'PSDB': '#0284c7',
+    'PDT': '#b91c1c', 'PODE': '#16a34a', 'UNIÃO': '#1e3a8a', 'PSB': '#ea580c',
+    'NOVO': '#ea580c', 'PSOL': '#7c3aed', 'CIDADANIA': '#db2777',
+}
+CARGO_2026_SUGESTAO = {
+    'governador': 'Governador', 'senador': 'Senador',
+    'deputado_federal': 'Dep. Federal', 'deputado_estadual': 'Dep. Estadual',
+}
+
+
+class Candidatos2022API(APIView):
+    """Lista candidatos de 2022 por cargo (agregado estadual) para o seletor de aliados.
+
+    ?cargo=governador|senador|deputado_federal|deputado_estadual
+    ?q=termo (filtro por nome, mínimo 2 letras para deputados)
+    """
+    def get(self, request):
+        cargo = (request.query_params.get('cargo') or '').strip()
+        q = (request.query_params.get('q') or '').strip().upper()
+        if cargo not in CARGO_2026_SUGESTAO:
+            return Response({'candidatos': []})
+        qs = ResultadoCandidato.objects.filter(eleicao__ano=2022, eleicao__tipo=cargo)
+        if q:
+            qs = qs.filter(candidato_nome__icontains=q)
+        agg = (qs.values('candidato_nome', 'candidato_numero', 'partido')
+                 .annotate(votos_total=Sum('votos'), eleito=Count('id', filter=Q(eleito=True)))
+                 .order_by('-votos_total'))
+        limite = 200 if cargo in ('governador', 'senador') else 25
+        out = [{
+            'nome': r['candidato_nome'], 'numero': r['candidato_numero'] or '',
+            'partido': r['partido'] or '', 'votos': r['votos_total'] or 0,
+            'eleito': bool(r['eleito']),
+            'cor': PARTIDO_COR.get((r['partido'] or '').upper(), '#2563eb'),
+            'cargo_2026_sugestao': CARGO_2026_SUGESTAO[cargo],
+        } for r in agg[:limite]]
+        return Response({'candidatos': out})
 
 
 class AliadoChapaListCreateAPI(APIView):
@@ -2589,6 +2638,9 @@ class AliadoChapaListCreateAPI(APIView):
             return Response({'ok': False, 'erro': 'Nome e termos de busca são obrigatórios.'}, status=400)
         a = AliadoChapa.objects.create(
             nome=nome, termos_busca=termos,
+            candidato_numero=(d.get('candidato_numero') or '').strip(),
+            cargo_2022=(d.get('cargo_2022') or '').strip(),
+            partido=(d.get('partido') or '').strip(),
             cargo_2026=(d.get('cargo_2026') or '').strip(),
             cor=(d.get('cor') or '#2563eb').strip(),
             ativo=bool(d.get('ativo', True)),
@@ -2617,6 +2669,12 @@ class AliadoChapaDetailAPI(APIView):
             if not termos:
                 return Response({'ok': False, 'erro': 'Termos de busca obrigatórios.'}, status=400)
             a.termos_busca = termos
+        if 'candidato_numero' in d:
+            a.candidato_numero = (d.get('candidato_numero') or '').strip()
+        if 'cargo_2022' in d:
+            a.cargo_2022 = (d.get('cargo_2022') or '').strip()
+        if 'partido' in d:
+            a.partido = (d.get('partido') or '').strip()
         if 'cargo_2026' in d:
             a.cargo_2026 = (d.get('cargo_2026') or '').strip()
         if 'cor' in d:
