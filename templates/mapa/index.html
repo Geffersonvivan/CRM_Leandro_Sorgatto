@@ -527,8 +527,22 @@
 <!-- Dashboard contextual abaixo do mapa -->
 <div class="map-wrapper map-dashboard map-dashboard-hidden" id="mapDashboard"></div>
 
-<script src="{% static 'js/map/api.js' %}?v=16"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=16"></script>
+<!-- Modal: Gerenciar aliados de chapa -->
+<div id="aliadosModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;">
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(15,23,42,.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+            <div>
+                <div style="font-size:1.05rem;font-weight:800;color:#1e293b;">🎤 Gerenciar aliados de chapa</div>
+                <div style="font-size:.74rem;color:#94a3b8;">Quem some/aparece no mapa de Transferência e nos eventos.</div>
+            </div>
+            <button onclick="closeAliadosModal()" style="border:none;background:none;font-size:1.4rem;color:#94a3b8;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div id="aliadosModalBody" style="padding:16px 20px;max-height:62vh;overflow-y:auto;"></div>
+    </div>
+</div>
+
+<script src="{% static 'js/map/api.js' %}?v=17"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=17"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -1918,6 +1932,114 @@ case 'transferencia': {
         }).catch(() => alert('Erro ao alternar aliado.'));
     };
 
+    // ─── Gerenciar aliados (CRUD via modal) ───────────────────────────
+    let _aliadoEditId = null;
+    window.openAliadosModal = function () {
+        _aliadoEditId = null;
+        document.getElementById('aliadosModal').style.display = 'flex';
+        loadAliadosModal();
+    };
+    window.closeAliadosModal = function () {
+        document.getElementById('aliadosModal').style.display = 'none';
+    };
+    function _refreshTransferAfterAliado() {
+        // recarrega dados do mapa e o painel de toggles
+        map._voteTransferData = null;
+        API.dashboard.voteTransfer().then(data => {
+            window._transferData = data; map._voteTransferData = data;
+            if (currentMode === 'transferencia') {
+                if (map.currentLevel === 'state') map._applyStateColors(false);
+                else map._applyRegionColors(false);
+                renderTransferDashboard(data);
+            }
+        });
+    }
+    function loadAliadosModal() {
+        const body = document.getElementById('aliadosModalBody');
+        body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Carregando…</div>';
+        fetch('/mapa/api/aliados/', { credentials: 'same-origin', cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json()).then(d => renderAliadosModal(d.aliados || []))
+            .catch(() => { body.innerHTML = '<div style="color:#dc2626;padding:14px;">Erro ao carregar aliados.</div>'; });
+    }
+    function renderAliadosModal(aliados) {
+        const e = _aliadoEditId ? aliados.find(a => a.id === _aliadoEditId) : null;
+        const isNew = _aliadoEditId === 'novo';
+        let html = '';
+        // Lista
+        html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
+        if (!aliados.length) html += '<div style="color:#94a3b8;font-size:.82rem;">Nenhum aliado cadastrado ainda.</div>';
+        for (const a of aliados) {
+            html += `<div style="display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;${a.ativo ? '' : 'opacity:.55;'}">`;
+            html += `<span style="width:14px;height:14px;border-radius:50%;background:${a.cor};flex-shrink:0;"></span>`;
+            html += `<div style="flex:1;min-width:0;"><div style="font-weight:700;color:#1e293b;font-size:.86rem;">${a.nome}${a.ativo ? '' : ' <span style=\"font-size:.66rem;color:#94a3b8;font-weight:400;\">(oculto)</span>'}</div>`;
+            html += `<div style="font-size:.7rem;color:#94a3b8;">${a.cargo_2026 || '—'} · busca: <code>${a.termos_busca}</code></div></div>`;
+            html += `<button onclick="toggleAliadoModal(${a.id})" title="${a.ativo ? 'Ocultar do mapa' : 'Mostrar no mapa'}" style="border:none;background:none;cursor:pointer;font-size:1rem;">${a.ativo ? '👁️' : '🚫'}</button>`;
+            html += `<button onclick="editAliado(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;font-size:.95rem;">✏️</button>`;
+            html += `<button onclick="deleteAliado(${a.id}, '${a.nome.replace(/'/g, "\\'")}')" title="Excluir" style="border:none;background:none;cursor:pointer;font-size:.95rem;">🗑️</button>`;
+            html += '</div>';
+        }
+        html += '</div>';
+        // Form (edição/novo) ou botão de adicionar
+        if (e || isNew) {
+            const v = e || { nome: '', termos_busca: '', cargo_2026: '', cor: '#2563eb', ativo: true, ordem: aliados.length };
+            html += `<div style="border-top:1px solid #e2e8f0;padding-top:14px;">`;
+            html += `<div style="font-weight:700;color:#1e293b;font-size:.86rem;margin-bottom:10px;">${e ? 'Editar' : 'Novo'} aliado</div>`;
+            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
+            html += `<label style="font-size:.74rem;color:#475569;grid-column:1/3;">Nome<input id="al_nome" value="${(v.nome||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Carol De Toni" style="width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;"></label>`;
+            html += `<label style="font-size:.74rem;color:#475569;">Cargo em 2026<input id="al_cargo" value="${(v.cargo_2026||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Senadora" style="width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;"></label>`;
+            html += `<label style="font-size:.74rem;color:#475569;">Cor<input id="al_cor" type="color" value="${v.cor||'#2563eb'}" style="width:100%;height:34px;padding:2px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;"></label>`;
+            html += `<label style="font-size:.74rem;color:#475569;grid-column:1/3;">Termos de busca no resultado de 2022 <span style="color:#94a3b8;">(maiúsculas, espaço = E)</span><input id="al_termos" value="${(v.termos_busca||'').replace(/"/g,'&quot;')}" placeholder="Ex.: CAROL TONI" style="width:100%;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;margin-top:3px;text-transform:uppercase;"></label>`;
+            html += `<label style="font-size:.74rem;color:#475569;display:flex;align-items:center;gap:6px;grid-column:1/3;"><input id="al_ativo" type="checkbox" ${v.ativo ? 'checked' : ''}> Mostrar no mapa de Transferência</label>`;
+            html += `</div>`;
+            html += `<div id="al_erro" style="color:#dc2626;font-size:.74rem;margin-top:8px;min-height:1em;"></div>`;
+            html += `<div style="display:flex;gap:8px;margin-top:6px;">`;
+            html += `<button onclick="saveAliado()" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;cursor:pointer;">Salvar</button>`;
+            html += `<button onclick="cancelAliadoForm()" style="background:#e5e7eb;color:#374151;border:none;border-radius:8px;padding:9px 16px;cursor:pointer;">Cancelar</button>`;
+            html += `</div></div>`;
+        } else {
+            html += `<button onclick="newAliado()" style="width:100%;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:10px;padding:11px;color:#2563eb;font-weight:700;cursor:pointer;">+ Adicionar aliado</button>`;
+        }
+        document.getElementById('aliadosModalBody').innerHTML = html;
+    }
+    window.newAliado = function () { _aliadoEditId = 'novo'; loadAliadosModal(); };
+    window.editAliado = function (id) { _aliadoEditId = id; loadAliadosModal(); };
+    window.cancelAliadoForm = function () { _aliadoEditId = null; loadAliadosModal(); };
+    window.toggleAliadoModal = function (id) {
+        fetch('/mapa/api/aliado/' + id + '/toggle/', { method: 'POST', credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json()).then(() => { loadAliadosModal(); _refreshTransferAfterAliado(); })
+            .catch(() => alert('Erro ao alternar.'));
+    };
+    window.deleteAliado = function (id, nome) {
+        if (!confirm('Excluir o aliado "' + nome + '"? Os eventos marcados perdem essa referência.')) return;
+        fetch('/mapa/api/aliados/' + id + '/', { method: 'DELETE', credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.json()).then(d => { if (d.ok) { _aliadoEditId = null; loadAliadosModal(); _refreshTransferAfterAliado(); } })
+            .catch(() => alert('Erro ao excluir.'));
+    };
+    window.saveAliado = function () {
+        const payload = {
+            nome: document.getElementById('al_nome').value.trim(),
+            cargo_2026: document.getElementById('al_cargo').value.trim(),
+            cor: document.getElementById('al_cor').value,
+            termos_busca: document.getElementById('al_termos').value.trim().toUpperCase(),
+            ativo: document.getElementById('al_ativo').checked,
+        };
+        const erro = document.getElementById('al_erro');
+        if (!payload.nome || !payload.termos_busca) { erro.textContent = 'Nome e termos de busca são obrigatórios.'; return; }
+        const editing = _aliadoEditId && _aliadoEditId !== 'novo';
+        const url = editing ? ('/mapa/api/aliados/' + _aliadoEditId + '/') : '/mapa/api/aliados/';
+        fetch(url, {
+            method: editing ? 'PATCH' : 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(payload),
+        }).then(r => r.json().then(d => ({ ok: r.ok, d }))).then(({ ok, d }) => {
+            if (ok && d.ok) { _aliadoEditId = null; loadAliadosModal(); _refreshTransferAfterAliado(); }
+            else erro.textContent = (d && d.erro) || 'Erro ao salvar.';
+        }).catch(() => { erro.textContent = 'Erro de conexão.'; });
+    };
+
     function renderTransferDashboard(data) {
         window._transferData = data;
         const cities = data.cities || [];
@@ -1935,7 +2057,7 @@ case 'transferencia': {
         for (const a of aliados) {
             html += `<button onclick="toggleAliado(${a.id})" style="padding:5px 12px;border:2px solid ${a.cor};border-radius:999px;background:${a.cor};color:#fff;font-size:.76rem;font-weight:700;cursor:pointer;">${a.nome} <span style="opacity:.8;font-weight:400;">· ${a.cargo}</span> ✓</button>`;
         }
-        html += '<a href="/admin/mapa/aliadochapa/" target="_blank" style="font-size:.72rem;color:#2563eb;">+ gerenciar aliados</a>';
+        html += '<button onclick="openAliadosModal()" style="border:1px dashed #94a3b8;background:#fff;border-radius:999px;padding:5px 12px;font-size:.72rem;color:#2563eb;font-weight:600;cursor:pointer;">⚙ gerenciar aliados</button>';
         html += '</div>';
 
         // cards de classe (filtro)

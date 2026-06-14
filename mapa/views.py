@@ -2567,6 +2567,80 @@ class AliadoToggleAPI(APIView):
         return Response({'ok': True, 'ativo': a.ativo})
 
 
+def _aliado_dict(a):
+    return {
+        'id': a.id, 'nome': a.nome, 'termos_busca': a.termos_busca,
+        'cargo_2026': a.cargo_2026, 'cor': a.cor, 'ativo': a.ativo, 'ordem': a.ordem,
+    }
+
+
+class AliadoChapaListCreateAPI(APIView):
+    """Lista todos os aliados de chapa (ativos e inativos) e cria novos."""
+    def get(self, request):
+        from mapa.models import AliadoChapa
+        return Response({'aliados': [_aliado_dict(a) for a in AliadoChapa.objects.all()]})
+
+    def post(self, request):
+        from mapa.models import AliadoChapa
+        d = request.data
+        nome = (d.get('nome') or '').strip()
+        termos = (d.get('termos_busca') or '').strip()
+        if not nome or not termos:
+            return Response({'ok': False, 'erro': 'Nome e termos de busca são obrigatórios.'}, status=400)
+        a = AliadoChapa.objects.create(
+            nome=nome, termos_busca=termos,
+            cargo_2026=(d.get('cargo_2026') or '').strip(),
+            cor=(d.get('cor') or '#2563eb').strip(),
+            ativo=bool(d.get('ativo', True)),
+            ordem=int(d.get('ordem') or 0),
+        )
+        from django.core.cache import cache
+        cache.clear()
+        return Response({'ok': True, 'aliado': _aliado_dict(a)}, status=201)
+
+
+class AliadoChapaDetailAPI(APIView):
+    """Edita ou exclui um aliado de chapa."""
+    def patch(self, request, pk):
+        from mapa.models import AliadoChapa
+        a = AliadoChapa.objects.filter(pk=pk).first()
+        if not a:
+            return Response({'ok': False}, status=404)
+        d = request.data
+        if 'nome' in d:
+            nome = (d.get('nome') or '').strip()
+            if not nome:
+                return Response({'ok': False, 'erro': 'Nome obrigatório.'}, status=400)
+            a.nome = nome
+        if 'termos_busca' in d:
+            termos = (d.get('termos_busca') or '').strip()
+            if not termos:
+                return Response({'ok': False, 'erro': 'Termos de busca obrigatórios.'}, status=400)
+            a.termos_busca = termos
+        if 'cargo_2026' in d:
+            a.cargo_2026 = (d.get('cargo_2026') or '').strip()
+        if 'cor' in d:
+            a.cor = (d.get('cor') or '#2563eb').strip()
+        if 'ativo' in d:
+            a.ativo = bool(d.get('ativo'))
+        if 'ordem' in d:
+            a.ordem = int(d.get('ordem') or 0)
+        a.save()
+        from django.core.cache import cache
+        cache.clear()
+        return Response({'ok': True, 'aliado': _aliado_dict(a)})
+
+    def delete(self, request, pk):
+        from mapa.models import AliadoChapa
+        a = AliadoChapa.objects.filter(pk=pk).first()
+        if not a:
+            return Response({'ok': False}, status=404)
+        a.delete()
+        from django.core.cache import cache
+        cache.clear()
+        return Response({'ok': True})
+
+
 # ─── API: VITÓRIA 2026 (lacuna de votos + quadrantes + presença CRM) ──────
 
 class VictoryMapAPI(APIView):
