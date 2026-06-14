@@ -743,6 +743,7 @@ def evento_create(request):
             evento = form.save(commit=False)
             evento.cadastrado_por = request.user
             evento.save()
+            form.save_m2m()
             messages.success(request, 'Evento cadastrado com sucesso!')
             return redirect('agenda:evento_list')
     else:

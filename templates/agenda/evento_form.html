@@ -72,6 +72,16 @@
                 {{ form.status }}
                 {{ form.status.errors }}
             </div>
+            {% if form.aliados.field.queryset.exists %}
+            <div class="form-group full">
+                <label>🎤 Aliados de chapa presentes</label>
+                <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;">
+                    {% for ch in form.aliados %}<label style="display:flex;align-items:center;gap:5px;font-size:.88rem;cursor:pointer;">{{ ch.tag }} {{ ch.choice_label }}</label>{% endfor %}
+                </div>
+                <span style="font-size:0.72rem;color:#94a3b8;">Marque os aliados de chapa que estarão neste evento — o mapa de Transferência cruza com os redutos deles.</span>
+                {{ form.aliados.errors }}
+            </div>
+            {% endif %}
             <div class="form-group full">
                 <label for="id_observacoes">Observações</label>
                 {{ form.observacoes }}

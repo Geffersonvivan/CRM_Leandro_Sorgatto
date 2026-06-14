@@ -1533,15 +1533,30 @@ class VoteTransferAPI(APIView):
         opportunities = opportunities[:200]
 
         # Classificação de cidades em 6 classes
-        # Agenda dos aliados (visitas futuras) por cidade
-        from mapa.models import AgendaAliado
+        # Presença de aliados na agenda REAL (compromissos + eventos futuros com
+        # aliado de chapa marcado) — fonte única, sem agenda paralela.
+        from agenda.models import Compromisso as _Comp, Evento as _Ev
         agenda_por_cidade = defaultdict(list)
         hoje = timezone.localdate()
-        for ev in AgendaAliado.objects.filter(data__gte=hoje).select_related('aliado', 'cidade'):
-            agenda_por_cidade[ev.cidade.slug].append({
-                'aliado': ev.aliado.nome, 'cor': ev.aliado.cor,
-                'data': ev.data.strftime('%d/%m'), 'titulo': ev.titulo,
-            })
+        agora = timezone.now()
+        for comp in (_Comp.objects.filter(data_hora_inicio__gte=agora)
+                     .exclude(status='cancelado')
+                     .prefetch_related('aliados').select_related('cidade')):
+            for a in comp.aliados.all():
+                agenda_por_cidade[comp.cidade.slug].append({
+                    'aliado': a.nome, 'cor': a.cor,
+                    'data': timezone.localtime(comp.data_hora_inicio).strftime('%d/%m'),
+                    'titulo': comp.titulo, 'tipo': 'compromisso',
+                })
+        for ev in (_Ev.objects.filter(data__gte=hoje)
+                   .exclude(status='descartado')
+                   .prefetch_related('aliados').select_related('cidade')):
+            for a in ev.aliados.all():
+                agenda_por_cidade[ev.cidade.slug].append({
+                    'aliado': a.nome, 'cor': a.cor,
+                    'data': ev.data.strftime('%d/%m'),
+                    'titulo': ev.nome, 'tipo': 'evento',
+                })
 
         cities_list = []
         for c in city_data.values():

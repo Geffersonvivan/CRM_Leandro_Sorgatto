@@ -70,6 +70,10 @@ class Compromisso(models.Model):
         default=False,
         help_text='Interações já criadas para os participantes ao realizar o compromisso.',
     )
+    aliados = models.ManyToManyField(
+        'mapa.AliadoChapa', blank=True, related_name='compromissos',
+        verbose_name='Aliados de chapa presentes',
+    )
     prioridade = models.CharField(
         max_length=10, choices=PRIORIDADE_CHOICES, default='media',
     )
@@ -254,6 +258,10 @@ class Evento(models.Model):
     imagem = models.ImageField(
         upload_to='eventos/', blank=True, null=True,
         verbose_name='Imagem do Evento',
+    )
+    aliados = models.ManyToManyField(
+        'mapa.AliadoChapa', blank=True, related_name='eventos',
+        verbose_name='Aliados de chapa presentes',
     )
     cadastrado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,

@@ -115,21 +115,3 @@ class AliadoChapa(models.Model):
 
     def __str__(self):
         return f'{self.nome} ({self.cargo_2026})' if self.cargo_2026 else self.nome
-
-
-class AgendaAliado(models.Model):
-    """Quando um aliado de chapa vai visitar uma cidade — para o LS coincidir."""
-    aliado = models.ForeignKey(AliadoChapa, on_delete=models.CASCADE, related_name='agenda')
-    cidade = models.ForeignKey(Cidade, on_delete=models.CASCADE, related_name='agenda_aliados')
-    data = models.DateField()
-    titulo = models.CharField(max_length=200, blank=True)
-    observacoes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = 'Agenda de Aliado'
-        verbose_name_plural = 'Agendas de Aliados'
-        ordering = ['data']
-
-    def __str__(self):
-        return f'{self.aliado.nome} em {self.cidade.nome} ({self.data:%d/%m/%Y})'

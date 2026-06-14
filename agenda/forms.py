@@ -25,6 +25,10 @@ class CompromissoForm(forms.ModelForm):
         queryset=Apoiador.objects.all(), required=False,
         widget=forms.MultipleHiddenInput,
     )
+    aliados = forms.ModelMultipleChoiceField(
+        queryset=None, required=False, label='Aliados de chapa presentes',
+        widget=forms.CheckboxSelectMultiple,
+    )
     data = forms.DateField(
         label='Data',
         widget=forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}, format='%Y-%m-%d'),
@@ -47,7 +51,7 @@ class CompromissoForm(forms.ModelForm):
             'titulo', 'descricao',
             'tipo', 'regiao', 'cidade', 'endereco',
             'contato_local_nome', 'contato_local_telefone',
-            'participantes', 'coordenadores', 'cabos', 'apoiadores',
+            'participantes', 'coordenadores', 'cabos', 'apoiadores', 'aliados',
             'prioridade', 'status', 'observacoes',
         ]
         widgets = {
@@ -69,6 +73,8 @@ class CompromissoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from mapa.models import AliadoChapa
+        self.fields['aliados'].queryset = AliadoChapa.objects.filter(ativo=True)
 
         # IDs já vinculados (para o JS pré-marcar os checkboxes do painel)
         if self.instance.pk:
@@ -164,7 +170,7 @@ class EventoForm(forms.ModelForm):
         model = Evento
         fields = [
             'nome', 'tipo', 'data', 'horario_inicio', 'horario_fim',
-            'cidade', 'local', 'publico_estimado',
+            'cidade', 'local', 'publico_estimado', 'aliados',
             'relevancia', 'status', 'observacoes', 'resultado', 'imagem',
         ]
         widgets = {
@@ -181,10 +187,14 @@ class EventoForm(forms.ModelForm):
             'observacoes': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
             'resultado': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
             'imagem': forms.ClearableFileInput(attrs={'class': 'form-input'}),
+            'aliados': forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from mapa.models import AliadoChapa
+        self.fields['aliados'].queryset = AliadoChapa.objects.filter(ativo=True)
+        self.fields['aliados'].required = False
         self.fields['data'].input_formats = ['%Y-%m-%d']
         self.fields['horario_inicio'].input_formats = ['%H:%M', '%H:%M:%S']
         self.fields['horario_fim'].input_formats = ['%H:%M', '%H:%M:%S']

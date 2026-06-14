@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Eleicao, ResultadoCandidato, IndicadorMunicipal, AliadoChapa, AgendaAliado
+from .models import Eleicao, ResultadoCandidato, IndicadorMunicipal, AliadoChapa
 
 
 @admin.register(Eleicao)
@@ -28,12 +28,3 @@ class AliadoChapaAdmin(admin.ModelAdmin):
     list_display = ('nome', 'cargo_2026', 'ativo', 'cor', 'ordem')
     list_editable = ('ativo', 'ordem')
     search_fields = ('nome', 'termos_busca')
-
-
-@admin.register(AgendaAliado)
-class AgendaAliadoAdmin(admin.ModelAdmin):
-    list_display = ('aliado', 'cidade', 'data', 'titulo')
-    list_filter = ('aliado', 'data', 'cidade__regiao')
-    search_fields = ('cidade__nome', 'titulo')
-    raw_id_fields = ('cidade',)
-    date_hierarchy = 'data'
