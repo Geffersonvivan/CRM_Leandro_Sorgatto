@@ -419,7 +419,6 @@
 
     <!-- Painel de ajuda contextual -->
     <div class="help-panel" id="helpPanel">
-        <button class="help-close" id="helpClose">&times;</button>
         <div class="help-section">
             <div class="help-section-title"><span class="icon">&#9432;</span> O que mostra</div>
             <p id="helpWhat"></p>
@@ -548,8 +547,8 @@
     </div>
 </div>
 
-<script src="{% static 'js/map/api.js' %}?v=26"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=26"></script>
+<script src="{% static 'js/map/api.js' %}?v=27"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=27"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -773,7 +772,33 @@
 
     const helpPanel = document.getElementById('helpPanel');
     const btnHelp = document.getElementById('btnHelp');
-    const helpClose = document.getElementById('helpClose');
+
+    // Puxa números reais do mapa carregado para a dica de estratégia
+    function realNumbersFor(mode) {
+        const n = v => (v || 0).toLocaleString('pt-BR');
+        try {
+            if (mode === 'vitoria' && window._victoryData) {
+                const d = window._victoryData, q = d.quadrantes || {}, a = d.alertas || {}, s = d.summary || {};
+                return `${n(q.mina_ouro)} minas de ouro · ${n(a.orfas)} oportunidades órfãs · ${n(a.esfriando)} bases esfriando · faltam <strong>${n(s.falta_meta)}</strong> votos p/ a meta.`;
+            }
+            if (mode === 'estrategico' && window._strategicData) {
+                const s = window._strategicData.summary || {}, tp = window._strategicData.totais_politicos || {};
+                return `${n(s.aliado_ativar)} aliados dormindo (ligue os cabos) · ${n(s.maquina_voto)} máquinas de voto prontas · ${n(s.construir)} cidades a construir${tp.meta_transferir ? ` · ${n(tp.meta_transferir)} votos de transferência somados` : ''}.`;
+            }
+            if (mode === 'transferencia' && window._transferData) {
+                const s = window._transferData.summary || {};
+                return `${n(s.reduto_aliado)} redutos de aliado · ${n(s.palanque_conjunto)} palanques conjuntos · <strong>${n(s.votos_carona_total)}</strong> votos de carona na mesa${s.palanques_prontos ? ` · 🔥 ${n(s.palanques_prontos)} palanques prontos!` : ''}.`;
+            }
+            if (mode === 'demandas' && window._demandData) {
+                const s = window._demandData.summary || {};
+                return `${n(s.overdue)} demandas vencidas · ${n(s.active)} ativas${s.negligencia ? ` · ${n(s.negligencia)} regiões negligenciadas (muito voto, zero trabalho)` : ''}.`;
+            }
+            if (mode === 'eleicoes_2022' && window._calorData) {
+                // (sem dado próprio carregado aqui; mantém estático)
+            }
+        } catch (e) { /* dados ainda não carregados → estático */ }
+        return '';
+    }
 
     function updateHelp(mode) {
         const data = helpData[mode];
@@ -783,7 +808,9 @@
         document.getElementById('helpExample').innerHTML = data.example;
         const stratSec = document.getElementById('helpStrategySection');
         if (data.estrategia) {
-            document.getElementById('helpStrategy').innerHTML = data.estrategia;
+            const dyn = realNumbersFor(mode);
+            const dynHtml = dyn ? `<div style="background:#ddd6fe;border-radius:7px;padding:7px 10px;margin-bottom:8px;font-size:.82rem;color:#4c1d95;">📊 <strong>Agora no mapa:</strong> ${dyn}</div>` : '';
+            document.getElementById('helpStrategy').innerHTML = dynHtml + data.estrategia;
             stratSec.style.display = '';
         } else {
             stratSec.style.display = 'none';
@@ -800,11 +827,6 @@
             helpPanel.classList.add('visible');
             btnHelp.classList.add('active');
         }
-    });
-
-    helpClose.addEventListener('click', () => {
-        helpPanel.classList.remove('visible');
-        btnHelp.classList.remove('active');
     });
 
     // ── Legends ─────────────────────────────────────────────────
@@ -918,6 +940,7 @@
                     break;
                 case 'vitoria': {
                     const data = await API.maps.victory();
+                    window._victoryData = data;
                     renderVictoryDashboard(data);
                     break;
                 }
@@ -2413,7 +2436,10 @@ case 'transferencia': {
 
     async function applyMode(mode) {
         renderLegend(mode);
-        renderDashboard(mode);
+        // ao terminar de carregar os dados, atualiza os números reais da dica (se o painel estiver aberto)
+        renderDashboard(mode).then(() => {
+            if (helpPanel.classList.contains('visible')) updateHelp(mode);
+        });
         map.heatmapEnabled = false;
         map.demandsEnabled = false;
         map.itinerariesEnabled = false;
