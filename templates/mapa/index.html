@@ -405,8 +405,6 @@
                     <button class="mode-btn" data-mode="roteiros" data-help="mode:roteiros">Roteiros</button>
                     <button class="mode-btn" data-mode="estrategico" data-help="mode:estrategico">Estratégico</button>
 <button class="mode-btn" data-mode="transferencia" data-help="mode:transferencia">Transferência</button>
-                    <button class="mode-btn" data-mode="deputados" data-help="mode:deputados">Dep. Aliados</button>
-                    <button class="mode-btn" data-mode="doacoes" data-help="mode:doacoes">Doações</button>
                     <button class="mode-btn" data-mode="concorrencia" data-help="mode:concorrencia">Concorrência</button>
                     <button class="mode-btn" data-mode="perfil_ideologico" data-help="mode:perfil_ideologico">Perfil Ideológico</button>
                 </div>
@@ -433,6 +431,10 @@
         <div class="help-section">
             <div class="help-section-title"><span class="icon">&#10024;</span> Exemplo prático</div>
             <p id="helpExample"></p>
+        </div>
+        <div class="help-section" id="helpStrategySection" style="border-top:2px solid #6d28d9;background:#faf5ff;border-radius:8px;padding:10px 12px;">
+            <div class="help-section-title" style="color:#6d28d9;"><span class="icon">&#127919;</span> Estratégia — cruze os mapas</div>
+            <p id="helpStrategy"></p>
         </div>
     </div>
 
@@ -546,8 +548,8 @@
     </div>
 </div>
 
-<script src="{% static 'js/map/api.js' %}?v=25"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=25"></script>
+<script src="{% static 'js/map/api.js' %}?v=26"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=26"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -596,6 +598,7 @@
                 'Passe o <strong>mouse</strong> para ver posição, votos e percentual. <strong>Clique na região</strong> para detalhar cidade a cidade.',
             example: '<strong>Leitura rápida:</strong> Blocos verdes são a base consolidada do LS — prioridade é manter. Blocos amarelos/laranjas são oportunidades de crescimento para 2026. Blocos vermelhos exigem estratégia de longo prazo.<br>' +
                 '<strong>Exemplo:</strong> Se Lages aparece em verde escuro (1º lugar, 8.200 votos, 12% dos válidos), é reduto forte. Já Florianópolis em vermelho (15º lugar, 900 votos, 0.3%) indica que a capital precisa de investimento pesado em visibilidade.',
+            estrategia: 'Onde fui forte em 2022 ≠ onde devo focar em 2026. Cruze:<br>&bull; <strong>Vitória 2026</strong> — um reduto verde aqui pode já estar saturado (pouco a ganhar); o ouro está nos amarelos/vermelhos que viraram 💰 Mina de ouro.<br>&bull; <strong>Estratégico</strong> — onde fui fraco mas tenho aliado político, é construção barata.<br>&bull; <strong>Concorrência</strong> — vermelho aqui + rival forte lá = não insista; vermelho com rival fraco = terreno livre.',
         },
         regioes: {
             what: 'Apresenta a <strong>divisão do estado em 21 associações de municípios</strong> (AMAs), que são a unidade geográfica base de toda a operação política. Cada associação agrupa cidades vizinhas com características e desafios em comum.<br><br>' +
@@ -632,6 +635,7 @@
                 '&bull; <strong>Gap alto positivo</strong> — a cidade deu votos em 2022 mas não tem apoiadores cadastrados. Significa que há uma base eleitoral que votou no LS mas não foi capturada pelo CRM. <em>Ação: priorizar cadastro e contato.</em><br>' +
                 '&bull; <strong>Gap negativo</strong> — mais apoiadores que votos em 2022. Significa crescimento recente da base. <em>Sinal positivo.</em><br><br>' +
                 '<strong>Demandas vencidas:</strong> Use para reunião semanal — regiões/cidades em vermelho precisam de cobrança imediata. Combine com a métrica de apoiadores para ver se áreas com muitos apoiadores estão sendo bem atendidas.',
+            estrategia: 'O calor mostra concentração; sozinho não decide. Cruze:<br>&bull; Vazio de apoiadores + <strong>Vitória 2026</strong> mostrando 💰 Mina de ouro = prioridade de expansão (voto sem dono).<br>&bull; Vazio numa cidade saturada = ignore (não há voto a colher).<br>&bull; Use a camada <strong>Gap</strong> junto do <strong>Estratégico</strong> para achar onde tem voto e falta cabo.',
         },
         demandas: {
             what: 'Painel de <strong>acompanhamento de demandas e tarefas políticas</strong> distribuídas por região. Cada tarefa tem prazo e responsável, e o mapa mostra visualmente quais regiões estão com pendências atrasadas, em dia ou sem demandas registradas.<br><br>' +
@@ -644,6 +648,7 @@
                 'Passe o <strong>mouse</strong> para ver contagem de tarefas por status. <strong>Clique</strong> para ver a lista detalhada.',
             example: '<strong>Uso no dia a dia:</strong> Abra este mapa toda manhã para identificar rapidamente quais regiões precisam de atenção. Regiões vermelhas pulsando são urgências — clique para ver quais tarefas estão atrasadas e quem é o responsável.<br>' +
                 '<strong>Sinal de alerta:</strong> Regiões cinza por muito tempo indicam que ninguém está fazendo articulação local. Considere criar demandas proativamente para manter a presença política ativa.',
+            estrategia: 'Demanda é porta de entrada para o voto. Cruze:<br>&bull; Demanda atrasada numa cidade 🏭 máquina de voto (<strong>Estratégico</strong>) = apague o incêndio antes que esfrie a base.<br>&bull; Demanda numa 💰 Mina de ouro (<strong>Vitória</strong>) = resolva e registre como <strong>+ Promessa</strong> para fidelizar.<br>&bull; Vire a demanda em <strong>+ Compromisso</strong> pelo painel da cidade.',
         },
         roteiros: {
             what: 'Visualiza os <strong>roteiros de viagem e agendas de campo</strong> no mapa. Cada roteiro é uma sequência de paradas (cidades) com data, horário e compromissos associados. Serve para planejar caravanas, visitas a lideranças e eventos regionais.<br><br>' +
@@ -655,6 +660,7 @@
                 '<strong>Marcadores:</strong> Losango = cidade de partida. Círculos = paradas intermediárias e destino final. Passe o <strong>mouse nos marcadores</strong> para ver horário, compromissos e observações de cada parada.',
             example: '<strong>Exemplo:</strong> Um roteiro tracejado em azul saindo de Lages (losango) passando por São Joaquim e Urubici (círculos) até Bom Jardim da Serra mostra uma caravana planejada pela Serra Catarinense com 3 paradas.<br>' +
                 '<strong>Dica:</strong> Ao planejar uma viagem, cruze com o mapa de Demandas para incluir paradas em regiões com tarefas pendentes, otimizando o deslocamento.',
+            estrategia: 'O roteiro é onde a estratégia vira quilômetro rodado. Monte cruzando:<br>&bull; <strong>Vitória 2026</strong> — encadeie 💰 Minas de ouro próximas no mesmo dia.<br>&bull; <strong>Transferência</strong> — inclua redutos de aliado no trajeto (carona de chapa).<br>&bull; <strong>Painel da cidade</strong> — comece pelos contatos \'vencidos/nunca\'.<br>&bull; <strong>Perfil Ideológico</strong> — ajuste o discurso de cada parada.',
         },
         estrategico: {
             what: 'Classifica cada cidade de SC em <strong>5 categorias estratégicas</strong> cruzando <strong>3 camadas de inteligência</strong>: desempenho eleitoral, estrutura política e perfil socioeconômico.<br><br>' +
@@ -681,6 +687,7 @@
                 '<strong>1. Onde estou perdendo oportunidade?</strong> Procure alertas "falso neutro" — são cidades sem prefeito aliado mas com perfil conservador forte (alta renda, poucos beneficiários de BF). Elas podem ser conquistadas com a abordagem certa.<br><br>' +
                 '<strong>2. Onde a máquina está parada?</strong> Alertas "base acomodada" e "estrutura sem conversão" mostram cidades onde existe estrutura PL mas ela não está sendo ativada — a rede de vereadores, cabos e diretório existe mas não gera resultado.<br><br>' +
                 '<strong>3. Onde o voto pode escapar?</strong> Alertas "voto orgânico frágil" identificam cidades que votaram bem em 2022 sem estrutura PL — esse voto veio sozinho mas pode não se repetir em 2026 sem trabalho de campo.',
+            estrategia: 'Aqui está a articulação viva. A jogada nº1 — aliado dormindo — vale ouro quando cruzada:<br>&bull; 🤝 Aliado a ativar numa 💰 Mina de ouro (<strong>Vitória</strong>) = alavanca mais barata da campanha: ligue os cabos.<br>&bull; 🏗️ Construir + <strong>Transferência</strong> com aliado forte = entre pela carona e monte estrutura depois.<br>&bull; ⚔️ Em disputa + <strong>Concorrência</strong> para medir se dá pra virar.',
         },
         transferencia: {
             what: 'O <strong>planejador de palanque de chapa</strong>. Os candidatos não competem com o LS — são a <strong>chapa dele</strong> em cargos diferentes (Jorginho governador, Carol senadora, Daniela federal, LS estadual). Os votos não competem, se <strong>somam</strong>. O mapa mostra os <strong>redutos de cada aliado</strong> para o LS pegar carona na força e na agenda deles.',
@@ -694,43 +701,7 @@
                 '<strong>1. Marque a visita do aliado:</strong> ao saber que a Carol fará um comício em Chapecó, registre como <strong>Evento</strong> e marque a Carol. O mapa cruza com o reduto dela e acende o alerta de <strong>palanque pronto</strong>.<br><br>' +
                 '<strong>2. Coloque o LS junto:</strong> clique na cidade → "+ Compromisso" cria a agenda do LS na mesma data, com os cabos locais. O LS sobe no palanque com a Carol, com público e estrutura emprestados.<br><br>' +
                 '<strong>3. Priorize os palanques conjuntos:</strong> cidades roxas (2+ aliados fortes) são os eventos de maior retorno — vários pesos-pesados e multidão de uma vez.',
-        },
-        deputados: {
-            what: 'Mapeia a <strong>relação territorial entre o LS, deputados aliados e adversários</strong>, cruzando com a <strong>agenda de visitas</strong> do CRM. Responde três perguntas fundamentais:<br><br>' +
-                '<table style="width:100%;font-size:.78rem;border-collapse:collapse;margin-bottom:4px">' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0;width:35%"><strong>Sinergia</strong></td><td style="padding-left:8px;color:#64748b">Onde LS e deputados aliados têm bases sobrepostas? (eventos conjuntos multiplicam)</td></tr>' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Oportunidade</strong></td><td style="padding-left:8px;color:#64748b">Onde o aliado é forte mas o LS não? (pedir ao aliado que apresente o LS à sua base)</td></tr>' +
-                '<tr><td style="padding:3px 0"><strong>Competição</strong></td><td style="padding-left:8px;color:#64748b">Onde o adversário é mais forte que o aliado? (zonas de disputa que exigem atenção)</td></tr>' +
-                '</table>',
-            how: 'Cada cidade recebe uma cor baseada na <strong>presença combinada do LS e dos deputados aliados</strong>:<br><br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#f59e0b;vertical-align:middle;margin-right:4px"></span> <strong style="color:#b45309">Ponte Forte</strong> — LS + deputado aliado ambos fortes (aliado ≥15%). Eventos conjuntos geram multiplicação.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#15803d;vertical-align:middle;margin-right:4px"></span> <strong style="color:#15803d">Base Conjunta</strong> — Ambos presentes, aliado entre 10-15%. Parceria fortalece os dois.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#2563eb;vertical-align:middle;margin-right:4px"></span> <strong style="color:#2563eb">Território do Deputado</strong> — Só o aliado é forte, LS fraco. <strong>Melhor oportunidade de articulação.</strong><br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#86efac;vertical-align:middle;margin-right:4px"></span> <strong style="color:#16a34a">Território LS</strong> — Só o LS é forte. Base própria consolidada.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#d1d5db;vertical-align:middle;margin-right:4px"></span> <strong style="color:#9ca3af">Sem presença</strong> — Nenhum dos dois tem votação relevante.<br><br>' +
-                '<strong>Sistema de alertas:</strong><br>' +
-                '<table style="width:100%;font-size:.78rem;border-collapse:collapse;margin-top:4px">' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0;color:#dc2626">⚠ Dep. forte sem visita</td><td style="padding-left:8px;color:#64748b">Deputado aliado forte na cidade mas nenhum compromisso agendado no CRM — oportunidade perdida</td></tr>' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0;color:#f59e0b">⚠ Oportunidade articulação</td><td style="padding-left:8px;color:#64748b">Território do Deputado sem nenhuma visita — o aliado tem base mas ninguém foi lá articular</td></tr>' +
-                '<tr><td style="padding:3px 0;color:#f59e0b">⚠ Adversário mais forte</td><td style="padding-left:8px;color:#64748b">O deputado adversário mais votado supera o aliado naquela cidade — zona de disputa real</td></tr>' +
-                '</table>',
-            example: '<strong>Como usar a agenda cruzada:</strong><br><br>' +
-                '<strong>1. Priorizar visitas:</strong> Filtre cidades com alerta "dep. forte sem visita". São locais onde um deputado aliado já tem estrutura e eleitores, mas o LS nunca foi lá. Uma única visita conjunta pode render centenas de contatos novos.<br><br>' +
-                '<strong>2. Defender a base:</strong> Cidades com alerta "adversário mais forte" mostram onde a competição é real. Se o deputado adversário tem 18% e o aliado 12%, é preciso reforçar presença antes que a distância aumente.<br><br>' +
-                '<strong>3. Dados no tooltip:</strong> Passe o mouse para ver o top 3 de deputados aliados com votos e %, o adversário mais forte, total de visitas já realizadas e agendadas, e a classificação da cidade.',
-        },
-        doacoes: {
-            what: 'Exibe a <strong>arrecadação financeira por região</strong>, consolidando valor total de doações, número de doações, quantidade de doadores únicos e os principais captadores. Permite identificar <strong>onde a base financeira é forte</strong> e onde há potencial inexplorado.<br><br>' +
-                'Os dados consideram apenas doações com status <strong>confirmado</strong>.',
-            how: 'As regiões são coloridas por um <strong>gradiente de intensidade</strong> baseado no valor total arrecadado:<br><br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#1e3a8a;vertical-align:middle;margin-right:4px"></span> <strong style="color:#1e3a8a">Azul escuro</strong> — Arrecadação <strong>alta</strong>. Região com forte engajamento financeiro.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#2563eb;vertical-align:middle;margin-right:4px"></span> <strong style="color:#2563eb">Azul médio</strong> — Arrecadação <strong>média</strong>. Base financeira existente, pode crescer.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#60a5fa;vertical-align:middle;margin-right:4px"></span> <strong style="color:#60a5fa">Azul claro</strong> — Arrecadação <strong>baixa</strong>. Poucos doadores ativos.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#dbeafe;vertical-align:middle;margin-right:4px"></span> <strong style="color:#93c5fd">Azul muito claro</strong> — Arrecadação <strong>mínima</strong>. Presença financeira simbólica.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#d1d5db;vertical-align:middle;margin-right:4px"></span> <strong style="color:#9ca3af">Cinza</strong> — <strong>Nenhuma doação</strong> registrada.<br><br>' +
-                'Passe o <strong>mouse</strong> para ver: valor total, quantidade de doações, doadores únicos e top captadores.',
-            example: '<strong>Leitura rápida:</strong> Regiões cinza são prioridade para campanhas de arrecadação — não há sequer um doador ativo. Regiões azul claro com muitos apoiadores cadastrados indicam base engajada politicamente mas não financeiramente — boa oportunidade para captação.<br>' +
-                '<strong>Exemplo:</strong> Se AMREC aparece em azul escuro (R$ 85.000, 42 doadores, top captador: João Silva com R$ 12.000), a arrecadação está concentrada. Já AMEOSC em cinza com 150 apoiadores sugere potencial financeiro não explorado.',
+            estrategia: 'Votos de aliado somam com os seus. Para converter:<br>&bull; Reduto de aliado (laranja) + <strong>Vitória 2026</strong> com lacuna = leve o LS junto e colha voto novo.<br>&bull; Palanque conjunto + <strong>Roteiros</strong> = agende o LS no evento do aliado.<br>&bull; Reduto de aliado + <strong>Concorrência</strong> com rival forte = a carona é seu jeito de entrar sem brigar de frente.<br>&bull; Feche sempre com <strong>+ Compromisso</strong>.',
         },
         perfil_ideologico: {
             what: 'Ferramenta de <strong>inteligência territorial</strong> que cruza <strong>5 camadas de dados</strong> para revelar o perfil ideológico, a classificação estratégica e a força da rede PL de cada cidade simultaneamente.<br><br>' +
@@ -765,6 +736,7 @@
                 '&bull; Cidade com perfil ideológico conservador + classificação "Neutro" + Rede PL ausente = <strong>alvo prioritário de expansão</strong><br>' +
                 '&bull; Cidade com perfil conservador + classificação "Território Hostil" = <strong>o adversário está conquistando eleitorado conservador</strong> — exige investigação local<br>' +
                 '&bull; Cidade com perfil moderado + Rede PL forte + poucos apoiadores = <strong>a máquina existe mas não está ativada</strong>',
+            estrategia: 'Este mapa não escolhe a cidade — calibra a <strong>mensagem</strong> nela. Use junto de todos:<br>&bull; Antes de cada <strong>+ Compromisso</strong>, veja o perfil e ajuste o discurso.<br>&bull; Cidade conservadora + 💰 Mina de ouro (<strong>Vitória</strong>) = terreno fértil para o discurso do LS, priorize.<br>&bull; Cidade menos conservadora = entre por demanda concreta (<strong>Demandas</strong>), não por ideologia.',
         },
         concorrencia: {
             what: 'Ferramenta de <strong>análise competitiva</strong> com <strong>ranking de ameaça</strong> e <strong>comparação direta com o LS</strong>. Permite visualizar até 8 candidatos simultaneamente e entender quem disputa os mesmos eleitores.<br><br>' +
@@ -788,6 +760,7 @@
                 '<strong>1. Identificar adversários diretos:</strong> Um deputado federal com overlap de 35% e 180 cidades compartilhadas é um concorrente direto — atua nas mesmas regiões. Já um com overlap de 5% e 20 cidades é irrelevante para a estratégia.<br><br>' +
                 '<strong>2. Analisar cidade a cidade:</strong> Selecione o adversário de maior overlap. No tooltip, cidades onde a diferença é negativa (adversário à frente) são campos de batalha. Cidades com diferença positiva grande são base segura.<br><br>' +
                 '<strong>3. Resumo da disputa:</strong> O painel mostra quantas cidades o LS ganha vs. quantas o adversário ganha. Se o adversário ganha em mais cidades mas com margens pequenas, a disputa é disputável. Se ganha com margens grandes, são territórios perdidos.',
+            estrategia: 'Saber onde o rival é forte evita desperdício. Cruze:<br>&bull; Reduto do rival + <strong>Estratégico</strong> sem aliado seu = não gaste energia.<br>&bull; Reduto do rival + <strong>Transferência</strong> com aliado de chapa forte = dispute pela carona.<br>&bull; Cidade em aberto (rival fraco) + 💰 Mina de ouro (<strong>Vitória</strong>) = ataque imediato, terreno livre.',
         },
     };
 
@@ -795,6 +768,7 @@
         what: 'O <strong>tabuleiro de guerra da campanha</strong>. Em vez de mostrar onde fomos bem no passado, mostra <strong>onde estão os votos que faltam para 2026</strong> e onde é mais fácil buscá-los.',
         how: 'As cidades são pintadas pelos <strong>votos disponíveis</strong> (potencial − votos de 2022): vermelho = muita lacuna (oportunidade), verde = poucos votos sobrando (saturada). Cada cidade é classificada em 4 estratégias: 🛡️ Celeiro (defender), ✅ Fortaleza (manter), 💰 Mina de ouro (atacar), ⚪ Marginal. Clique numa cidade para o painel de ação: vencidos, última visita e botões de agendar.',
         example: '<strong>Exemplo:</strong> uma cidade grande pintada de vermelho, classificada como 💰 Mina de ouro e com alerta "órfã" (zero estrutura) é a maior oportunidade ignorada da campanha — muito voto disponível e ninguém trabalhando lá.',
+        estrategia: 'Achou uma 💰 <strong>Mina de ouro</strong>? Não pare aqui — cruze:<br>&bull; <strong>Transferência</strong> — aliado de chapa forte lá? É palanque de carona: agende junto.<br>&bull; <strong>Estratégico</strong> — aparece 🤝 aliado a ativar? Máquina parada: ligue os cabos.<br>&bull; Se 🚨 órfã, cheque <strong>Concorrência</strong> (terreno livre?) e <strong>Perfil Ideológico</strong> (qual discurso).<br>&bull; Feche com <strong>+ Compromisso / + Roteiro</strong> — vire o diagnóstico em visita.',
     };
 
     const helpPanel = document.getElementById('helpPanel');
@@ -807,6 +781,13 @@
         document.getElementById('helpWhat').innerHTML = data.what;
         document.getElementById('helpHow').innerHTML = data.how;
         document.getElementById('helpExample').innerHTML = data.example;
+        const stratSec = document.getElementById('helpStrategySection');
+        if (data.estrategia) {
+            document.getElementById('helpStrategy').innerHTML = data.estrategia;
+            stratSec.style.display = '';
+        } else {
+            stratSec.style.display = 'none';
+        }
     }
 
     btnHelp.addEventListener('click', () => {
@@ -866,20 +847,6 @@
             {color: '#f59e0b', label: '🤝 Reduto de aliado', h: 'leg:tr:reduto'},
             {color: '#15803d', label: '🏠 Polo do LS', h: 'leg:tr:polo'},
             {color: '#d1d5db', label: '⚪ Sem carona', h: 'leg:tr:sem'},
-        ],
-        deputados: [
-            {color: '#f59e0b', label: 'Ponte Forte', h: 'leg:dep:ponte'},
-            {color: '#15803d', label: 'Base Conjunta', h: 'leg:dep:base'},
-            {color: '#2563eb', label: 'Território Dep.', h: 'leg:dep:terr_dep'},
-            {color: '#86efac', label: 'Território LS', h: 'leg:dep:terr_ls'},
-            {color: '#d1d5db', label: 'Sem Presença', h: 'leg:dep:sem'},
-        ],
-        doacoes: [
-            {color: '#1e3a8a', label: 'Alto', h: 'leg:doa:alto'},
-            {color: '#2563eb', label: 'Médio', h: 'leg:doa:medio'},
-            {color: '#60a5fa', label: 'Baixo', h: 'leg:doa:baixo'},
-            {color: '#dbeafe', label: 'Mínimo', h: 'leg:doa:minimo'},
-            {color: '#e2e8f0', label: 'Nenhuma', h: 'leg:doa:nenhuma'},
         ],
         perfil_ideologico: [
             {color: '#E53935', label: 'Menos conservador', h: 'leg:perf:menos'},
@@ -964,16 +931,6 @@ case 'transferencia': {
                     const data = await API.dashboard.voteTransfer();
                     window._transferData = data;
                     renderTransferDashboard(data);
-                    break;
-                }
-                case 'deputados': {
-                    const data = await API.dashboard.neighborDeputies();
-                    renderDeputadosDashboard(data);
-                    break;
-                }
-                case 'doacoes': {
-                    const data = await API.doacoes.mapData();
-                    renderDoacoesDashboard(data);
                     break;
                 }
                 default:
@@ -1108,7 +1065,6 @@ case 'transferencia': {
         absoluto:    { label: 'Votos absolutos (massa)', grad: 'linear-gradient(to right,#eff6ff,#60a5fa,#1e3a8a)', lo: 'poucos', hi: 'muitos', desc: 'Votos de 2022 em número absoluto — onde mora a massa de votos' },
         fronteira:   { label: 'Fronteira de expansão', grad: 'linear-gradient(to right,#f1f5f9,#c4b5fd,#6d28d9)', lo: 'distante', hi: 'fronteira', desc: 'Cidades coladas na base, com tração — o voto mais barato de conquistar' },
         esforco:     { label: 'Esforço de campo', grad: 'linear-gradient(to right,#ef4444,#eab308,#22c55e)', lo: 'ausente', hi: 'ativo', desc: 'Compromissos realizados — onde o candidato já pisou' },
-        doacoes:     { label: 'Doações', grad: 'linear-gradient(to right,#ef4444,#eab308,#22c55e)', lo: 'R$0', hi: 'alta', desc: 'Arrecadação confirmada por cidade' },
         forca_politica: { label: 'Força política', grad: 'linear-gradient(to right,#e2e8f0,#86efac,#15803d)', lo: 'sem aliado', hi: 'forte', desc: 'Peso dos prefeitos e vereadores aliados — onde está nosso músculo político' },
         divergencia: { label: '2022 × Estrutura hoje', grad: 'linear-gradient(to right,#dc2626,#f1f5f9,#2563eb)', lo: 'abandonando', hi: 'investindo', desc: 'Vermelho = forte em 2022 mas sem estrutura agora; azul = construindo onde éramos fracos' },
     };
@@ -2528,14 +2484,8 @@ case 'transferencia': {
 case 'transferencia':
                 await map.setVoteTransfer(true);
                 break;
-            case 'deputados':
-                await map.setNeighborDeputies(true);
-                break;
             case 'eleicoes_2022':
                 await map.setElections2022(true);
-                break;
-            case 'doacoes':
-                await map.setDoacoes(true);
                 break;
             case 'concorrencia':
                 await map.setConcorrencia(true);
@@ -2974,8 +2924,6 @@ case 'transferencia':
         'mode:roteiros': {t:'Roteiros', o:'Trajetos de visita planejados, em andamento e concluídos.', j:'Transforme as cidades-alvo em roteiro otimizado: menos estrada, mais contato.'},
         'mode:estrategico': {t:'Estratégico', o:'Classifica cada cidade pela força política viva do cadastro (prefeitos, vereadores, cabos).', j:'Ative aliados adormecidos e construa nos vazios — é o tabuleiro da articulação.'},
         'mode:transferencia': {t:'Transferência — Carona de chapa', o:'Redutos dos seus aliados de chapa (governador, senador, federal), cujos votos somam com os seus.', j:'Leve o LS junto onde o aliado é forte: você herda parte daquele eleitorado.'},
-        'mode:deputados': {t:'Dep. Aliados', o:'Relação de força entre o LS e os deputados aliados por cidade.', j:'Onde o aliado é a ponte, faça agenda conjunta; onde só você tem base, proteja.'},
-        'mode:doacoes': {t:'Doações', o:'De onde vem o apoio financeiro da campanha, por cidade.', j:'Mapeie polos de recurso e cidades a desenvolver para captação.'},
         'mode:concorrencia': {t:'Concorrência', o:'Força dos concorrentes diretos ao mesmo cargo por cidade.', j:'Não gaste energia em reduto consolidado do rival; dispute o que está em aberto.'},
         'mode:perfil_ideologico': {t:'Perfil Ideológico', o:'Inclinação ideológica do eleitorado de cada cidade (de menos a ultra conservador).', j:'Calibre o discurso por região — fale a língua de cada eleitorado.'},
         // ── Legenda: Eleições 2022 ──────────────────────────────
@@ -3009,18 +2957,6 @@ case 'transferencia':
         'leg:tr:reduto': {t:'Reduto de aliado', o:'Um aliado é forte e o LS ainda é fraco.', j:'Maior oportunidade de transferência — colher voto novo.'},
         'leg:tr:polo': {t:'Polo do LS', o:'O LS já é forte aqui.', j:'Defender e usar como base de irradiação.'},
         'leg:tr:sem': {t:'Sem carona', o:'Nem aliado forte nem LS forte.', j:'Baixa prioridade na lógica de chapa.'},
-        // ── Legenda: Dep. Aliados ───────────────────────────────
-        'leg:dep:ponte': {t:'Ponte Forte', o:'O aliado é o elo dominante na cidade.', j:'Faça agenda casada — entre pela mão do aliado.'},
-        'leg:dep:base': {t:'Base Conjunta', o:'LS e aliado fortes juntos.', j:'Reduto da chapa: consolidar.'},
-        'leg:dep:terr_dep': {t:'Território do Deputado', o:'Domínio do aliado, LS fraco.', j:'Negocie apoio para abrir espaço.'},
-        'leg:dep:terr_ls': {t:'Território do LS', o:'O LS domina, aliado fraco.', j:'Sua base; ofereça carona ao aliado.'},
-        'leg:dep:sem': {t:'Sem Presença', o:'Nenhum dos dois tem força.', j:'Terreno aberto a construir.'},
-        // ── Legenda: Doações ────────────────────────────────────
-        'leg:doa:alto': {t:'Doação Alta', o:'Forte volume de doações.', j:'Polo de recurso: cultive os doadores.'},
-        'leg:doa:medio': {t:'Doação Média', o:'Volume intermediário.', j:'Há espaço para ampliar a captação.'},
-        'leg:doa:baixo': {t:'Doação Baixa', o:'Pouca arrecadação.', j:'Ative lideranças locais para captar.'},
-        'leg:doa:minimo': {t:'Doação Mínima', o:'Quase nada arrecadado.', j:'Mapeie possíveis apoiadores financeiros.'},
-        'leg:doa:nenhuma': {t:'Sem Doação', o:'Nenhuma doação registrada.', j:'Oportunidade inexplorada de captação.'},
         // ── Legenda: Perfil Ideológico ──────────────────────────
         'leg:perf:menos': {t:'Menos conservador', o:'Eleitorado mais progressista.', j:'Ajuste o tom; foque pautas que dialoguem aqui.'},
         'leg:perf:moderado': {t:'Moderado', o:'Eleitorado de centro.', j:'Discurso equilibrado conquista o indeciso.'},

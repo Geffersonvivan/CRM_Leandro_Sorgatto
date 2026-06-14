@@ -335,7 +335,6 @@ class SCMap {
             absoluto:    { label: 'Votos absolutos 2022 (massa)', short: 'votos', type: 'mass', dyn: true, fmt: v => Math.round(v).toLocaleString('pt-BR') },
             fronteira:   { label: 'Fronteira de expansão', short: 'score', type: 'frontier', dom: [0, 50, 100], fmt: v => Math.round(v) },
             esforco:     { label: 'Esforço de campo (visitas)', short: 'visitas', type: 'good', dyn: true, fmt: v => Math.round(v) },
-            doacoes:     { label: 'Doações', short: 'R$', type: 'good', dyn: true, fmt: v => 'R$ ' + Math.round(v).toLocaleString('pt-BR') },
             forca_politica: { label: 'Força política (prefeitos/vereadores)', short: 'pts', type: 'good', dyn: true, fmt: v => Math.round(v) },
             divergencia: { label: '2022 × Estrutura hoje', short: '', type: 'diverging', dom: [-100, 0, 100], fmt: v => (v > 0 ? '+' : '') + Math.round(v) },
         };
