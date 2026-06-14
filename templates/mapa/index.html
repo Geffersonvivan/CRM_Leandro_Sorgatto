@@ -527,8 +527,8 @@
 <!-- Dashboard contextual abaixo do mapa -->
 <div class="map-wrapper map-dashboard map-dashboard-hidden" id="mapDashboard"></div>
 
-<script src="{% static 'js/map/api.js' %}?v=12"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=12"></script>
+<script src="{% static 'js/map/api.js' %}?v=13"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=13"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -953,6 +953,7 @@
                 }
 case 'transferencia': {
                     const data = await API.dashboard.voteTransfer();
+                    window._transferData = data;
                     renderTransferDashboard(data);
                     break;
                 }
@@ -1462,6 +1463,24 @@ case 'transferencia': {
         if (d.adversario_nome) html += `<div style="font-size:.72rem;color:#dc2626;margin-top:5px;">Reduto de ${d.adversario_nome} (${d.adversario_partido})</div>`;
         html += '</div>';
 
+        // Cabeçalho de carona (modo Transferência)
+        const tc = map.voteTransferEnabled && (map._voteTransferData?.cities || []).find(x => x.slug === slug);
+        if (tc) {
+            html += '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin-bottom:10px;">';
+            html += `<div style="font-weight:700;color:#6d28d9;margin-bottom:5px;">${map._strategicColor ? '' : ''}🎤 Carona de chapa</div>`;
+            for (const a of (tc.aliados || [])) {
+                const forte = (tc.aliados_fortes || []).includes(a.nome);
+                html += `<div style="display:flex;justify-content:space-between;font-size:.76rem;color:#475569;"><span style="color:${a.cor};font-weight:${forte?'700':'400'}">${a.nome}${forte?' ★':''}</span><span>${(a.votes||0).toLocaleString('pt-BR')} (${a.pct||0}%)</span></div>`;
+            }
+            if (tc.votos_carona) html += `<div style="display:flex;justify-content:space-between;font-size:.78rem;color:#7c3aed;font-weight:700;border-top:1px solid #e9d5ff;margin-top:4px;padding-top:4px;"><span>Votos de carona</span><span>${tc.votos_carona.toLocaleString('pt-BR')}</span></div>`;
+            if ((tc.agenda_aliados || []).length) {
+                html += '<div style="margin-top:6px;font-size:.72rem;color:#dc2626;font-weight:700;">📅 Visita marcada de aliado:</div>';
+                for (const ev of tc.agenda_aliados) html += `<div style="font-size:.72rem;color:#374151;">• ${ev.aliado} — ${ev.data}${ev.titulo ? ' (' + ev.titulo + ')' : ''}</div>`;
+                html += '<div style="margin-top:4px;font-size:.7rem;color:#92400e;">Programe o LS junto: use "+ Compromisso" abaixo.</div>';
+            }
+            html += '</div>';
+        }
+
         // Cabeçalho estratégico (modo Vitória 2026)
         const vc = (map._victoryData?.cities || {})[slug];
         if (map.victoryEnabled && vc) {
@@ -1876,111 +1895,98 @@ case 'transferencia': {
 
     // ── Transferencia Dashboard ─────────────────────────────────
     const transferColors = {
-        zona_ouro: '#fbbf24', polo_ls: '#15803d', buscar_ambos: '#7c3aed',
-        buscar_jorginho: '#2563eb', buscar_carol: '#ec4899', baixa_prioridade: '#d1d5db',
+        palanque_conjunto: '#7c3aed', reduto_aliado: '#f59e0b',
+        polo_ls: '#15803d', sem_carona: '#d1d5db',
     };
     const transferLabels = {
-        zona_ouro: 'Zona de Ouro', polo_ls: 'Polo LS', buscar_ambos: 'Buscar Ambos',
-        buscar_jorginho: 'Buscar Jorginho', buscar_carol: 'Buscar Carol', baixa_prioridade: 'Baixa Prioridade',
+        palanque_conjunto: '🎤 Palanque conjunto', reduto_aliado: '🤝 Reduto de aliado',
+        polo_ls: '🏠 Polo do LS', sem_carona: '⚪ Sem carona',
+    };
+    const transferDesc = {
+        palanque_conjunto: '2+ aliados fortes — evento conjunto, multidão emprestada',
+        reduto_aliado: '1 aliado forte — pegar carona na agenda dele',
+        polo_ls: 'LS já forte aqui',
+        sem_carona: 'Sem aliado forte e LS fraco',
+    };
+
+    window.toggleAliado = function (id) {
+        fetch('/mapa/api/aliado/' + id + '/toggle/', {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+        }).then(r => r.json()).then(d => {
+            if (d.ok && window.mapApp) {
+                map._voteTransferData = null;
+                API.dashboard.voteTransfer().then(data => {
+                    window._transferData = data; map._voteTransferData = data;
+                    if (map.currentLevel === 'state') map._applyStateColors(false);
+                    else map._applyRegionColors(false);
+                    renderTransferDashboard(data);
+                });
+            }
+        }).catch(() => alert('Erro ao alternar aliado.'));
     };
 
     function renderTransferDashboard(data) {
+        window._transferData = data;
         const cities = data.cities || [];
-        const opps = data.opportunities || [];
-        const avgPen = data.avg_penetration || 0;
+        const aliados = data.aliados || [];
+        const sum = data.summary || {};
 
-        // Count classes
-        const counts = {};
-        for (const key in transferColors) counts[key] = 0;
-        cities.forEach(c => { if (counts[c.opp_class] !== undefined) counts[c.opp_class]++; });
+        let html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">';
+        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Carona de chapa — palanque compartilhado</span>';
+        html += '<span style="font-size:.75rem;color:#94a3b8;margin-left:auto;">' + fmt.number(sum.votos_carona_total || 0) + ' votos de carona nos redutos aliados</span>';
+        html += '</div>';
 
-        // Legend
-        let html = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">';
-        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Mapa Cruzado LS &times; Jorginho &times; Carol</span>';
-        for (const [key, label] of Object.entries(transferLabels)) {
-            html += `<span class="legend-item"><span class="legend-dot" style="background:${transferColors[key]}"></span>${label}</span>`;
+        // seletor de aliados (toggles)
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">';
+        html += '<span style="font-size:.76rem;color:#64748b;font-weight:600;">Aliados:</span>';
+        for (const a of aliados) {
+            html += `<button onclick="toggleAliado(${a.id})" style="padding:5px 12px;border:2px solid ${a.cor};border-radius:999px;background:${a.cor};color:#fff;font-size:.76rem;font-weight:700;cursor:pointer;">${a.nome} <span style="opacity:.8;font-weight:400;">· ${a.cargo}</span> ✓</button>`;
         }
+        html += '<a href="/admin/mapa/aliadochapa/" target="_blank" style="font-size:.72rem;color:#2563eb;">+ gerenciar aliados</a>';
         html += '</div>';
 
-        // Stats line
-        html += '<div class="dash-summary-stats" style="margin-bottom:4px">';
-        html += `<span><strong>${opps.length}</strong> oportunidades</span>`;
-        const totalPotential = opps.reduce((s, o) => s + (o.potential_votes || 0), 0);
-        html += `<span>Potencial: <strong>${fmt.number(totalPotential)}</strong> votos</span>`;
-        html += `<span>Media LS: <strong>${avgPen}%</strong></span>`;
-        if (data.avg_jorginho) html += `<span>Media Jorginho: <strong style="color:#2563eb">${data.avg_jorginho}%</strong></span>`;
-        if (data.avg_carol) html += `<span>Media Carol: <strong style="color:#ec4899">${data.avg_carol}%</strong></span>`;
-        html += '</div>';
-
-        // Cards
-        html += '<div class="perf-cards">';
-        for (const [key, label] of Object.entries(transferLabels)) {
-            html += `<div class="perf-card" style="background:${transferColors[key]};${key === 'baixa_prioridade' ? 'color:#475569' : ''}">`;
-            html += `<div class="perf-card-number">${counts[key] || 0}</div>`;
-            html += `<div class="perf-card-label">${label}</div>`;
+        // cards de classe (filtro)
+        html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">';
+        for (const key of ['palanque_conjunto','reduto_aliado','polo_ls','sem_carona']) {
+            const ativo = _transferFiltro === key;
+            html += `<div onclick="filtrarTransfer('${key}')" style="cursor:pointer;border:2px solid ${transferColors[key]};background:${ativo?transferColors[key]:'#fff'};border-radius:10px;padding:9px 11px;">`;
+            html += `<div style="font-size:1.3rem;font-weight:800;color:${ativo?'#fff':transferColors[key]};">${sum[key]||0}</div>`;
+            html += `<div style="font-size:.72rem;font-weight:700;color:${ativo?'#fff':'#1e293b'};">${transferLabels[key]}</div>`;
+            html += `<div style="font-size:.62rem;color:${ativo?'rgba(255,255,255,.85)':'#94a3b8'};line-height:1.2;margin-top:2px;">${transferDesc[key]}</div>`;
             html += '</div>';
         }
         html += '</div>';
 
-        // Opportunities table
-        if (opps.length > 0) {
-            html += '<div class="dash-table-wrap" style="margin-bottom:16px;"><div class="dash-table-header">';
-            html += `<h3>Oportunidades de Transferencia</h3><span>${opps.length} oportunidades</span>`;
-            html += '</div><table class="dash-table"><thead><tr>';
-            html += '<th>Pri.</th><th>Cidade Origem</th><th class="text-right">% LS Orig.</th>';
-            html += '<th style="text-align:center;width:30px;">&rarr;</th>';
-            html += '<th>Cidade Alvo</th><th class="text-right">% LS Alvo</th>';
-            html += '<th class="text-right">Dif.</th><th class="text-right">Potencial</th>';
-            html += '<th class="text-right">Dist.</th><th class="text-right">Score</th>';
-            html += '</tr></thead><tbody>';
-
-            for (const o of opps.slice(0, 100)) {
-                const priColor = o.priority === 'alta' ? '#ef4444' : '#f97316';
-                html += '<tr>';
-                html += `<td style="text-align:center"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${priColor}"></span></td>`;
-                html += `<td><strong style="color:#15803d">${o.source.name}</strong> <span style="font-size:.7rem;color:#94a3b8">${o.source.region}</span></td>`;
-                html += `<td class="text-right" style="color:#15803d">${o.source.penetration}%</td>`;
-                html += '<td style="text-align:center;color:#d1d5db">&rarr;</td>';
-                html += `<td><strong style="color:#f97316">${o.target.name}</strong> <span style="font-size:.7rem;color:#94a3b8">${o.target.region}</span></td>`;
-                html += `<td class="text-right" style="color:#f97316">${o.target.penetration}%</td>`;
-                html += `<td class="text-right">${o.pen_diff.toFixed(1)}%</td>`;
-                html += `<td class="text-right" style="color:#002776;font-weight:700">+${fmt.number(o.potential_votes)}</td>`;
-                html += `<td class="text-right" style="font-size:.72rem;color:#94a3b8">${o.distance_km}km</td>`;
-                html += `<td class="text-right"><strong>${o.score}</strong></td>`;
-                html += '</tr>';
-            }
-            html += '</tbody></table></div>';
+        if (sum.palanques_prontos) {
+            html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:.78rem;color:#92400e;">📅 <strong>${sum.palanques_prontos} cidades têm aliado forte COM visita já marcada.</strong> Programe o LS junto — palanque pronto.</div>`;
         }
 
-        // Cities cross-analysis table
-        html += '<div class="dash-table-wrap"><div class="dash-table-header">';
-        html += `<h3>Analise Cruzada por Cidade</h3><span>${cities.length} cidades</span>`;
-        html += '</div><table class="dash-table"><thead><tr>';
-        html += '<th>Class.</th><th>Cidade</th><th class="text-right">LS %</th>';
-        html += '<th class="text-right">Votos LS</th><th class="text-right">Jorginho %</th>';
-        html += '<th class="text-right">Votos JM</th><th class="text-right">Carol %</th>';
-        html += '<th class="text-right">Votos CT</th><th class="text-right">Eleitores</th>';
-        html += '</tr></thead><tbody>';
-
-        const sortedCities = [...cities].sort((a, b) => (b.penetration || 0) - (a.penetration || 0));
-        for (const c of sortedCities) {
-            const cls = c.opp_class || 'baixa_prioridade';
-            html += '<tr>';
-            html += `<td style="text-align:center"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${transferColors[cls]}" title="${transferLabels[cls]}"></span></td>`;
-            html += `<td><strong>${c.name}</strong> <span style="font-size:.7rem;color:#94a3b8">${c.region_name}</span></td>`;
-            html += `<td class="text-right" style="color:${c.penetration >= avgPen ? '#15803d' : '#f97316'};font-weight:600">${c.penetration}%</td>`;
-            html += `<td class="text-right">${fmt.number(c.votes)}</td>`;
-            html += `<td class="text-right" style="color:${(c.jorginho_pct || 0) >= 40 ? '#2563eb' : '#93c5fd'}">${(c.jorginho_pct || 0)}%</td>`;
-            html += `<td class="text-right">${fmt.number(c.jorginho_votes || 0)}</td>`;
-            html += `<td class="text-right" style="color:${(c.carol_pct || 0) >= 40 ? '#ec4899' : '#f9a8d4'}">${(c.carol_pct || 0)}%</td>`;
-            html += `<td class="text-right">${fmt.number(c.carol_votes || 0)}</td>`;
-            html += `<td class="text-right" style="font-size:.72rem;color:#94a3b8">${fmt.number(c.voters)}</td>`;
-            html += '</tr>';
+        // tabela: maiores caronas (filtrável)
+        let lista = _transferFiltro ? cities.filter(c => c.opp_class === _transferFiltro) : cities.filter(c => c.opp_class === 'palanque_conjunto' || c.opp_class === 'reduto_aliado');
+        lista = [...lista].sort((a, b) => (b.votos_carona||0) - (a.votos_carona||0));
+        const titulo = _transferFiltro ? transferLabels[_transferFiltro] : 'Maiores caronas (palanque + reduto)';
+        html += `<div class="dash-table-wrap"><div class="dash-table-header"><h3>${titulo}</h3><span>${lista.length} cidades · clique para agendar</span></div>`;
+        html += '<table class="dash-table"><thead><tr><th>Cidade</th><th>Região</th><th>Aliados fortes</th><th class="text-right">Votos carona</th><th class="text-right">LS hoje</th><th>Agenda</th></tr></thead><tbody>';
+        for (const c of lista.slice(0, 50)) {
+            const ag = (c.agenda_aliados||[]).length ? '<span style="color:#dc2626;font-weight:700;">📅 marcada</span>' : '';
+            html += `<tr style="cursor:pointer;" onclick="openCityActionPanel('${c.slug}')">`;
+            html += `<td><strong>${c.name}</strong></td><td>${c.region_name}</td>`;
+            html += `<td>${(c.aliados_fortes||[]).join(', ') || '—'}</td>`;
+            html += `<td class="text-right"><strong style="color:#7c3aed;">${fmt.number(c.votos_carona||0)}</strong></td>`;
+            html += `<td class="text-right">${c.penetration}%</td><td>${ag}</td></tr>`;
         }
         html += '</tbody></table></div>';
+
         dashEl.innerHTML = html;
         dashEl.classList.remove('map-dashboard-hidden');
     }
+
+    let _transferFiltro = null;
+    window.filtrarTransfer = function (key) {
+        _transferFiltro = (_transferFiltro === key) ? null : key;
+        if (window._transferData) renderTransferDashboard(window._transferData);
+    };
 
     // ── Deputados Dashboard ────────────────────────────────────
     const depColors = {

@@ -1346,27 +1346,24 @@ class VoteTransferAPI(APIView):
             .order_by('nome')
         )
 
-        # Buscar votos de Jorginho Melo (governador 2022) e Carol De Toni (dep. federal 2022)
-        jorginho_votes = {}
-        carol_votes = {}
-
-        gov_election = Eleicao.objects.filter(ano=2022, tipo='governador', turno=1).first()
-        if gov_election:
-            for r in ResultadoCandidato.objects.filter(eleicao=gov_election).select_related('cidade'):
-                name_upper = r.candidato_nome.upper()
-                if 'JORGINHO' in name_upper:
-                    jorginho_votes[r.cidade.slug] = {
-                        'votes': r.votos, 'pct': float(r.percentual),
-                    }
-
-        dep_fed_election = Eleicao.objects.filter(ano=2022, tipo='deputado_federal', turno=1).first()
-        if dep_fed_election:
-            for r in ResultadoCandidato.objects.filter(eleicao=dep_fed_election).select_related('cidade'):
-                name_upper = r.candidato_nome.upper()
-                if 'CAROL' in name_upper and 'TONI' in name_upper:
-                    carol_votes[r.cidade.slug] = {
-                        'votes': r.votos, 'pct': float(r.percentual),
-                    }
+        # Aliados de chapa ATIVOS (selecionáveis no admin) e seus votos de 2022
+        from mapa.models import AliadoChapa
+        aliados_obj = list(AliadoChapa.objects.filter(ativo=True))
+        aliados_votes = {a.id: {} for a in aliados_obj}
+        for a in aliados_obj:
+            termos = [t for t in a.termos_busca.upper().split() if t]
+            qs = ResultadoCandidato.objects.filter(eleicao__ano=2022).select_related('cidade')
+            for t in termos:
+                qs = qs.filter(candidato_nome__icontains=t)
+            for r in qs:
+                slug = r.cidade.slug
+                cur = aliados_votes[a.id].get(slug)
+                if not cur or r.votos > cur['votes']:
+                    aliados_votes[a.id][slug] = {'votes': r.votos, 'pct': float(r.percentual)}
+        avg_aliado = {}
+        for a in aliados_obj:
+            vals = [v['pct'] for v in aliados_votes[a.id].values() if v['pct']]
+            avg_aliado[a.id] = sum(vals) / len(vals) if vals else 0
 
         # Deputados aliados eleitos por cidade (best dep + total)
         allied_dep_map = {}
@@ -1420,8 +1417,6 @@ class VoteTransferAPI(APIView):
             votes = city.votos_sorgatto_2022 or 0
             penetration = (votes / voters * 100) if voters > 0 else 0
 
-            jv = jorginho_votes.get(city.slug, {})
-            cv = carol_votes.get(city.slug, {})
             dep = allied_dep_map.get(city.slug)
 
             entry = {
@@ -1435,10 +1430,11 @@ class VoteTransferAPI(APIView):
                 'penetration': round(penetration, 2),
                 'meta': city.meta_votos or 0,
                 'population': city.populacao or 0,
-                'jorginho_votes': jv.get('votes'),
-                'jorginho_pct': jv.get('pct'),
-                'carol_votes': cv.get('votes'),
-                'carol_pct': cv.get('pct'),
+                'aliados': [{
+                    'id': a.id, 'nome': a.nome, 'cor': a.cor, 'cargo': a.cargo_2026,
+                    'votes': aliados_votes[a.id].get(city.slug, {}).get('votes', 0),
+                    'pct': aliados_votes[a.id].get(city.slug, {}).get('pct', 0),
+                } for a in aliados_obj],
             }
 
             # Allied deputies
@@ -1537,36 +1533,39 @@ class VoteTransferAPI(APIView):
         opportunities = opportunities[:200]
 
         # Classificação de cidades em 6 classes
-        # Calcular médias de Jorginho e Carol para thresholds relativos
-        all_j = [c.get('jorginho_pct') or 0 for c in city_data.values() if c.get('jorginho_pct')]
-        all_c = [c.get('carol_pct') or 0 for c in city_data.values() if c.get('carol_pct')]
-        avg_j = sum(all_j) / len(all_j) if all_j else 0
-        avg_c = sum(all_c) / len(all_c) if all_c else 0
+        # Agenda dos aliados (visitas futuras) por cidade
+        from mapa.models import AgendaAliado
+        agenda_por_cidade = defaultdict(list)
+        hoje = timezone.localdate()
+        for ev in AgendaAliado.objects.filter(data__gte=hoje).select_related('aliado', 'cidade'):
+            agenda_por_cidade[ev.cidade.slug].append({
+                'aliado': ev.aliado.nome, 'cor': ev.aliado.cor,
+                'data': ev.data.strftime('%d/%m'), 'titulo': ev.titulo,
+            })
 
         cities_list = []
         for c in city_data.values():
             ls_pen = c['penetration']
-            j_pct = c.get('jorginho_pct') or 0
-            c_pct = c.get('carol_pct') or 0
-
             ls_forte = ls_pen >= avg_pen
-            j_forte = j_pct >= avg_j
-            c_forte = c_pct >= avg_c
 
-            if ls_forte and j_forte and c_forte:
-                opp_class = 'zona_ouro'
+            # aliados fortes nesta cidade (acima da média do próprio aliado)
+            fortes = [a for a in c['aliados']
+                      if a['pct'] > 0 and avg_aliado.get(a['id'], 0) > 0
+                      and a['pct'] >= avg_aliado[a['id']]]
+            n_fortes = len(fortes)
+            votos_carona = sum(a['votes'] for a in fortes)   # base transferível (votos do aliado)
+
+            agenda = agenda_por_cidade.get(c['slug'], [])
+            if n_fortes >= 2:
+                opp_class = 'palanque_conjunto'
+            elif n_fortes == 1:
+                opp_class = 'reduto_aliado'
             elif ls_forte:
                 opp_class = 'polo_ls'
-            elif not ls_forte and not j_forte and not c_forte:
-                opp_class = 'buscar_ambos'
-            elif not ls_forte and j_forte:
-                opp_class = 'buscar_jorginho'
-            elif not ls_forte and c_forte:
-                opp_class = 'buscar_carol'
             else:
-                opp_class = 'baixa_prioridade'
+                opp_class = 'sem_carona'
+            nivel = min(n_fortes, 3)
 
-            # Level
             if ls_pen >= avg_pen * 1.5:
                 level = 'polo'
             elif ls_forte:
@@ -1576,12 +1575,27 @@ class VoteTransferAPI(APIView):
             else:
                 level = 'zero'
 
-            cities_list.append({**c, 'level': level, 'opp_class': opp_class})
+            cities_list.append({
+                **c, 'level': level, 'opp_class': opp_class, 'nivel': nivel,
+                'aliados_fortes': [a['nome'] for a in fortes],
+                'votos_carona': votos_carona,
+                'ls_forte': ls_forte,
+                'agenda_aliados': agenda,
+                'palanque_pronto': bool(agenda) and n_fortes >= 1,
+            })
 
         return Response({
             'avg_penetration': round(avg_pen, 2),
-            'avg_jorginho': round(avg_j, 2),
-            'avg_carol': round(avg_c, 2),
+            'aliados': [{'id': a.id, 'nome': a.nome, 'cargo': a.cargo_2026, 'cor': a.cor}
+                        for a in aliados_obj],
+            'summary': {
+                'palanque_conjunto': sum(1 for c in cities_list if c['opp_class'] == 'palanque_conjunto'),
+                'reduto_aliado': sum(1 for c in cities_list if c['opp_class'] == 'reduto_aliado'),
+                'polo_ls': sum(1 for c in cities_list if c['opp_class'] == 'polo_ls'),
+                'sem_carona': sum(1 for c in cities_list if c['opp_class'] == 'sem_carona'),
+                'palanques_prontos': sum(1 for c in cities_list if c['palanque_pronto']),
+                'votos_carona_total': sum(c['votos_carona'] for c in cities_list),
+            },
             'total_opportunities': len(opportunities),
             'total_potential_votes': sum(o['potential_votes'] for o in opportunities),
             'opportunities': opportunities,
@@ -2522,6 +2536,20 @@ class CityControlAPI(APIView):
         from django.core.cache import cache
         cache.clear()   # invalida o cache da análise estratégica
         return Response({'ok': True, 'controle': cid.controle})
+
+
+class AliadoToggleAPI(APIView):
+    """Liga/desliga um aliado de chapa no mapa de Transferência."""
+    def post(self, request, pk):
+        from mapa.models import AliadoChapa
+        a = AliadoChapa.objects.filter(pk=pk).first()
+        if not a:
+            return Response({'ok': False}, status=404)
+        a.ativo = not a.ativo
+        a.save(update_fields=['ativo'])
+        from django.core.cache import cache
+        cache.clear()
+        return Response({'ok': True, 'ativo': a.ativo})
 
 
 # ─── API: VITÓRIA 2026 (lacuna de votos + quadrantes + presença CRM) ──────

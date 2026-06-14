@@ -245,24 +245,20 @@ class SCMap {
 
     _transferOppColor(opp_class) {
         const map = {
-            zona_ouro: '#fbbf24',
-            buscar_ambos: '#7c3aed',
-            buscar_jorginho: '#2563eb',
-            buscar_carol: '#ec4899',
-            polo_ls: '#15803d',
-            baixa_prioridade: '#d1d5db',
+            palanque_conjunto: '#7c3aed',   // 2+ aliados fortes — palanque conjunto
+            reduto_aliado: '#f59e0b',       // 1 aliado forte
+            polo_ls: '#15803d',             // LS já forte
+            sem_carona: '#d1d5db',
         };
         return map[opp_class] || '#d1d5db';
     }
 
     _transferOppLabel(opp_class) {
         const map = {
-            zona_ouro: 'Zona de Ouro',
-            buscar_ambos: 'Buscar Ambos',
-            buscar_jorginho: 'Buscar Jorginho',
-            buscar_carol: 'Buscar Carol',
-            polo_ls: 'Polo LS',
-            baixa_prioridade: 'Baixa Prioridade',
+            palanque_conjunto: '🎤 Palanque conjunto',
+            reduto_aliado: '🤝 Reduto de aliado',
+            polo_ls: '🏠 Polo do LS',
+            sem_carona: '⚪ Sem carona',
         };
         return map[opp_class] || opp_class;
     }
@@ -2030,9 +2026,13 @@ class SCMap {
                     let html = `<div class="tooltip-title">${f.properties.name}</div>`;
                     html += `<div class="tooltip-row"><span class="tooltip-label">Classificação</span> <span class="tooltip-value" style="color:${self._transferOppColor(city.opp_class)};font-weight:bold">${self._transferOppLabel(city.opp_class)}</span></div>`;
                     html += `<div class="tooltip-row"><span class="tooltip-label">LS Penetração</span> <span class="tooltip-value" style="color:#15803d">${city.penetration}%</span></div>`;
-                    html += `<div class="tooltip-row"><span class="tooltip-label">Jorginho Melo</span> <span class="tooltip-value" style="color:#2563eb">${(city.jorginho_votes||0).toLocaleString('pt-BR')} (${city.jorginho_pct||0}%)</span></div>`;
-                    html += `<div class="tooltip-row"><span class="tooltip-label">Carol De Toni</span> <span class="tooltip-value" style="color:#ec4899">${(city.carol_votes||0).toLocaleString('pt-BR')} (${city.carol_pct||0}%)</span></div>`;
-                    html += `<div class="tooltip-row"><span class="tooltip-label">Eleitores</span> <span class="tooltip-value">${city.voters.toLocaleString('pt-BR')}</span></div>`;
+                    for (const a of (city.aliados || [])) {
+                        const forte = (city.aliados_fortes || []).includes(a.nome);
+                        html += `<div class="tooltip-row"><span class="tooltip-label">${a.nome}</span> <span class="tooltip-value" style="color:${a.cor};font-weight:${forte?'700':'400'}">${(a.votes||0).toLocaleString('pt-BR')} (${a.pct||0}%)${forte?' ★':''}</span></div>`;
+                    }
+                    if (city.votos_carona) html += `<div class="tooltip-row"><span class="tooltip-label">Votos de carona</span> <span class="tooltip-value" style="color:#7c3aed;font-weight:700">${city.votos_carona.toLocaleString('pt-BR')}</span></div>`;
+                    if ((city.agenda_aliados||[]).length) html += `<div class="tooltip-row"><span class="tooltip-value" style="color:#dc2626;font-weight:700">📅 Aliado(s) com visita marcada!</span></div>`;
+                    html += '<div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para agendar com o aliado</span></div>';
                     tipHtmls.set(f.properties.slug, html);
                 } else {
                     tipHtmls.set(f.properties.slug, self._cityTipHtml(f.properties));
@@ -2076,7 +2076,7 @@ class SCMap {
             })
             .on('click', (event, d) => {
                 this._hideTip();
-                if ((self.visitUrgencyEnabled || self.victoryEnabled || self.heatmapEnabled || self.demandsEnabled || self.strategicEnabled) && self.onCityAction) {
+                if ((self.visitUrgencyEnabled || self.victoryEnabled || self.heatmapEnabled || self.demandsEnabled || self.strategicEnabled || self.voteTransferEnabled) && self.onCityAction) {
                     self.onCityAction(d.properties.slug);
                     return;
                 }
@@ -2246,7 +2246,7 @@ class SCMap {
                 })
                 .on('click', (event, d) => {
                     this._hideTip();
-                    if ((this.visitUrgencyEnabled || this.victoryEnabled || this.heatmapEnabled || this.demandsEnabled || this.strategicEnabled) && this.onCityAction) {
+                    if ((this.visitUrgencyEnabled || this.victoryEnabled || this.heatmapEnabled || this.demandsEnabled || this.strategicEnabled || this.voteTransferEnabled) && this.onCityAction) {
                         this.onCityAction(d.properties.slug);
                         return;
                     }

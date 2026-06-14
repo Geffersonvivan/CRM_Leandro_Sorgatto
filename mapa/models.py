@@ -93,3 +93,43 @@ class IndicadorMunicipal(models.Model):
 
     def __str__(self):
         return f'{self.cidade.nome} ({self.ano_referencia})'
+
+
+class AliadoChapa(models.Model):
+    """Aliado de chapa (cargo diferente do LS) cujos redutos de 2022 servem de
+    carona/palanque. Ex.: Jorginho (governador), Carol (senadora), Daniela (federal)."""
+    nome = models.CharField(max_length=120)
+    termos_busca = models.CharField(
+        max_length=120,
+        help_text='Termos que devem aparecer no nome do candidato em 2022 (ex.: "CAROL TONI").',
+    )
+    cargo_2026 = models.CharField(max_length=60, blank=True, verbose_name='Cargo em 2026')
+    cor = models.CharField(max_length=7, default='#2563eb')
+    ativo = models.BooleanField(default=True, help_text='Marcado no mapa de Transferência.')
+    ordem = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Aliado de Chapa'
+        verbose_name_plural = 'Aliados de Chapa'
+        ordering = ['ordem', 'nome']
+
+    def __str__(self):
+        return f'{self.nome} ({self.cargo_2026})' if self.cargo_2026 else self.nome
+
+
+class AgendaAliado(models.Model):
+    """Quando um aliado de chapa vai visitar uma cidade — para o LS coincidir."""
+    aliado = models.ForeignKey(AliadoChapa, on_delete=models.CASCADE, related_name='agenda')
+    cidade = models.ForeignKey(Cidade, on_delete=models.CASCADE, related_name='agenda_aliados')
+    data = models.DateField()
+    titulo = models.CharField(max_length=200, blank=True)
+    observacoes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Agenda de Aliado'
+        verbose_name_plural = 'Agendas de Aliados'
+        ordering = ['data']
+
+    def __str__(self):
+        return f'{self.aliado.nome} em {self.cidade.nome} ({self.data:%d/%m/%Y})'
