@@ -546,8 +546,8 @@
     </div>
 </div>
 
-<script src="{% static 'js/map/api.js' %}?v=22"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=22"></script>
+<script src="{% static 'js/map/api.js' %}?v=23"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=23"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -3079,23 +3079,21 @@ case 'transferencia':
     }
     function hide() { if (pop) pop.style.display = 'none'; }
 
-    const touch = matchMedia('(hover:none)').matches;
     document.addEventListener('mouseover', e => {
-        if (touch) return;
-        const t = e.target.closest('[data-help]');
+        const t = e.target && e.target.closest ? e.target.closest('[data-help]') : null;
         if (t) show(t.getAttribute('data-help'), e.clientX, e.clientY);
     });
     document.addEventListener('mousemove', e => {
         if (pop && pop.style.display === 'block') move(e.clientX, e.clientY);
     });
     document.addEventListener('mouseout', e => {
-        if (e.target.closest('[data-help]')) hide();
+        const t = e.target && e.target.closest ? e.target.closest('[data-help]') : null;
+        if (t) hide();
     });
+    // toque (mobile / tela sensível): tocar mostra e some sozinho
     document.addEventListener('click', e => {
-        if (!touch) return;
-        const t = e.target.closest('[data-help]');
+        const t = e.target && e.target.closest ? e.target.closest('[data-help]') : null;
         if (t) { show(t.getAttribute('data-help'), e.clientX, e.clientY); setTimeout(hide, 4000); }
-        else hide();
     });
     window.addEventListener('scroll', hide, true);
 })();
