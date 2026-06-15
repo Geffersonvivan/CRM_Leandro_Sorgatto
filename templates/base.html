@@ -429,5 +429,63 @@ fetchNotifCount();
 setInterval(fetchNotifCount, 30000);
 </script>
 {% endif %}
+
+<!-- Micro-ajuda instantânea no hover (balão sem delay). Use data-tip="Título|Descrição" -->
+<style>
+  [data-tip] { cursor: help; }
+  #ajTip {
+    position: fixed; z-index: 11000; max-width: 280px; display: none;
+    background: #0f172a; color: #fff; padding: 9px 12px; border-radius: 10px;
+    font-size: .76rem; line-height: 1.45; box-shadow: 0 12px 30px rgba(0,0,0,.38);
+    pointer-events: none;
+  }
+  #ajTip .aj-t { font-weight: 700; margin-bottom: 2px; }
+  #ajTip .aj-b { opacity: .92; }
+</style>
+<script>
+(function () {
+  let tip = null;
+  function el() {
+    if (!tip) { tip = document.createElement('div'); tip.id = 'ajTip'; document.body.appendChild(tip); }
+    return tip;
+  }
+  function show(txt, x, y) {
+    if (!txt) return;
+    const i = txt.indexOf('|');
+    const t = i >= 0 ? txt.slice(0, i) : '';
+    const b = i >= 0 ? txt.slice(i + 1) : txt;
+    const e = el();
+    e.innerHTML = (t ? '<div class="aj-t">' + t + '</div>' : '') + '<div class="aj-b">' + b + '</div>';
+    e.style.display = 'block';
+    move(x, y);
+  }
+  function move(x, y) {
+    if (!tip) return;
+    const w = tip.offsetWidth, h = tip.offsetHeight, vw = innerWidth, vh = innerHeight;
+    let nx = x + 14, ny = y + 16;
+    if (nx + w > vw - 8) nx = x - w - 14;
+    if (ny + h > vh - 8) ny = y - h - 16;
+    tip.style.left = Math.max(6, nx) + 'px';
+    tip.style.top = Math.max(6, ny) + 'px';
+  }
+  function hide() { if (tip) tip.style.display = 'none'; }
+  document.addEventListener('mouseover', e => {
+    const t = e.target.closest && e.target.closest('[data-tip]');
+    if (t) show(t.getAttribute('data-tip'), e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', e => {
+    if (tip && tip.style.display === 'block') move(e.clientX, e.clientY);
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest && e.target.closest('[data-tip]')) hide();
+  });
+  // toque: toca e some sozinho
+  document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('[data-tip]');
+    if (t) { show(t.getAttribute('data-tip'), e.clientX, e.clientY); setTimeout(hide, 3500); }
+  });
+  window.addEventListener('scroll', hide, true);
+})();
+</script>
 </body>
 </html>

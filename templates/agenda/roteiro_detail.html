@@ -52,13 +52,13 @@
 <div class="page-header">
     <h1 class="page-title">{{ roteiro.titulo }}</h1>
     <div class="header-actions">
-        <a href="{% url 'agenda:roteiro_print' roteiro.pk %}" class="btn btn-secondary" target="_blank">
+        <a href="{% url 'agenda:roteiro_print' roteiro.pk %}" class="btn btn-secondary" target="_blank" data-tip="Imprimir roteiro|Versão para impressão do trajeto com as paradas na ordem e o mapa.">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Imprimir
         </a>
         <form method="post" action="{% url 'agenda:roteiro_otimizar' roteiro.pk %}" style="display:inline;">
             {% csrf_token %}
-            <button type="submit" class="btn btn-secondary" title="Reordena as paradas pelo trajeto mais curto entre as cidades">
+            <button type="submit" class="btn btn-secondary" title="Reordena as paradas pelo trajeto mais curto entre as cidades" data-tip="Otimizar ordem|Reordena as paradas pelo trajeto mais curto entre as cidades — menos estrada, mais visitas no dia.">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                 Otimizar ordem
             </button>

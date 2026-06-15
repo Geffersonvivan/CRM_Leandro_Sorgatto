@@ -18,12 +18,12 @@
         {% csrf_token %}
         <div class="form-grid">
             <div class="form-group full">
-                <label for="id_nome">Nome do Evento *</label>
+                <label for="id_nome" data-tip="Nome do evento|Como o evento aparece na lista, no calendário e no mapa.">Nome do Evento *</label>
                 {{ form.nome }}
                 {{ form.nome.errors }}
             </div>
             <div class="form-group">
-                <label for="id_tipo">Tipo *</label>
+                <label for="id_tipo" data-tip="Tipo de evento|Comício, reunião, caminhada etc. Define o ícone/cor no calendário.">Tipo *</label>
                 {{ form.tipo }}
                 {{ form.tipo.errors }}
             </div>
@@ -48,7 +48,7 @@
                 {{ form.regiao.errors }}
             </div>
             <div class="form-group">
-                <label for="id_cidade">Cidade *</label>
+                <label for="id_cidade" data-tip="Cidade|Conecta o evento ao mapa e aos contatos do CRM daquele município.">Cidade *</label>
                 {{ form.cidade }}
                 {{ form.cidade.errors }}
             </div>
@@ -58,12 +58,12 @@
                 {{ form.local.errors }}
             </div>
             <div class="form-group">
-                <label for="id_publico_estimado">Público Estimado</label>
+                <label for="id_publico_estimado" data-tip="Público estimado|Quantas pessoas você espera. Ajuda a priorizar eventos de maior alcance.">Público Estimado</label>
                 {{ form.publico_estimado }}
                 {{ form.publico_estimado.errors }}
             </div>
             <div class="form-group">
-                <label for="id_relevancia">Relevância Política</label>
+                <label for="id_relevancia" data-tip="Relevância política|Peso estratégico do evento. Eventos de alta relevância sobem na priorização.">Relevância Política</label>
                 {{ form.relevancia }}
                 {{ form.relevancia.errors }}
             </div>
@@ -74,7 +74,7 @@
             </div>
             {% if form.aliados.field.queryset.exists %}
             <div class="form-group full">
-                <label>🎤 Aliados de chapa presentes</label>
+                <label data-tip="Aliados de chapa presentes|Marque os aliados que estarão no evento. O mapa de Transferência cruza com os redutos eleitorais deles (carona de chapa).">🎤 Aliados de chapa presentes</label>
                 <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;">
                     {% for ch in form.aliados %}<label style="display:flex;align-items:center;gap:5px;font-size:.88rem;cursor:pointer;">{{ ch.tag }} {{ ch.choice_label }}</label>{% endfor %}
                 </div>
@@ -89,7 +89,7 @@
                 {{ form.observacoes.errors }}
             </div>
             <div class="form-group full">
-                <label for="id_resultado">Resultado / Avaliação</label>
+                <label for="id_resultado" data-tip="Resultado / avaliação|Preencha depois do evento: público real, repercussão, encaminhamentos.">Resultado / Avaliação</label>
                 {{ form.resultado }}
                 <span style="font-size:0.72rem;color:#94a3b8;">{{ form.fields.resultado.help_text }}</span>
                 {{ form.resultado.errors }}
@@ -106,7 +106,7 @@
             </div>
         </div>
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Salvar{% else %}Cadastrar{% endif %}</button>
+            <button type="submit" class="btn btn-primary" data-tip="Salvar evento|Grava o evento e o coloca na agenda/calendário.">{% if form.instance.pk %}Salvar{% else %}Cadastrar{% endif %}</button>
             <a href="{% url 'agenda:evento_list' %}" class="btn btn-secondary">Cancelar</a>
         </div>
     </form>

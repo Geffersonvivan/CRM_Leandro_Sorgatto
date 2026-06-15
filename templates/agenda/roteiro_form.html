@@ -26,7 +26,7 @@
         {% csrf_token %}
         <div class="form-grid">
             <div class="form-group">
-                <label for="id_titulo">Título *</label>
+                <label for="id_titulo" data-tip="Título do roteiro|Nome do trajeto do dia (ex.: 'Oeste — 14/06'). Aparece na lista e na impressão.">Título *</label>
                 {{ form.titulo }}
                 {{ form.titulo.errors }}
             </div>
@@ -36,7 +36,7 @@
                 {{ form.data.errors }}
             </div>
             <div class="form-group">
-                <label for="id_regiao">Região Principal *</label>
+                <label for="id_regiao" data-tip="Região principal|Região do trajeto. Filtra as sugestões de cidades a visitar dentro do roteiro.">Região Principal *</label>
                 {{ form.regiao }}
                 {{ form.regiao.errors }}
             </div>
@@ -86,7 +86,7 @@
             </tbody>
         </table>
 
-        <button type="button" class="btn-add" onclick="addPontoRow()">+ Adicionar Parada</button>
+        <button type="button" class="btn-add" onclick="addPontoRow()" data-tip="Adicionar parada|Inclui um compromisso como ponto do trajeto. A ordem das paradas pode ser otimizada depois.">+ Adicionar Parada</button>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Salvar{% else %}Cadastrar{% endif %}</button>

@@ -494,15 +494,15 @@
     <h1 class="page-title" data-tip="Calendário de compromissos do candidato: reuniões, visitas, comícios, entrevistas e eventos.">Agenda</h1>
     <div class="header-actions">
         <div class="toggle-group">
-            <button class="btn active" id="btn-calendar" onclick="toggleView('calendar')">Calendário</button>
-            <button class="btn" id="btn-list" onclick="toggleView('list')">Lista</button>
+            <button class="btn active" id="btn-calendar" onclick="toggleView('calendar')" data-tip="Visão de calendário|Mostra os compromissos no mês, dia a dia.">Calendário</button>
+            <button class="btn" id="btn-list" onclick="toggleView('list')" data-tip="Visão de lista|Lista os compromissos em ordem cronológica, com filtros.">Lista</button>
         </div>
-        <a href="{% url 'agenda:compromisso_print' %}" class="btn btn-outline" target="_blank">
+        <a href="{% url 'agenda:compromisso_print' %}" class="btn btn-outline" target="_blank" data-tip="Imprimir|Abre uma versão limpa da agenda para impressão ou PDF.">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Imprimir
         </a>
         <div class="dropdown-wrapper">
-            <button class="btn btn-whatsapp" onclick="toggleDropdown()" id="btnEnviarAgenda">
+            <button class="btn btn-whatsapp" onclick="toggleDropdown()" id="btnEnviarAgenda" data-tip="Enviar agenda|Compartilha por WhatsApp a agenda da semana ou do mês escolhido, já formatada.">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.12 1.52 5.855L0 24l6.335-1.652A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82a9.78 9.78 0 01-5.202-1.49l-.373-.222-3.862 1.01 1.032-3.77-.244-.388A9.78 9.78 0 012.18 12 9.82 9.82 0 0112 2.18 9.82 9.82 0 0121.82 12 9.82 9.82 0 0112 21.82z"/></svg>
                 Enviar Agenda
             </button>
@@ -519,7 +519,7 @@
                 </div>
             </div>
         </div>
-        <button class="btn btn-primary" onclick="openCreate()">
+        <button class="btn btn-primary" onclick="openCreate()" data-tip="Novo compromisso|Cria uma reunião, visita, comício ou evento na agenda.">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Novo Compromisso
         </button>
