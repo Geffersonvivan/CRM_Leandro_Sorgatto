@@ -35,7 +35,8 @@ class Command(BaseCommand):
         parser.add_argument('--token', type=str, default=None, help='chave-api-dados (ou env PORTAL_TRANSPARENCIA_TOKEN)')
         parser.add_argument('--mes', type=str, default=None, help='Mês de referência AAAAMM (ex.: 202604)')
         parser.add_argument('--dry-run', action='store_true')
-        parser.add_argument('--delay', type=float, default=0.2, help='Pausa entre chamadas (rate limit)')
+        # bolsa-familia-por-municipio é API RESTRITA: 180 req/min. 0.4s => 150/min (margem).
+        parser.add_argument('--delay', type=float, default=0.4, help='Pausa entre chamadas (rate limit 180/min)')
 
     def _get(self, url, token):
         req = urllib.request.Request(url, headers={
