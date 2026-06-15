@@ -197,6 +197,22 @@
         </div>
         {% endif %}
 
+        {% if user.perfil == 'admin' or user.is_superuser or 'oportunidades' in user.secoes_permitidas %}
+        <div class="sidebar-item" data-section="oportunidades">
+            <button class="sidebar-icon" title="Oportunidades">
+                <span class="icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+                    </svg>
+                </span>
+                <span class="sidebar-label">Oportunidades <sup style="font-size:0.5rem;color:#f59e0b;font-weight:700;letter-spacing:0.5px;">BETA</sup></span>
+            </button>
+            <ul class="sidebar-submenu">
+                <li><a href="{% url 'oportunidades:central' %}">Central</a></li>
+            </ul>
+        </div>
+        {% endif %}
+
         {% if user.perfil == 'admin' or user.is_superuser or 'config' in user.secoes_permitidas %}
         <div class="sidebar-item" data-section="ajuda">
             <button class="sidebar-icon" title="Como funciona" onclick="window.location.href='{% url 'ajuda' %}'">

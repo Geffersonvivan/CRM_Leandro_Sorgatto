@@ -22,6 +22,7 @@ urlpatterns = [
     path('notificacoes/', include('notificacoes.urls')),
     path('doacoes/', include('doacoes.urls')),
     path('mapa/', include('mapa.urls')),
+    path('oportunidades/', include('oportunidades.urls')),
     path('app/', include('pwa.urls')),
     path('', login_required(home_view), name='home'),
 ]

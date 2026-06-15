@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Central de Oportunidades{% endblock %}
+
+{% block extra_css %}
+<style>
+  .op-wrap { max-width: 1200px; margin: 0 auto; }
+  .op-kpis { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .op-kpi { flex:1; min-width:120px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 14px; }
+  .op-kpi .v { font-size:1.5rem; font-weight:800; color:#0f172a; line-height:1; }
+  .op-kpi .l { font-size:.68rem; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin-top:4px; }
+  .op-kpi.alta .v { color:#b91c1c; }
+  .op-filtros { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+  .op-pill { font-size:.74rem; font-weight:600; border:1px solid #cbd5e1; color:#334155; background:#fff; border-radius:20px; padding:4px 12px; text-decoration:none; }
+  .op-pill.active { background:#1e40af; color:#fff; border-color:#1e40af; }
+  .op-pill-sep { width:1px; height:18px; background:#e2e8f0; margin:0 4px; }
+  .op-card { display:flex; align-items:center; gap:14px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px; margin-bottom:10px; }
+  .op-score { width:46px; height:46px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.05rem; color:#fff; flex-shrink:0; }
+  .op-main { flex:1; min-width:0; }
+  .op-tags { display:flex; gap:6px; align-items:center; margin-bottom:3px; }
+  .op-tipo { font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.5px; border-radius:5px; padding:2px 7px; }
+  .op-tipo.territorio { background:#eef2ff; color:#3730a3; }
+  .op-tipo.relacionamento { background:#fff7ed; color:#9a3412; }
+  .op-nova { background:#dcfce7; color:#166534; font-size:.6rem; font-weight:800; border-radius:5px; padding:2px 6px; text-transform:uppercase; }
+  .op-title { font-weight:700; color:#1e293b; font-size:.92rem; }
+  .op-just { font-size:.78rem; color:#64748b; margin-top:2px; }
+  .op-actions { display:flex; gap:7px; flex-shrink:0; }
+  .op-btn { font-size:.76rem; font-weight:700; border-radius:8px; padding:7px 14px; cursor:pointer; text-decoration:none; border:1px solid transparent; }
+  .op-btn-go { background:#1e40af; color:#fff; }
+  .op-btn-go:hover { background:#1e3a8a; }
+  .op-btn-x { background:#fff; color:#64748b; border-color:#cbd5e1; }
+  .op-btn-x:hover { color:#b91c1c; border-color:#fca5a5; }
+  .op-empty { text-align:center; color:#94a3b8; padding:40px; background:#fff; border:1px dashed #cbd5e1; border-radius:12px; }
+  .op-note { font-size:.74rem; color:#94a3b8; margin-bottom:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="op-wrap">
+    <div class="page-header">
+        <h1 class="page-title" data-tip="Central de Oportunidades|Cidades onde vale investir o tempo do LS, cruzando oportunidade eleitoral (muito voto, você é fraco) com a cobertura da agenda. Agende ou descarte — some da lista.">🧭 Central de Oportunidades</h1>
+    </div>
+    <div class="op-note">Atualizada automaticamente pelo detector. Agende (abre o compromisso já com a cidade) ou descarte — a oportunidade sai da lista.</div>
+
+    <div class="op-kpis">
+        <div class="op-kpi"><div class="v">{{ kpis.total }}</div><div class="l">oportunidades vivas</div></div>
+        <div class="op-kpi"><div class="v">{{ kpis.territorio }}</div><div class="l">território</div></div>
+        <div class="op-kpi"><div class="v">{{ kpis.relacionamento }}</div><div class="l">relacionamento</div></div>
+        <div class="op-kpi alta"><div class="v">{{ kpis.alta }}</div><div class="l">prioridade alta</div></div>
+        <div class="op-kpi"><div class="v">{{ kpis.novas }}</div><div class="l">novas</div></div>
+    </div>
+
+    <div class="op-filtros">
+        <a class="op-pill {% if not f_tipo %}active{% endif %}" href="?{% if f_prio %}prioridade={{ f_prio }}{% endif %}">Todos os tipos</a>
+        {% for val, lbl in tipos %}{% if val == 'territorio' or val == 'relacionamento' %}
+        <a class="op-pill {% if f_tipo == val %}active{% endif %}" href="?tipo={{ val }}{% if f_prio %}&prioridade={{ f_prio }}{% endif %}">{{ lbl }}</a>
+        {% endif %}{% endfor %}
+        <span class="op-pill-sep"></span>
+        <a class="op-pill {% if not f_prio %}active{% endif %}" href="?{% if f_tipo %}tipo={{ f_tipo }}{% endif %}">Toda prioridade</a>
+        {% for val, lbl in prioridades %}
+        <a class="op-pill {% if f_prio == val %}active{% endif %}" href="?prioridade={{ val }}{% if f_tipo %}&tipo={{ f_tipo }}{% endif %}">{{ lbl }}</a>
+        {% endfor %}
+    </div>
+
+    {% for o in ops %}
+    <div class="op-card">
+        <div class="op-score" style="background:{% if o.score >= 66 %}#b91c1c{% elif o.score >= 33 %}#fb923c{% else %}#eab308{% endif %}">{{ o.score }}</div>
+        <div class="op-main">
+            <div class="op-tags">
+                <span class="op-tipo {{ o.tipo }}">{{ o.get_tipo_display }}</span>
+                {% if o.status == 'nova' %}<span class="op-nova">nova</span>{% endif %}
+                {% if o.cidade.regiao %}<span class="op-just" style="margin:0">{{ o.cidade.regiao.nome }}</span>{% endif %}
+            </div>
+            <div class="op-title">{{ o.titulo }}</div>
+            <div class="op-just">{{ o.justificativa }}</div>
+        </div>
+        <div class="op-actions">
+            <a class="op-btn op-btn-go" href="{% url 'oportunidades:agendar' o.pk %}" data-tip="Agendar|Abre um novo compromisso já com esta cidade preenchida.">📅 Agendar</a>
+            <form method="post" action="{% url 'oportunidades:descartar' o.pk %}" onsubmit="return descartarOp(this)" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="motivo" value="">
+                <button type="submit" class="op-btn op-btn-x" data-tip="Descartar|Tira da lista (opcionalmente com um motivo).">Descartar</button>
+            </form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="op-empty">Nenhuma oportunidade nesta visão. 👏<br><span style="font-size:.8rem;">Rode <code>detectar_oportunidades</code> ou ajuste os filtros.</span></div>
+    {% endfor %}
+</div>
+
+<script>
+function descartarOp(form) {
+    const m = prompt('Motivo do descarte (opcional):', '');
+    if (m === null) return false;          // cancelou
+    form.querySelector('input[name=motivo]').value = m;
+    return true;
+}
+</script>
+{% endblock %}

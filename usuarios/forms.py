@@ -39,6 +39,13 @@ SECOES_CHOICES = [
     ('mapa:roteiros', '— Roteiros'),
     ('mapa:transferencia', '— Transferência'),
     ('mapa:zonas_eleitorais', '— Zonas Eleitorais'),
+    # Oportunidades
+    ('oportunidades', 'Oportunidades'),
+    ('oportunidades:territorio', '— Território'),
+    ('oportunidades:relacionamento', '— Relacionamento'),
+    ('oportunidades:concorrencia', '— Concorrência'),
+    ('oportunidades:agenda', '— Agenda'),
+    ('oportunidades:demandas', '— Demandas'),
     # Config
     ('config', 'Configurações'),
     ('config:usuarios', '— Usuários'),

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'notificacoes',
     'doacoes',
     'mapa',
+    'oportunidades',
 ]
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
