@@ -9,7 +9,9 @@ class Migration(migrations.Migration):
     dependencies = [
         ('agenda', '0007_alter_compromisso_apoiadores_alter_compromisso_cabos_and_more'),
         ('liderancas', '0017_migrar_dados_lideranca'),
-        ('tarefas', '0009_promessa'),
+        # Deletar caboeleitoral só DEPOIS que tarefas/0010 re-apontou Tarefa.cabos
+        # para lideranca — senão sobra referência pendurada ao deletar o modelo.
+        ('tarefas', '0010_alter_tarefa_cabos'),
     ]
 
     operations = [

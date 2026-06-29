@@ -6,7 +6,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('liderancas', '0018_remove_interacaolog_apoiador_and_more'),
+        # Depende só da criação de Lideranca (0016), NÃO da 0018: este re-aponte
+        # de Tarefa.cabos → lideranca precisa rodar ANTES da 0018 deletar
+        # caboeleitoral, senão o estado fica com referência pendurada (deploy crasha).
+        ('liderancas', '0016_lideranca'),
         ('tarefas', '0009_promessa'),
     ]
 
