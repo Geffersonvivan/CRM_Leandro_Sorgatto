@@ -5,12 +5,13 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
+from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from core.views import api_cidades as core_api_cidades
 from usuarios.views import secao_required
-from liderancas.models import Cidade, Regiao, CoordenadorRegional, CaboEleitoral
+from liderancas.models import Cidade, Regiao, Lideranca
 from usuarios.models import Usuario
 from .models import Tarefa, Comentario, TarefaHistorico, AnexoComentario
 from notificacoes.views import (
@@ -75,7 +76,7 @@ def _anotar_coordenadores_cabos(tarefas):
     regiao_ids = set(t.regiao_id for t in tarefas if t.regiao_id)
     coord_por_regiao = {}
     if regiao_ids:
-        for c in CoordenadorRegional.objects.filter(regiao_id__in=regiao_ids):
+        for c in Lideranca.objects.filter(papel='coordenador', regiao_id__in=regiao_ids):
             coord_por_regiao.setdefault(c.regiao_id, []).append(c.nome)
 
     # cabos já vem via prefetch_related('cabos')
@@ -92,6 +93,7 @@ def _anotar_coordenadores_cabos(tarefas):
 
 @secao_required('demandas:tarefas')
 def tarefa_create(request):
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     if request.method == 'POST':
         form = TarefaForm(request.POST)
         if form.is_valid():
@@ -108,10 +110,22 @@ def tarefa_create(request):
                 valor_anterior='',
                 valor_novo=tarefa.titulo,
             )
+            if is_ajax:
+                return JsonResponse({'success': True})
             messages.success(request, 'Tarefa criada com sucesso.')
             return redirect('tarefas:lista')
+        if is_ajax:
+            html = render_to_string('tarefas/_tarefa_form.html', {'form': form, 'action': request.path}, request=request)
+            return JsonResponse({'success': False, 'html': html})
     else:
-        form = TarefaForm()
+        # ?prazo=YYYY-MM-DD (vindo do seletor do dia na Agenda) cai no dia escolhido
+        initial = {}
+        if request.GET.get('prazo'):
+            initial['prazo'] = request.GET['prazo']
+        form = TarefaForm(initial=initial)
+        if is_ajax:
+            html = render_to_string('tarefas/_tarefa_form.html', {'form': form, 'action': request.path}, request=request)
+            return JsonResponse({'html': html})
     return render(request, 'tarefas/tarefa_form.html', {
         'form': form,
         'titulo': 'Nova Tarefa',
@@ -471,7 +485,7 @@ def api_tarefa_detail(request, pk):
     # Coordenador
     coord_nomes = []
     if tarefa.regiao_id:
-        coord_nomes = list(CoordenadorRegional.objects.filter(
+        coord_nomes = list(Lideranca.objects.filter(papel='coordenador',
             regiao_id=tarefa.regiao_id
         ).values_list('nome', flat=True))
 
@@ -694,7 +708,7 @@ def api_tarefa_patch(request, pk):
         tarefa.refresh_from_db()
         if field == 'regiao':
             display = tarefa.regiao.sigla if tarefa.regiao else ''
-            coords = list(CoordenadorRegional.objects.filter(regiao_id=tarefa.regiao_id).values_list('nome', flat=True)) if tarefa.regiao_id else []
+            coords = list(Lideranca.objects.filter(papel='coordenador', regiao_id=tarefa.regiao_id).values_list('nome', flat=True)) if tarefa.regiao_id else []
             extra['coordenador'] = ', '.join(coords)
             extra['coord_list'] = [{'nome': n, 'initials': _iniciais(n)} for n in coords]
             extra['has_cabos'] = tarefa.cabos.exists()
@@ -882,7 +896,7 @@ api_cidades = core_api_cidades
 
 @secao_required('demandas:tarefas')
 def api_cabos_por_cidade(request, cidade_id):
-    cabos = CaboEleitoral.objects.filter(cidade_id=cidade_id).values('id', 'nome').order_by('nome')
+    cabos = Lideranca.objects.filter(papel='cabo', cidade_id=cidade_id).values('id', 'nome').order_by('nome')
     return JsonResponse(list(cabos), safe=False)
 
 

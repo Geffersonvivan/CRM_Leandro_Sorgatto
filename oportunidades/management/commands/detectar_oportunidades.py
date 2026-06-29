@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand
 from django.db import models
 from django.utils import timezone
 
-from liderancas.models import Cidade, Apoiador
+from liderancas.models import Cidade, Lideranca
 from agenda.models import Compromisso, Evento
 from oportunidades.models import Oportunidade
 
@@ -40,7 +40,7 @@ class Command(BaseCommand):
 
         cidades = list(Cidade.objects.select_related('regiao').all())
         ap = {r['cidade_id']: r['n'] for r in
-              Apoiador.objects.filter(status='ativo').values('cidade_id').annotate(n=models.Count('id'))}
+              Lideranca.objects.filter(papel='apoiador', status='ativo', aprovacao='aprovado').values('cidade_id').annotate(n=models.Count('id'))}
 
         comp_fut = set()
         for c in Compromisso.objects.exclude(status='cancelado').only('cidade_id', 'data_hora_inicio'):

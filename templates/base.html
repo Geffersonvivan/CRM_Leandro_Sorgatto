@@ -9,13 +9,17 @@
     <link rel="stylesheet" href="{% static 'css/global.css' %}">
     {% block extra_css %}{% endblock %}
     {% block extra_head %}{% endblock %}
+    <script>
+    // Aplica a preferência de menu recolhido ANTES da pintura (evita flash).
+    try { if (localStorage.getItem('navCollapsed') === '1') document.documentElement.classList.add('nav-collapsed'); } catch (e) {}
+    </script>
 </head>
 <body data-username="{{ user.username|default:'' }}">
 
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-top-row">
         <a href="{% url 'home' %}" class="sidebar-logo" style="text-decoration:none;">
-            <span class="logo-icon">CRM</span>
+            <span class="logo-icon"><b>CRM</b></span>
             <span class="logo-text">Eleitoral LS</span>
         </a>
         {% if user.is_authenticated %}
@@ -33,7 +37,10 @@
     <div class="notif-panel" id="notifPanel" style="display:none;">
         <div class="notif-panel-header">
             <span class="notif-panel-title">Notificações</span>
-            <button class="notif-mark-all" id="notifMarkAll" onclick="markAllRead()">Marcar todas como lidas</button>
+            <span style="display:flex;gap:12px;">
+                <button class="notif-mark-all" id="notifMarkAll" onclick="markAllRead()">Marcar todas como lidas</button>
+                <button class="notif-mark-all" onclick="clearRead()">Limpar lidas</button>
+            </span>
         </div>
         <div class="notif-panel-list" id="notifList">
             <div class="notif-empty">Nenhuma notificação.</div>
@@ -41,213 +48,109 @@
     </div>
 
     <nav class="sidebar-nav">
-        {% if user.perfil == 'admin' or user.is_superuser or 'dashboard' in user.secoes_permitidas %}
-        <div class="sidebar-item" data-section="dashboard">
-            <button class="sidebar-icon" title="Dashboard">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="7" rx="1"/>
-                        <rect x="14" y="3" width="7" height="7" rx="1"/>
-                        <rect x="3" y="14" width="7" height="7" rx="1"/>
-                        <rect x="14" y="14" width="7" height="7" rx="1"/>
-                    </svg>
-                </span>
+        {% if user.perfil == 'admin' or user.is_superuser or 'dashboard' in user.secoes_permitidas or 'dashboard:meta_votos' in user.secoes_permitidas %}
+        <div class="sidebar-group">
+            <a class="sidebar-link{% if request.resolver_match.namespace == 'dashboard' %} active{% endif %}" href="{% url 'dashboard:meta_votos' %}" title="Dashboard">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
                 <span class="sidebar-label">Dashboard</span>
-            </button>
-            <ul class="sidebar-submenu">
-                {% if user.perfil == 'admin' or user.is_superuser or 'dashboard:meta_votos' in user.secoes_permitidas %}
-                <li><a href="{% url 'dashboard:meta_votos' %}">Meta Votos</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'dashboard:relatorios' in user.secoes_permitidas %}
-                <li><a href="#">Relatórios <sup style="font-size:0.5rem;color:#f59e0b;font-weight:700;letter-spacing:0.5px;">BETA</sup></a></li>
-                {% endif %}
-            </ul>
+            </a>
         </div>
         {% endif %}
 
-        <span class="sidebar-section">Gestão</span>
-
-        {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas %}
-        <div class="sidebar-item" data-section="demandas">
-            <button class="sidebar-icon" title="Demandas">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                    </svg>
-                </span>
-                <span class="sidebar-label">Demandas</span>
-            </button>
-            <ul class="sidebar-submenu">
-                {% if user.perfil == 'admin' or user.is_superuser or 'demandas:agenda' in user.secoes_permitidas %}
-                <li><a href="{% url 'agenda:compromisso_list' %}">Agenda</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'demandas:eventos' in user.secoes_permitidas %}
-                <li><a href="{% url 'agenda:evento_list' %}">Eventos</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'demandas:roteiros' in user.secoes_permitidas %}
-                <li><a href="{% url 'agenda:roteiro_list' %}">Roteiros</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'demandas:tarefas' in user.secoes_permitidas %}
-                <li><a href="{% url 'tarefas:lista' %}">Tarefas</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'demandas:promessas' in user.secoes_permitidas %}
-                <li><a href="{% url 'tarefas:promessa_list' %}">Promessas</a></li>
-                {% endif %}
-            </ul>
+        {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:agenda' in user.secoes_permitidas or 'demandas:tarefas' in user.secoes_permitidas %}
+        <div class="sidebar-group">
+            <div class="sidebar-group-label">Operação</div>
+            {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:agenda' in user.secoes_permitidas %}
+            <a class="sidebar-link{% if 'agenda:compromisso' in request.resolver_match.view_name %} active{% endif %}" href="{% url 'agenda:compromisso_list' %}" title="Agenda">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+                <span class="sidebar-label">Agenda</span>
+            </a>
+            {% endif %}
+            {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:tarefas' in user.secoes_permitidas %}
+            <a class="sidebar-link vert-teal{% if request.resolver_match.namespace == 'tarefas' %} active{% endif %}" href="{% url 'tarefas:lista' %}" title="Tarefas">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+                <span class="sidebar-label">Tarefas</span>
+            </a>
+            {% endif %}
         </div>
         {% endif %}
 
-        {% if user.perfil == 'admin' or user.is_superuser or 'equipes' in user.secoes_permitidas %}
-        <div class="sidebar-item" data-section="eventos">
-            <button class="sidebar-icon" title="Equipes">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                    </svg>
-                </span>
-                <span class="sidebar-label">Equipes</span>
-            </button>
-            <ul class="sidebar-submenu">
-                {% if user.perfil == 'admin' or user.is_superuser or 'equipes:mobilizacao' in user.secoes_permitidas %}
-                <li><a href="{% url 'liderancas:mobilizacao_list' %}">Mobilização</a></li>
-                {% endif %}
-                <li><a href="#">Jurídico <sup style="font-size:0.5rem;color:#f59e0b;font-weight:700;">BETA</sup></a></li>
-                <li><a href="#">Contabilidade <sup style="font-size:0.5rem;color:#f59e0b;font-weight:700;">BETA</sup></a></li>
-            </ul>
+        {% if user.perfil == 'admin' or user.is_superuser or 'liderancas' in user.secoes_permitidas or 'liderancas:egressos' in user.secoes_permitidas or 'liderancas:lassberg' in user.secoes_permitidas or 'equipes' in user.secoes_permitidas or 'equipes:mobilizacao' in user.secoes_permitidas %}
+        <div class="sidebar-group">
+            <div class="sidebar-group-label">Rede</div>
+            {% if user.perfil == 'admin' or user.is_superuser or 'liderancas' in user.secoes_permitidas %}
+            <a class="sidebar-link{% if 'liderancas:lideranca' in request.resolver_match.view_name %} active{% endif %}" href="{% url 'liderancas:lideranca_list' %}" title="Lideranças">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>{% if leads_pendentes_count %}<span class="pend-dot"></span>{% endif %}</span>
+                <span class="sidebar-label">Lideranças{% if leads_pendentes_count %} <sup class="pend-sup">{{ leads_pendentes_count }}</sup>{% endif %}</span>
+            </a>
+            {% endif %}
+            {% if user.perfil == 'admin' or user.is_superuser or 'equipes' in user.secoes_permitidas or 'equipes:mobilizacao' in user.secoes_permitidas %}
+            <a class="sidebar-link vert-coral{% if 'liderancas:mobilizacao' in request.resolver_match.view_name %} active{% endif %}" href="{% url 'liderancas:mobilizacao_list' %}" title="Mobilização">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{% if voluntarios_pendentes_count %}<span class="pend-dot"></span>{% endif %}</span>
+                <span class="sidebar-label">Mobilização{% if voluntarios_pendentes_count %} <sup class="pend-sup">{{ voluntarios_pendentes_count }}</sup>{% endif %}</span>
+            </a>
+            {% endif %}
+            {% if user.perfil == 'admin' or user.is_superuser or 'liderancas' in user.secoes_permitidas or 'liderancas:egressos' in user.secoes_permitidas %}
+            <a class="sidebar-link{% if 'liderancas:egresso' in request.resolver_match.view_name %} active{% endif %}" href="{% url 'liderancas:egresso_list' %}" title="Egressos">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span>
+                <span class="sidebar-label">Egressos</span>
+            </a>
+            {% endif %}
+            {% if user.perfil == 'admin' or user.is_superuser or 'liderancas' in user.secoes_permitidas or 'liderancas:lassberg' in user.secoes_permitidas %}
+            <a class="sidebar-link{% if 'liderancas:lassberg' in request.resolver_match.view_name %} active{% endif %}" href="{% url 'liderancas:lassberg_list' %}" title="Lassberg">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
+                <span class="sidebar-label">Lassberg</span>
+            </a>
+            {% endif %}
         </div>
         {% endif %}
 
-        {% if user.perfil == 'admin' or user.is_superuser or 'liderancas' in user.secoes_permitidas %}
-        <div class="sidebar-item" data-section="liderancas">
-            <button class="sidebar-icon" title="Lideranças">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                </span>
-                <span class="sidebar-label">Lideranças</span>
-            </button>
-            <ul class="sidebar-submenu">
-                {% if user.perfil == 'admin' or user.is_superuser or 'liderancas:apoiadores' in user.secoes_permitidas %}
-                <li><a href="{% url 'liderancas:apoiador_list' %}">Apoiadores</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'liderancas:cabos_eleitorais' in user.secoes_permitidas %}
-                <li><a href="{% url 'liderancas:cabo_list' %}">Cabos Eleitorais</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'liderancas:coordenador_regional' in user.secoes_permitidas %}
-                <li><a href="{% url 'liderancas:coordenador_list' %}">Coordenadores Regionais</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'liderancas:fila' in user.secoes_permitidas %}
-                <li><a href="{% url 'liderancas:fila_relacionamento' %}">Fila de Relacionamento</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'liderancas:egressos' in user.secoes_permitidas or 'liderancas:lassberg' in user.secoes_permitidas %}
-                <li class="submenu-group">Bases externas</li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'liderancas:egressos' in user.secoes_permitidas %}
-                <li><a href="{% url 'liderancas:egresso_list' %}">Egressos</a></li>
-                {% endif %}
-                {% if user.perfil == 'admin' or user.is_superuser or 'liderancas:lassberg' in user.secoes_permitidas %}
-                <li><a href="{% url 'liderancas:lassberg_list' %}">Lassberg</a></li>
-                {% endif %}
-            </ul>
-        </div>
-        {% endif %}
-
-        {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'mapa' in user.secoes_permitidas %}
-        <span class="sidebar-section">Operacional</span>
-
-        {% if user.perfil == 'admin' or user.is_superuser or 'demandas:doacoes' in user.secoes_permitidas or 'demandas' in user.secoes_permitidas %}
-        <div class="sidebar-item" data-section="doacoes">
-            <button class="sidebar-icon" title="Doações">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                </span>
-                <span class="sidebar-label">Doações <sup style="font-size:0.5rem;color:#f59e0b;font-weight:700;letter-spacing:0.5px;">BETA</sup></span>
-            </button>
-            <ul class="sidebar-submenu">
-                <li><a href="{% url 'doacoes:dashboard_doacoes' %}">Dashboard</a></li>
-                <li><a href="{% url 'doacoes:doacao_list' %}">Doações</a></li>
-                <li><a href="{% url 'doacoes:comissao_list' %}">Comissões</a></li>
-            </ul>
-        </div>
-        {% endif %}
-
-        <div class="sidebar-item" data-section="mapa">
-            <button class="sidebar-icon" title="Mapa">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-                        <line x1="8" y1="2" x2="8" y2="18"/>
-                        <line x1="16" y1="6" x2="16" y2="22"/>
-                    </svg>
-                </span>
+        {% if user.perfil == 'admin' or user.is_superuser or 'mapa' in user.secoes_permitidas or 'demandas' in user.secoes_permitidas or 'oportunidades' in user.secoes_permitidas %}
+        <div class="sidebar-group">
+            <div class="sidebar-group-label">Inteligência</div>
+            {% if user.perfil == 'admin' or user.is_superuser or 'mapa' in user.secoes_permitidas or 'demandas' in user.secoes_permitidas %}
+            <a class="sidebar-link{% if request.resolver_match.namespace == 'mapa' %} active{% endif %}" href="{% url 'mapa:index' %}" title="Mapa">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span>
                 <span class="sidebar-label">Mapa</span>
-            </button>
-            <ul class="sidebar-submenu">
-                <li><a href="{% url 'mapa:index' %}">Mapa Político <sup style="font-size:0.5rem;color:#f59e0b;font-weight:700;">BETA</sup></a></li>
-            </ul>
+            </a>
+            {% endif %}
+            {% if user.perfil == 'admin' or user.is_superuser or 'oportunidades' in user.secoes_permitidas %}
+            <a class="sidebar-link{% if request.resolver_match.namespace == 'oportunidades' %} active{% endif %}" href="{% url 'oportunidades:central' %}" title="Oportunidades">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></span>
+                <span class="sidebar-label">Oportunidades</span>
+            </a>
+            {% endif %}
         </div>
         {% endif %}
 
-        {% if user.perfil == 'admin' or user.is_superuser or 'oportunidades' in user.secoes_permitidas %}
-        <div class="sidebar-item" data-section="oportunidades">
-            <button class="sidebar-icon" title="Oportunidades">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
-                    </svg>
-                </span>
-                <span class="sidebar-label">Oportunidades <sup style="font-size:0.5rem;color:#f59e0b;font-weight:700;letter-spacing:0.5px;">BETA</sup></span>
-            </button>
-            <ul class="sidebar-submenu">
-                <li><a href="{% url 'oportunidades:central' %}">Central</a></li>
-            </ul>
-        </div>
-        {% endif %}
-
-        {% if user.perfil == 'admin' or user.is_superuser or 'config' in user.secoes_permitidas %}
-        <div class="sidebar-item" data-section="ajuda">
-            <button class="sidebar-icon" title="Como funciona" onclick="window.location.href='{% url 'ajuda' %}'">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                        <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
-                    </svg>
-                </span>
+        {% if user.perfil == 'admin' or user.is_superuser or 'config' in user.secoes_permitidas or 'config:usuarios' in user.secoes_permitidas %}
+        <div class="sidebar-group">
+            <div class="sidebar-group-label">Sistema</div>
+            <a class="sidebar-link{% if request.resolver_match.namespace == 'usuarios' and 'pwa' not in request.resolver_match.view_name %} active{% endif %}" href="{% url 'usuarios:list' %}" title="Usuários do sistema">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><circle cx="18" cy="8" r="2"/></svg></span>
+                <span class="sidebar-label">Usuários do sistema</span>
+            </a>
+            <a class="sidebar-link{% if 'usuarios:pwa' in request.resolver_match.view_name %} active{% endif %}" href="{% url 'usuarios:pwa_list' %}" title="Usuários do app">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
+                <span class="sidebar-label">Usuários do app</span>
+            </a>
+            {% if user.perfil == 'admin' or user.is_superuser or 'config' in user.secoes_permitidas %}
+            <a class="sidebar-link" href="/app/" target="_blank" title="Abrir o app de campo">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>
+                <span class="sidebar-label">Abrir o app</span>
+            </a>
+            <a class="sidebar-link{% if request.resolver_match.url_name == 'ajuda' %} active{% endif %}" href="{% url 'ajuda' %}" title="Como funciona">
+                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg></span>
                 <span class="sidebar-label">Como funciona</span>
-            </button>
-        </div>
-
-        <span class="sidebar-section">Admin</span>
-
-        <div class="sidebar-item" data-section="config">
-            <button class="sidebar-icon" title="Configurações">
-                <span class="icon-wrap">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                </span>
-                <span class="sidebar-label">Config</span>
-            </button>
-            <ul class="sidebar-submenu">
-                {% if user.perfil == 'admin' or user.is_superuser or 'config:usuarios' in user.secoes_permitidas %}
-                <li><a href="{% url 'usuarios:list' %}">Usuários Sistema</a></li>
-                <li><a href="{% url 'usuarios:pwa_list' %}">Usuários PWA</a></li>
-                {% endif %}
-                <li><a href="/app/" target="_blank">PWA</a></li>
-            </ul>
+            </a>
+            {% endif %}
         </div>
         {% endif %}
+
+        <button type="button" class="sidebar-collapse" id="sidebarCollapse" onclick="toggleSidebarCollapse()" title="Recolher / expandir o menu" aria-label="Recolher ou expandir o menu">
+            <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
+            <span class="sidebar-label">Recolher menu</span>
+        </button>
     </nav>
 
     {% if user.is_authenticated %}
@@ -272,9 +175,15 @@
 </aside>
 
 <main class="main-content" id="main-content">
-    <p id="countdown-bar" title="Contagem regressiva para o 1º turno — 4 de outubro de 2026, 19h">
-        ELEIÇÕES 2026 — <span id="cd-days">000</span> dias · <span id="cd-hours">00</span> hrs · <span id="cd-mins">00</span> min · <span id="cd-secs">00</span> seg
-    </p>
+    <header class="page-topbar">
+        <div class="pt-left">
+        <span class="pt-22">22</span>
+        <h1 class="pt-section">{% block secao %}{% with vn=request.resolver_match.view_name ns=request.resolver_match.namespace un=request.resolver_match.url_name %}{% if ns == 'dashboard' %}Dashboard{% elif 'agenda:evento' in vn %}Eventos{% elif 'agenda:roteiro' in vn %}Roteiros{% elif ns == 'agenda' %}Agenda{% elif ns == 'tarefas' %}Tarefas{% elif 'liderancas:mobilizacao' in vn %}Mobilização{% elif 'liderancas:egresso' in vn %}Egressos{% elif 'liderancas:lassberg' in vn %}Lassberg{% elif 'liderancas:coordenador' in vn %}Coordenadores{% elif 'liderancas:cabo' in vn %}Cabos Eleitorais{% elif ns == 'liderancas' %}Lideranças{% elif ns == 'mapa' %}Mapa territorial{% elif ns == 'oportunidades' %}Oportunidades{% elif 'usuarios:pwa' in vn %}Usuários do app{% elif ns == 'usuarios' %}Usuários do sistema{% elif ns == 'notificacoes' %}Notificações{% elif un == 'ajuda' %}Como funciona{% else %}Início{% endif %}{% endwith %}{% endblock %}</h1>
+        </div>
+        <p id="countdown-bar" title="Contagem regressiva para o 1º turno — 4 de outubro de 2026, 19h">
+            ELEIÇÕES 2026 — <span id="cd-days">000</span> dias · <span id="cd-hours">00</span> hrs · <span id="cd-mins">00</span> min · <span id="cd-secs">00</span> seg
+        </p>
+    </header>
     {% if messages %}
     <div id="msg-container">
         {% for message in messages %}
@@ -303,6 +212,25 @@
 </main>
 
 <script src="{% static 'js/sidebar.js' %}"></script>
+<script>
+// Recolher/expandir o menu por escolha (preferência lembrada).
+function toggleSidebarCollapse() {
+    var collapsed = document.documentElement.classList.toggle('nav-collapsed');
+    try { localStorage.setItem('navCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+    var lbl = document.querySelector('#sidebarCollapse .sidebar-label');
+    if (lbl) lbl.textContent = collapsed ? 'Expandir menu' : 'Recolher menu';
+    // Tira o foco do botão — senão :focus-within manteria a barra aberta em overlay
+    // e o "recolher" pareceria não funcionar até clicar em outro lugar.
+    var btn = document.getElementById('sidebarCollapse');
+    if (btn) btn.blur();
+}
+document.addEventListener('DOMContentLoaded', function () {
+    if (document.documentElement.classList.contains('nav-collapsed')) {
+        var lbl = document.querySelector('#sidebarCollapse .sidebar-label');
+        if (lbl) lbl.textContent = 'Expandir menu';
+    }
+});
+</script>
 <script>
 // Countdown eleições 2026 — 1º turno 04/10/2026 19:00 BRT
 (function() {
@@ -335,7 +263,7 @@
 // === Notification System ===
 const NOTIF_TIPO_LABELS = {
     mencao: 'menção', atribuicao: 'atribuição', participante: 'participante',
-    resposta: 'resposta', prazo: 'prazo',
+    resposta: 'resposta', prazo: 'prazo', lead_pwa: 'novo lead',
 };
 const AVATAR_COLORS_NOTIF = ['#0073ea','#e2445c','#a25ddc','#ff642e','#00c875','#fdab3d','#579bfc','#bb3354'];
 
@@ -380,7 +308,7 @@ function loadNotifications() {
                 return;
             }
             list.innerHTML = data.notificacoes.map(n => `
-                <div class="notif-item ${n.lida ? '' : 'unread'}" onclick="openNotif(${n.id}, ${n.tarefa_id})">
+                <div class="notif-item ${n.lida ? '' : 'unread'}" onclick="openNotif(${n.id}, ${n.tarefa_id}, '${(n.url||'').replace(/'/g,'')}')">
                     <div class="notif-item-avatar" style="background:${getNotifAvatarColor(n.remetente)}">${n.remetente_initials}</div>
                     <div class="notif-item-body">
                         <div class="notif-item-text"><strong>${n.remetente}</strong> ${n.texto}</div>
@@ -390,12 +318,16 @@ function loadNotifications() {
                         </div>
                     </div>
                     ${n.lida ? '' : '<div class="notif-unread-dot"></div>'}
+                    <div class="notif-item-actions">
+                        ${n.lida ? '' : `<button class="notif-act read" title="Marcar como lida" onclick="event.stopPropagation();markOneRead(${n.id}, this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>`}
+                        <button class="notif-act dismiss" title="Dispensar" onclick="event.stopPropagation();dismissNotif(${n.id}, this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                    </div>
                 </div>
             `).join('');
         });
 }
 
-function openNotif(notifId, tarefaId) {
+function openNotif(notifId, tarefaId, url) {
     // Mark as read
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
         document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
@@ -410,6 +342,9 @@ function openNotif(notifId, tarefaId) {
     // Close panel
     document.getElementById('notifPanel').style.display = 'none';
 
+    // Link genérico (ex.: lead do app) tem prioridade
+    if (url) { window.location.href = url; return; }
+
     // Navigate to tarefas page and open modal
     if (typeof abrirTarefa === 'function') {
         abrirTarefa(tarefaId);
@@ -418,17 +353,54 @@ function openNotif(notifId, tarefaId) {
     }
 }
 
-function markAllRead() {
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+function notifCsrf() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
         document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+function markAllRead() {
     fetch('/notificacoes/api/mark-read/', {
         method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken },
+        headers: { 'X-CSRFToken': notifCsrf() },
         body: new URLSearchParams(),
     }).then(() => {
         fetchNotifCount();
         loadNotifications();
     });
+}
+
+// Marca UMA como lida sem sair da tela
+function markOneRead(id, btn) {
+    const fd = new URLSearchParams(); fd.append('id', id);
+    fetch('/notificacoes/api/mark-read/', {
+        method: 'POST', headers: { 'X-CSRFToken': notifCsrf() }, body: fd,
+    }).then(() => {
+        const item = btn.closest('.notif-item');
+        item.classList.remove('unread');
+        const dot = item.querySelector('.notif-unread-dot'); if (dot) dot.remove();
+        btn.remove();
+        fetchNotifCount();
+    });
+}
+
+// Remove (dispensa) uma notificação da lista
+function dismissNotif(id, btn) {
+    const fd = new URLSearchParams(); fd.append('id', id);
+    fetch('/notificacoes/api/dismiss/', {
+        method: 'POST', headers: { 'X-CSRFToken': notifCsrf() }, body: fd,
+    }).then(() => {
+        btn.closest('.notif-item').remove();
+        const list = document.getElementById('notifList');
+        if (!list.querySelector('.notif-item')) list.innerHTML = '<div class="notif-empty">Nenhuma notificação.</div>';
+        fetchNotifCount();
+    });
+}
+
+// Remove todas as já lidas
+function clearRead() {
+    fetch('/notificacoes/api/clear-read/', {
+        method: 'POST', headers: { 'X-CSRFToken': notifCsrf() }, body: new URLSearchParams(),
+    }).then(() => { loadNotifications(); fetchNotifCount(); });
 }
 
 // Close panel when clicking outside
@@ -501,6 +473,50 @@ setInterval(fetchNotifCount, 30000);
     if (t) { show(t.getAttribute('data-tip'), e.clientX, e.clientY); setTimeout(hide, 3500); }
   });
   window.addEventListener('scroll', hide, true);
+})();
+</script>
+
+<!-- Limpar Observações com IA (Claude) — funciona no formulário em página e no modal -->
+<style>
+  .ia-clean-btn { display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:7px 12px;
+    border:1.5px solid #c7d2fe; background:#eef2ff; color:#4338ca; font-size:0.8rem; font-weight:600;
+    border-radius:9px; cursor:pointer; transition:all .15s; }
+  .ia-clean-btn:hover { background:#e0e7ff; }
+  .ia-clean-btn:disabled { opacity:.6; cursor:default; }
+</style>
+<script>
+(function () {
+  function csrf() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+      document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+  }
+  function findTextarea(btn) {
+    var scope = btn.closest('.form-group') || btn.closest('form') || document;
+    return scope.querySelector('textarea[name="observacoes"], textarea#id_observacoes') ||
+      document.querySelector('#formModalBody textarea[name="observacoes"]');
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('[data-ia-clean]');
+    if (!btn) return;
+    e.preventDefault();
+    var ta = findTextarea(btn);
+    if (!ta) return;
+    var txt = (ta.value || '').trim();
+    if (!txt) { return; }
+    var label = btn.dataset.label || btn.textContent;
+    btn.dataset.label = label;
+    btn.disabled = true; btn.textContent = '✨ Limpando…';
+    fetch('/liderancas/api/limpar/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+      body: JSON.stringify({ text: txt })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.text) { ta.value = res.j.text; }
+        else { alert(res.j.error || 'Não foi possível limpar o texto.'); }
+      }).catch(function () { alert('Falha de conexão ao limpar.'); })
+      .finally(function () { btn.disabled = false; btn.textContent = label; });
+  });
 })();
 </script>
 </body>

@@ -1,0 +1,32 @@
+{% with un=request.resolver_match.url_name %}
+<style>
+    .agenda-secnav { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .agenda-secnav a { display: inline-flex; align-items: center; gap: 7px; padding: 7px 15px;
+        border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: #475569;
+        font-size: .85rem; font-weight: 700; text-decoration: none; transition: all .12s; }
+    .agenda-secnav a svg { width: 15px; height: 15px; }
+    .agenda-secnav a:hover { border-color: #002776; color: #002776; }
+    .agenda-secnav a.active { background: #002776; color: #fff; border-color: #002776; }
+    .agenda-secnav a.active svg { color: #f4c430; }
+</style>
+<nav class="agenda-secnav" aria-label="Seções da Agenda">
+    {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:agenda' in user.secoes_permitidas %}
+    <a href="{% url 'agenda:compromisso_list' %}"{% if 'compromisso' in un %} class="active"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Agenda
+    </a>
+    {% endif %}
+    {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:eventos' in user.secoes_permitidas %}
+    <a href="{% url 'agenda:evento_list' %}"{% if 'evento' in un %} class="active"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        Eventos
+    </a>
+    {% endif %}
+    {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:roteiros' in user.secoes_permitidas %}
+    <a href="{% url 'agenda:roteiro_list' %}"{% if 'roteiro' in un %} class="active"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19h6a3 3 0 0 0 3-3V8"/></svg>
+        Roteiros
+    </a>
+    {% endif %}
+</nav>
+{% endwith %}

@@ -64,9 +64,10 @@ class Tarefa(models.Model):
         related_name='tarefas',
     )
     cabos = models.ManyToManyField(
-        'liderancas.CaboEleitoral',
+        'liderancas.Lideranca',
         blank=True,
         related_name='tarefas',
+        limit_choices_to={'papel': 'cabo'},
         verbose_name='Cabos Eleitorais',
     )
 

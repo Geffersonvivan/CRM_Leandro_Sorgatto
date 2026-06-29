@@ -9,7 +9,7 @@ from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from core.views import api_cidades as core_api_cidades
 from usuarios.views import admin_required, secao_required
-from .models import CoordenadorRegional, CaboEleitoral, Apoiador, Voluntario, Regiao, Cidade, InteracaoLog, Egresso, Lassberg
+from .models import Lideranca, Voluntario, Regiao, Cidade, InteracaoLog, Egresso, Lassberg
 from .forms import CoordenadorRegionalForm, CaboEleitoralForm, ApoiadorForm, VoluntarioForm, InteracaoLogForm, EgressoForm, LassbergForm
 
 
@@ -23,6 +23,10 @@ def login_required_view(view_func):
 
 
 PER_PAGE_OPTIONS = [25, 50, 100, 200]
+
+# Prazo (em dias) para cada frequência de relacionamento configurada.
+# Usado por mapa (cálculo estratégico) e agenda; a página "Fila" foi removida.
+FREQ_PRAZOS = {'semanal': 7, 'quinzenal': 15, 'mensal': 30, 'eventual': 90}
 
 
 def _paginate(request, queryset, default=50):
@@ -57,13 +61,323 @@ def _apply_sorting(request, queryset, allowed_fields):
     return queryset, current_sort, current_dir
 
 
+# ==================== LISTA UNIFICADA ====================
+
+PAPEL_LABEL = {'coordenador': 'Coordenador', 'cabo': 'Cabo Eleitoral', 'apoiador': 'Apoiador'}
+PAPEL_EDIT_URL = {
+    'coordenador': 'liderancas:coordenador_edit',
+    'cabo': 'liderancas:cabo_edit',
+    'apoiador': 'liderancas:apoiador_edit',
+}
+
+
+SITUACAO_CHOICES = [
+    ('em_dia', 'Em dia'),
+    ('atrasado', 'Atrasado'),
+    ('nunca', 'Nunca contatado'),
+]
+
+LIDERANCA_CSV_HEADER = ['Nome', 'Papel', 'Telefone', 'Email', 'Cidade', 'Região',
+                        'Coordenador Responsável', 'Categoria', 'Cargo', 'Prioridade',
+                        'Frequência', 'Status', 'Instagram', 'Observações']
+
+
+def _busca_q(busca):
+    """Q de busca em nome/email/cidade/observações (sem acento no Postgres) + telefone."""
+    from django.db import connection
+    ic = 'unaccent__icontains' if connection.vendor == 'postgresql' else 'icontains'
+    return (
+        Q(**{f'nome__{ic}': busca}) | Q(telefone__icontains=busca) |
+        Q(**{f'email__{ic}': busca}) | Q(**{f'cidade__nome__{ic}': busca}) |
+        Q(**{f'observacoes__{ic}': busca})
+    )
+
+
+def _liderancas_csv(qs, filename):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.charset = 'utf-8-sig'
+    writer = csv.writer(response)
+    writer.writerow(LIDERANCA_CSV_HEADER)
+    for o in qs:
+        writer.writerow([
+            o.nome, o.get_papel_display(), o.telefone, o.email,
+            o.cidade.nome if o.cidade_id else '', o.cidade.regiao.sigla if o.cidade_id else '',
+            o.coordenador_responsavel.nome if o.coordenador_responsavel_id else '',
+            o.get_tipo_display() if o.tipo else '', o.get_cargo_display() if o.cargo else '',
+            o.get_prioridade_display(), o.get_frequencia_relacionamento_display(),
+            o.get_status_display() if o.status else '', o.instagram, o.observacoes,
+        ])
+    return response
+
+
+@secao_required('liderancas:lista')
+def lideranca_list(request):
+    """Lista única de Lideranças (coordenadores + cabos + apoiadores) com filtros avançados."""
+    papeis = [p for p in request.GET.getlist('papel') if p in ('coordenador', 'cabo', 'apoiador')]
+    regioes_sel = [r for r in request.GET.getlist('regiao') if r]
+    tipos_sel = [t for t in request.GET.getlist('tipo') if t]
+    busca = request.GET.get('busca', '')
+    cidade_id = request.GET.get('cidade', '')
+    coordenador_id = request.GET.get('coordenador', '')
+    prioridade = request.GET.get('prioridade', '')
+    status = request.GET.get('status', '')
+    situacao = request.GET.get('situacao', '')
+    aprovacao = request.GET.get('aprovacao', '')
+
+    qs = Lideranca.objects.select_related(
+        'cidade', 'cidade__regiao', 'regiao', 'coordenador_responsavel', 'cadastrado_por'
+    ).annotate(ultima_interacao=Max('interacoes__data'))
+
+    # Aprovação: por padrão esconde rejeitados; filtro explícito mostra o estado pedido
+    if aprovacao in ('pendente', 'aprovado', 'rejeitado'):
+        qs = qs.filter(aprovacao=aprovacao)
+    else:
+        qs = qs.exclude(aprovacao='rejeitado')
+
+    # --- filtros (exceto papel; papel é aplicado depois p/ contar as abas) ---
+    if busca:
+        qs = qs.filter(_busca_q(busca))
+    if regioes_sel:
+        qs = qs.filter(regiao_id__in=regioes_sel)
+    if cidade_id:
+        qs = qs.filter(cidade_id=cidade_id)
+    if coordenador_id:
+        qs = qs.filter(coordenador_responsavel_id=coordenador_id)
+    if prioridade:
+        qs = qs.filter(prioridade=prioridade)
+    if tipos_sel:
+        qs = qs.filter(tipo__in=tipos_sel)
+    if status:
+        qs = qs.filter(status=status)
+    if situacao == 'nunca':
+        qs = qs.filter(ultima_interacao__isnull=True)
+    elif situacao in ('em_dia', 'atrasado'):
+        agora = timezone.now()
+        atraso_q = Q()
+        for freq, dias in FREQ_PRAZOS.items():
+            atraso_q |= Q(frequencia_relacionamento=freq, ultima_interacao__lt=agora - timedelta(days=dias))
+        qs = qs.filter(ultima_interacao__isnull=False)
+        qs = qs.filter(atraso_q) if situacao == 'atrasado' else qs.exclude(atraso_q)
+
+    # Contagem por papel (respeita os demais filtros) → abas
+    contagem = {
+        'todos': qs.count(),
+        'coordenador': qs.filter(papel='coordenador').count(),
+        'cabo': qs.filter(papel='cabo').count(),
+        'apoiador': qs.filter(papel='apoiador').count(),
+    }
+    if papeis:
+        qs = qs.filter(papel__in=papeis)
+
+    qs, current_sort, current_dir = _apply_sorting(
+        request, qs,
+        ['nome', 'papel', 'cidade__nome', 'regiao__sigla', 'prioridade',
+         'ultima_interacao', 'votos_referencia', 'created_at'],
+    )
+
+    if request.GET.get('export') == 'csv':
+        return _liderancas_csv(qs, 'liderancas.csv')
+
+    paginator, page_obj = _paginate(request, qs)
+
+    cidades_filtro = Cidade.objects.filter(regiao_id__in=regioes_sel).order_by('nome') if regioes_sel else []
+    coordenadores = Lideranca.objects.filter(papel='coordenador').order_by('nome')
+    regioes = Regiao.objects.all().order_by('sigla')
+
+    # --- Abas-contador por papel (toggle multi) ---
+    papeis_set = set(papeis)
+
+    def _toggle_qs(papel_key):
+        params = request.GET.copy()
+        params.pop('page', None)
+        params.pop('export', None)
+        if papel_key == '':
+            params.setlist('papel', [])
+        else:
+            s = set(papeis_set)
+            s.discard(papel_key) if papel_key in s else s.add(papel_key)
+            params.setlist('papel', sorted(s))
+        return params.urlencode()
+
+    abas = [{'key': '', 'label': 'Todos', 'count': contagem['todos'], 'qs': _toggle_qs(''), 'active': not papeis}]
+    for val, label in Lideranca.PAPEL_CHOICES:
+        abas.append({'key': val, 'label': label, 'count': contagem[val],
+                     'qs': _toggle_qs(val), 'active': val in papeis_set})
+
+    # --- Chips de filtros ativos (remove um valor por vez) ---
+    base_params = request.GET.copy()
+    base_params.pop('page', None)
+    base_params.pop('export', None)
+    filtros_ativos = []
+
+    def _chip(param, label, value, display):
+        sem = base_params.copy()
+        sem.setlist(param, [v for v in sem.getlist(param) if v != value])
+        filtros_ativos.append({'label': label, 'display': display or value, 'remove_qs': sem.urlencode()})
+
+    for p in papeis:
+        _chip('papel', 'Papel', p, dict(Lideranca.PAPEL_CHOICES).get(p, p))
+    for r in regioes_sel:
+        _chip('regiao', 'Região', r, Regiao.objects.filter(id=r).values_list('sigla', flat=True).first() or r)
+    for t in tipos_sel:
+        _chip('tipo', 'Categoria', t, dict(Lideranca.TIPO_CHOICES).get(t, t))
+    if busca:
+        _chip('busca', 'Busca', busca, busca)
+    if cidade_id:
+        _chip('cidade', 'Cidade', cidade_id, Cidade.objects.filter(id=cidade_id).values_list('nome', flat=True).first() or cidade_id)
+    if coordenador_id:
+        _chip('coordenador', 'Coordenador', coordenador_id, coordenadores.filter(id=coordenador_id).values_list('nome', flat=True).first() or coordenador_id)
+    if prioridade:
+        _chip('prioridade', 'Prioridade', prioridade, prioridade.title())
+    if status:
+        _chip('status', 'Status', status, dict(Lideranca.STATUS_CHOICES).get(status, status))
+    if situacao:
+        _chip('situacao', 'Situação', situacao, dict(SITUACAO_CHOICES).get(situacao, situacao))
+    if aprovacao:
+        _chip('aprovacao', 'Aprovação', aprovacao, dict(Lideranca.APROVACAO_CHOICES).get(aprovacao, aprovacao))
+
+    try:
+        per_page = int(request.GET.get('per_page', 50))
+    except (TypeError, ValueError):
+        per_page = 50
+    if per_page not in PER_PAGE_OPTIONS:
+        per_page = 50
+
+    qs_params = request.GET.copy()
+    qs_params.pop('page', None)
+
+    sort_base = request.GET.copy()
+    sort_base.pop('page', None)
+    sort_base.pop('sort', None)
+    sort_base.pop('dir', None)
+
+    return render(request, 'liderancas/lideranca_list.html', {
+        'page_obj': page_obj,
+        'total': paginator.count,
+        'total_geral': Lideranca.objects.count(),
+        'qs_sort_base': sort_base.urlencode(),
+        'abas': abas,
+        'papeis_sel': papeis,
+        'tipo_choices': Lideranca.TIPO_CHOICES,
+        'status_choices': Lideranca.STATUS_CHOICES,
+        'situacao_choices': SITUACAO_CHOICES,
+        'aprovacao_choices': Lideranca.APROVACAO_CHOICES,
+        'aprovacao_filtro': aprovacao,
+        'prioridade_choices': Lideranca.PRIORIDADE_CHOICES,
+        'pode_aprovar': request.user.pode_acessar('liderancas:aprovar'),
+        'pendentes_total': Lideranca.objects.filter(aprovacao='pendente').count(),
+        'rejeitados_total': Lideranca.objects.filter(aprovacao='rejeitado').count(),
+        'regioes': regioes,
+        'regioes_sel': regioes_sel,
+        'tipos_sel': tipos_sel,
+        'cidades_filtro': cidades_filtro,
+        'coordenadores': coordenadores,
+        'busca': busca,
+        'cidade_filtro': cidade_id,
+        'coordenador_filtro': coordenador_id,
+        'prioridade_filtro': prioridade,
+        'status_filtro': status,
+        'situacao_filtro': situacao,
+        'filtros_ativos': filtros_ativos,
+        'per_page': per_page,
+        'per_page_options': PER_PAGE_OPTIONS,
+        'query_string': qs_params.urlencode(),
+        'current_sort': current_sort,
+        'current_dir': current_dir,
+        'papel_edit_url': PAPEL_EDIT_URL,
+    })
+
+
+@secao_required('liderancas:lista')
+def lideranca_bulk_action(request):
+    """Ações em massa sobre a tabela unificada de Lideranças."""
+    nxt = request.POST.get('next', '')
+    back = redirect(nxt if nxt.startswith('/') else 'liderancas:lideranca_list')
+    if request.method != 'POST':
+        return back
+
+    ids = request.POST.getlist('selected_ids')
+    action = request.POST.get('bulk_action', '')
+    if not ids:
+        messages.warning(request, 'Nenhum registro selecionado.')
+        return back
+
+    qs = Lideranca.objects.filter(pk__in=ids)
+
+    if action == 'export_csv':
+        return _liderancas_csv(qs.select_related('cidade', 'cidade__regiao', 'coordenador_responsavel'),
+                               'liderancas_selecionados.csv')
+    elif action == 'delete':
+        n = 0
+        for o in qs:
+            o.soft_delete(user=request.user)
+            n += 1
+        messages.success(request, f'{n} registro(s) removido(s).')
+    elif action.startswith('prioridade_'):
+        val = action.split('_', 1)[1]
+        if val in dict(Lideranca.PRIORIDADE_CHOICES):
+            n = qs.update(prioridade=val, atualizado_por=request.user)
+            messages.success(request, f'{n} registro(s) com prioridade alterada para {val}.')
+    elif action.startswith('status_'):
+        val = action.split('_', 1)[1]
+        if val in dict(Lideranca.STATUS_CHOICES):
+            n = qs.filter(papel='apoiador').update(status=val, atualizado_por=request.user)
+            messages.success(request, f'{n} apoiador(es) com status alterado para {val}.')
+    elif action.startswith('coordenador_'):
+        coord_id = action.split('_', 1)[1]
+        if Lideranca.objects.filter(pk=coord_id, papel='coordenador').exists():
+            n = qs.exclude(papel='coordenador').update(coordenador_responsavel_id=coord_id, atualizado_por=request.user)
+            messages.success(request, f'{n} liderança(s) vinculada(s) ao coordenador.')
+    elif action == 'registrar_interacao':
+        tipo = request.POST.get('int_tipo', '')
+        descricao = request.POST.get('int_descricao', '')
+        data_raw = request.POST.get('int_data', '')
+        if tipo and descricao:
+            from django.utils.dateparse import parse_datetime
+            dt = parse_datetime(data_raw) if data_raw else None
+            if dt and timezone.is_naive(dt):
+                dt = timezone.make_aware(dt)
+            dt = dt or timezone.now()
+            n = 0
+            for o in qs:
+                InteracaoLog.objects.create(lideranca=o, tipo=tipo, descricao=descricao,
+                                            data=dt, registrado_por=request.user)
+                n += 1
+            messages.success(request, f'{n} interação(ões) registrada(s).')
+        else:
+            messages.warning(request, 'Informe tipo e descrição da interação.')
+    elif action in ('aprovar', 'rejeitar'):
+        if not request.user.pode_acessar('liderancas:aprovar'):
+            messages.error(request, 'Você não tem permissão para aprovar/rejeitar leads.')
+            return back
+        if action == 'aprovar':
+            # aprova pendentes E rejeitados (aceitar/restaurar)
+            n = qs.exclude(aprovacao='aprovado').update(
+                aprovacao='aprovado', aprovado_por=request.user,
+                aprovado_em=timezone.now(), motivo_rejeicao='',
+            )
+            messages.success(request, f'{n} lead(s) aprovado(s) — agora contam na base.')
+        else:
+            motivo = request.POST.get('motivo_rejeicao', '').strip()
+            n = qs.exclude(aprovacao='rejeitado').update(
+                aprovacao='rejeitado', aprovado_por=request.user,
+                aprovado_em=timezone.now(), motivo_rejeicao=motivo,
+            )
+            messages.success(request, f'{n} lead(s) rejeitado(s).')
+    else:
+        messages.error(request, 'Ação inválida.')
+
+    return back
+
+
 # ==================== COORDENADORES ====================
 
-@secao_required('liderancas:coordenador_regional')
+@secao_required('liderancas:lista')
 def coordenador_list(request):
-    coordenadores = CoordenadorRegional.objects.select_related('regiao', 'cidade_base').annotate(
+    coordenadores = Lideranca.objects.filter(papel='coordenador').select_related('regiao', 'cidade').annotate(
         ultima_interacao=Max('interacoes__data')
-    ).all()
+    )
 
     busca = request.GET.get('busca', '')
     regiao_id = request.GET.get('regiao', '')
@@ -79,7 +393,7 @@ def coordenador_list(request):
         coordenadores = coordenadores.filter(prioridade=prioridade)
 
     coordenadores, current_sort, current_dir = _apply_sorting(
-        request, coordenadores, ['nome', 'regiao__sigla', 'cidade_base__nome', 'prioridade', 'created_at']
+        request, coordenadores, ['nome', 'regiao__sigla', 'cidade__nome', 'prioridade', 'created_at']
     )
 
     # CSV Export
@@ -90,7 +404,7 @@ def coordenador_list(request):
         writer = csv.writer(response)
         writer.writerow(['Nome', 'Telefone', 'Email', 'Região', 'Cidade Base', 'Instagram', 'Prioridade', 'Frequência', 'Observações'])
         for c in coordenadores:
-            writer.writerow([c.nome, c.telefone, c.email, c.regiao.sigla, c.cidade_base.nome, c.instagram, c.get_prioridade_display(), c.get_frequencia_relacionamento_display(), c.observacoes])
+            writer.writerow([c.nome, c.telefone, c.email, c.regiao.sigla if c.regiao else '', c.cidade.nome, c.instagram, c.get_prioridade_display(), c.get_frequencia_relacionamento_display(), c.observacoes])
         return response
 
     paginator, page_obj = _paginate(request, coordenadores)
@@ -111,7 +425,7 @@ def coordenador_list(request):
     })
 
 
-@secao_required('liderancas:coordenador_regional')
+@secao_required('liderancas:lista')
 def coordenador_create(request):
     if request.method == 'POST':
         form = CoordenadorRegionalForm(request.POST)
@@ -133,9 +447,9 @@ def coordenador_create(request):
     })
 
 
-@secao_required('liderancas:coordenador_regional')
+@secao_required('liderancas:lista')
 def coordenador_edit(request, pk):
-    coord = get_object_or_404(CoordenadorRegional, pk=pk)
+    coord = get_object_or_404(Lideranca, pk=pk, papel='coordenador')
     if request.method == 'POST':
         form = CoordenadorRegionalForm(request.POST, instance=coord)
         if form.is_valid():
@@ -156,9 +470,9 @@ def coordenador_edit(request, pk):
     })
 
 
-@secao_required('liderancas:coordenador_regional')
+@secao_required('liderancas:lista')
 def coordenador_delete(request, pk):
-    coord = get_object_or_404(CoordenadorRegional, pk=pk)
+    coord = get_object_or_404(Lideranca, pk=pk, papel='coordenador')
     if request.method == 'POST':
         coord.soft_delete(user=request.user)
         messages.success(request, 'Coordenador Regional removido com sucesso.')
@@ -167,11 +481,11 @@ def coordenador_delete(request, pk):
 
 # ==================== CABOS ELEITORAIS ====================
 
-@secao_required('liderancas:cabos_eleitorais')
+@secao_required('liderancas:lista')
 def cabo_list(request):
-    cabos = CaboEleitoral.objects.select_related('cidade', 'cidade__regiao', 'coordenador').annotate(
+    cabos = Lideranca.objects.filter(papel='cabo').select_related('cidade', 'cidade__regiao', 'coordenador_responsavel').annotate(
         ultima_interacao=Max('interacoes__data')
-    ).all()
+    )
 
     busca = request.GET.get('busca', '')
     regiao_id = request.GET.get('regiao', '')
@@ -190,7 +504,7 @@ def cabo_list(request):
         cabos = cabos.filter(prioridade=prioridade)
 
     cabos, current_sort, current_dir = _apply_sorting(
-        request, cabos, ['nome', 'cidade__nome', 'cidade__regiao__sigla', 'coordenador__nome', 'prioridade', 'created_at']
+        request, cabos, ['nome', 'cidade__nome', 'cidade__regiao__sigla', 'coordenador_responsavel__nome', 'prioridade', 'created_at']
     )
 
     # CSV Export
@@ -201,7 +515,7 @@ def cabo_list(request):
         writer = csv.writer(response)
         writer.writerow(['Nome', 'Telefone', 'Email', 'Cidade', 'Região', 'Coordenador', 'Instagram', 'Prioridade', 'Frequência', 'Observações'])
         for c in cabos:
-            writer.writerow([c.nome, c.telefone, c.email, c.cidade.nome, c.cidade.regiao.sigla, c.coordenador.nome if c.coordenador else '', c.instagram, c.get_prioridade_display(), c.get_frequencia_relacionamento_display(), c.observacoes])
+            writer.writerow([c.nome, c.telefone, c.email, c.cidade.nome, c.cidade.regiao.sigla, c.coordenador_responsavel.nome if c.coordenador_responsavel_id else '', c.instagram, c.get_prioridade_display(), c.get_frequencia_relacionamento_display(), c.observacoes])
         return response
 
     paginator, page_obj = _paginate(request, cabos)
@@ -228,7 +542,7 @@ def cabo_list(request):
     })
 
 
-@secao_required('liderancas:cabos_eleitorais')
+@secao_required('liderancas:lista')
 def cabo_create(request):
     if request.method == 'POST':
         form = CaboEleitoralForm(request.POST)
@@ -250,9 +564,9 @@ def cabo_create(request):
     })
 
 
-@secao_required('liderancas:cabos_eleitorais')
+@secao_required('liderancas:lista')
 def cabo_edit(request, pk):
-    cabo = get_object_or_404(CaboEleitoral, pk=pk)
+    cabo = get_object_or_404(Lideranca, pk=pk, papel='cabo')
     if request.method == 'POST':
         form = CaboEleitoralForm(request.POST, instance=cabo)
         if form.is_valid():
@@ -273,9 +587,9 @@ def cabo_edit(request, pk):
     })
 
 
-@secao_required('liderancas:cabos_eleitorais')
+@secao_required('liderancas:lista')
 def cabo_delete(request, pk):
-    cabo = get_object_or_404(CaboEleitoral, pk=pk)
+    cabo = get_object_or_404(Lideranca, pk=pk, papel='cabo')
     if request.method == 'POST':
         cabo.soft_delete(user=request.user)
         messages.success(request, 'Cabo Eleitoral removido com sucesso.')
@@ -284,11 +598,11 @@ def cabo_delete(request, pk):
 
 # ==================== APOIADORES ====================
 
-@secao_required('liderancas:apoiadores')
+@secao_required('liderancas:lista')
 def apoiador_list(request):
-    apoiadores = Apoiador.objects.select_related('cidade', 'cidade__regiao', 'cadastrado_por').annotate(
+    apoiadores = Lideranca.objects.filter(papel='apoiador').select_related('cidade', 'cidade__regiao', 'cadastrado_por').annotate(
         ultima_interacao=Max('interacoes__data')
-    ).all()
+    )
 
     # Filtrar por perfil do usuário
     user = request.user
@@ -361,9 +675,9 @@ def apoiador_list(request):
 
     return render(request, 'liderancas/apoiador_list.html', {
         'page_obj': page_obj,
-        'tipo_choices': Apoiador.TIPO_CHOICES,
-        'cargo_choices': Apoiador.CARGO_CHOICES,
-        'prioridade_choices': Apoiador.PRIORIDADE_CHOICES,
+        'tipo_choices': Lideranca.TIPO_CHOICES,
+        'cargo_choices': Lideranca.CARGO_CHOICES,
+        'prioridade_choices': Lideranca.PRIORIDADE_CHOICES,
         'regioes': Regiao.objects.all().order_by('sigla'),
         'cidades_filtro': cidades_filtro,
         'busca': busca,
@@ -381,7 +695,7 @@ def apoiador_list(request):
     })
 
 
-@secao_required('liderancas:apoiadores')
+@secao_required('liderancas:lista')
 def apoiador_create(request):
     if request.method == 'POST':
         form = ApoiadorForm(request.POST, user=request.user)
@@ -403,9 +717,9 @@ def apoiador_create(request):
     })
 
 
-@secao_required('liderancas:apoiadores')
+@secao_required('liderancas:lista')
 def apoiador_edit(request, pk):
-    apoiador = get_object_or_404(Apoiador, pk=pk)
+    apoiador = get_object_or_404(Lideranca, pk=pk, papel='apoiador')
     user = request.user
     if not user.is_superuser and getattr(user, 'perfil', None) != 'admin':
         if apoiador.cadastrado_por != user:
@@ -431,9 +745,9 @@ def apoiador_edit(request, pk):
     })
 
 
-@secao_required('liderancas:apoiadores')
+@secao_required('liderancas:lista')
 def apoiador_delete(request, pk):
-    apoiador = get_object_or_404(Apoiador, pk=pk)
+    apoiador = get_object_or_404(Lideranca, pk=pk, papel='apoiador')
     user = request.user
     if not user.is_superuser and getattr(user, 'perfil', None) != 'admin':
         if apoiador.cadastrado_por != user:
@@ -445,92 +759,31 @@ def apoiador_delete(request, pk):
     return redirect('liderancas:apoiador_list')
 
 
-# ==================== FILA DE RELACIONAMENTO ====================
-
-# Prazo (em dias) para cada frequência de relacionamento configurada
-FREQ_PRAZOS = {'semanal': 7, 'quinzenal': 15, 'mensal': 30, 'eventual': 90}
-
-
-@secao_required('liderancas:fila')
-def fila_relacionamento(request):
-    """Contatos cujo último contato estourou a frequência configurada,
-    ordenados por prioridade e tamanho do atraso."""
-    agora = timezone.now()
-    regiao_id = request.GET.get('regiao', '')
-    tipo_filtro = request.GET.get('tipo', '')
-    prioridade = request.GET.get('prioridade', '')
-    busca = request.GET.get('busca', '')
-
-    fontes = [
-        ('coordenador', CoordenadorRegional.objects.select_related('regiao', 'cidade_base')),
-        ('cabo', CaboEleitoral.objects.select_related('cidade', 'cidade__regiao')),
-        ('apoiador', Apoiador.objects.select_related('cidade', 'cidade__regiao')),
-    ]
-    fila = []
-    total_monitorado = 0
-    for tipo, qs in fontes:
-        if tipo_filtro and tipo != tipo_filtro:
-            continue
-        if regiao_id:
-            qs = qs.filter(regiao_id=regiao_id) if tipo == 'coordenador' else qs.filter(cidade__regiao_id=regiao_id)
-        if prioridade:
-            qs = qs.filter(prioridade=prioridade)
-        if busca:
-            qs = qs.filter(Q(nome__icontains=busca) | Q(telefone__icontains=busca))
-        for c in qs.annotate(ultima=Max('interacoes__data')):
-            total_monitorado += 1
-            prazo = FREQ_PRAZOS.get(c.frequencia_relacionamento, 30)
-            dias = (agora - c.ultima).days if c.ultima else None
-            if dias is not None and dias <= prazo:
-                continue  # relacionamento em dia
-            fila.append({
-                'tipo': tipo,
-                'obj': c,
-                'cidade': c.cidade_base if tipo == 'coordenador' else c.cidade,
-                'dias': dias,
-                'prazo': prazo,
-                'atraso': (dias - prazo) if dias is not None else None,
-                'ultima': c.ultima,
-            })
-
-    ordem_pr = {'alta': 0, 'media': 1, 'baixa': 2}
-    fila.sort(key=lambda x: (
-        ordem_pr.get(x['obj'].prioridade, 1),
-        0 if x['atraso'] is None else 1,
-        -(x['atraso'] or 0),
-    ))
-
-    nunca = sum(1 for f in fila if f['dias'] is None)
-    paginator, page_obj = _paginate(request, fila)
-
-    qs_params = request.GET.copy()
-    qs_params.pop('page', None)
-
-    return render(request, 'liderancas/fila_relacionamento.html', {
-        'page_obj': page_obj,
-        'total': paginator.count,
-        'total_monitorado': total_monitorado,
-        'nunca': nunca,
-        'regioes': Regiao.objects.all().order_by('sigla'),
-        'busca': busca,
-        'regiao_filtro': regiao_id,
-        'tipo_filtro': tipo_filtro,
-        'prioridade_filtro': prioridade,
-        'query_string': qs_params.urlencode(),
-    })
-
-
 # ==================== EGRESSOS ====================
+
+EGRESSO_CSV_HEADER = ['Nome', 'Telefone', 'Email', 'Redes Sociais', 'Cidade', 'UF',
+                      'Curso', 'Instituição', 'Situação', 'Observações']
+
+
+def _egressos_csv(qs, filename):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.charset = 'utf-8-sig'
+    writer = csv.writer(response)
+    writer.writerow(EGRESSO_CSV_HEADER)
+    for e in qs:
+        writer.writerow([e.nome, e.telefone, e.email, e.instagram, e.cidade_nome,
+                         e.estado, e.curso, e.instituicao, e.situacao_curso, e.observacoes])
+    return response
+
 
 @secao_required('liderancas:egressos')
 def egresso_list(request):
-    egressos = Egresso.objects.select_related('cidade', 'cidade__regiao').annotate(
-        ultima_interacao=Max('interacoes__data')
-    ).all()
+    egressos = Egresso.objects.select_related('cidade', 'cidade__regiao')
 
     busca = request.GET.get('busca', '')
     estado = request.GET.get('estado', '')
-    regiao_id = request.GET.get('regiao', '')
+    regioes_sel = [r for r in request.GET.getlist('regiao') if r]
     cidade_id = request.GET.get('cidade', '')
     curso = request.GET.get('curso', '')
     instituicao = request.GET.get('instituicao', '')
@@ -544,8 +797,8 @@ def egresso_list(request):
         )
     if estado:
         egressos = egressos.filter(estado=estado)
-    if regiao_id:
-        egressos = egressos.filter(cidade__regiao_id=regiao_id)
+    if regioes_sel:
+        egressos = egressos.filter(cidade__regiao_id__in=regioes_sel)
     if cidade_id:
         egressos = egressos.filter(cidade_id=cidade_id)
     if curso:
@@ -558,44 +811,97 @@ def egresso_list(request):
     )
 
     if request.GET.get('export') == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="egressos.csv"'
-        response.charset = 'utf-8-sig'
-        writer = csv.writer(response)
-        writer.writerow(['Nome', 'Telefone', 'Email', 'Redes Sociais', 'Cidade', 'UF', 'Curso', 'Instituição', 'Situação', 'Observações'])
-        for e in egressos:
-            writer.writerow([e.nome, e.telefone, e.email, e.instagram, e.cidade_nome, e.estado, e.curso, e.instituicao, e.situacao_curso, e.observacoes])
-        return response
+        return _egressos_csv(egressos, 'egressos.csv')
 
     paginator, page_obj = _paginate(request, egressos)
 
-    cidades_filtro = []
-    if regiao_id:
-        cidades_filtro = Cidade.objects.filter(regiao_id=regiao_id).order_by('nome')
+    cidades_filtro = Cidade.objects.filter(regiao_id__in=regioes_sel).order_by('nome') if regioes_sel else []
+
+    # Chips de filtros ativos
+    base_params = request.GET.copy()
+    base_params.pop('page', None)
+    base_params.pop('export', None)
+    filtros_ativos = []
+
+    def _chip(param, label, value, display):
+        sem = base_params.copy()
+        sem.setlist(param, [v for v in sem.getlist(param) if v != value])
+        filtros_ativos.append({'label': label, 'display': display or value, 'remove_qs': sem.urlencode()})
+
+    for r in regioes_sel:
+        _chip('regiao', 'Região', r, Regiao.objects.filter(id=r).values_list('sigla', flat=True).first() or r)
+    if busca:
+        _chip('busca', 'Busca', busca, busca)
+    if estado:
+        _chip('estado', 'UF', estado, estado)
+    if cidade_id:
+        _chip('cidade', 'Cidade', cidade_id, Cidade.objects.filter(id=cidade_id).values_list('nome', flat=True).first() or cidade_id)
+    if curso:
+        _chip('curso', 'Curso', curso, curso)
+    if instituicao:
+        _chip('instituicao', 'Instituição', instituicao, instituicao)
+
+    try:
+        per_page = int(request.GET.get('per_page', 50))
+    except (TypeError, ValueError):
+        per_page = 50
+    if per_page not in PER_PAGE_OPTIONS:
+        per_page = 50
 
     qs_params = request.GET.copy()
     qs_params.pop('page', None)
-    query_string = qs_params.urlencode()
 
     base_qs = Egresso.objects.all()
     return render(request, 'liderancas/egresso_list.html', {
         'page_obj': page_obj,
         'regioes': Regiao.objects.all().order_by('sigla'),
+        'regioes_sel': regioes_sel,
         'cidades_filtro': cidades_filtro,
         'estados': base_qs.exclude(estado='').values_list('estado', flat=True).distinct().order_by('estado'),
         'cursos': base_qs.exclude(curso='').values_list('curso', flat=True).distinct().order_by('curso'),
         'instituicoes': base_qs.exclude(instituicao='').values_list('instituicao', flat=True).distinct().order_by('instituicao'),
         'busca': busca,
         'estado_filtro': estado,
-        'regiao_filtro': regiao_id,
         'cidade_filtro': cidade_id,
         'curso_filtro': curso,
         'instituicao_filtro': instituicao,
+        'filtros_ativos': filtros_ativos,
         'total': paginator.count,
-        'query_string': query_string,
+        'total_geral': base_qs.count(),
+        'per_page': per_page,
+        'per_page_options': PER_PAGE_OPTIONS,
+        'query_string': qs_params.urlencode(),
         'current_sort': current_sort,
         'current_dir': current_dir,
     })
+
+
+@secao_required('liderancas:egressos')
+def egresso_bulk(request):
+    """Ações em massa sobre egressos (exportar CSV / excluir)."""
+    nxt = request.POST.get('next', '')
+    back = redirect(nxt if nxt.startswith('/') else 'liderancas:egresso_list')
+    if request.method != 'POST':
+        return back
+    ids = request.POST.getlist('selected_ids')
+    action = request.POST.get('bulk_action', '')
+    if not ids:
+        messages.warning(request, 'Nenhum registro selecionado.')
+        return back
+    qs = Egresso.objects.filter(pk__in=ids)
+
+    if action == 'export_csv':
+        return _egressos_csv(qs.select_related('cidade', 'cidade__regiao'),
+                             'egressos_selecionados.csv')
+    elif action == 'delete':
+        n = 0
+        for o in qs:
+            o.soft_delete(user=request.user)
+            n += 1
+        messages.success(request, f'{n} egresso(s) removido(s).')
+    else:
+        messages.error(request, 'Ação inválida.')
+    return back
 
 
 @secao_required('liderancas:egressos')
@@ -654,15 +960,27 @@ def egresso_delete(request, pk):
 
 # ==================== LASSBERG ====================
 
+LASSBERG_CSV_HEADER = ['Nome', 'Telefone', 'Email', 'Cidade', 'Estado', 'Observações']
+
+
+def _lassberg_csv(qs, filename):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.charset = 'utf-8-sig'
+    writer = csv.writer(response)
+    writer.writerow(LASSBERG_CSV_HEADER)
+    for c in qs:
+        writer.writerow([c.nome, c.telefone, c.email, c.cidade_nome, c.estado, c.observacoes])
+    return response
+
+
 @secao_required('liderancas:lassberg')
 def lassberg_list(request):
-    contatos = Lassberg.objects.select_related('cidade', 'cidade__regiao').annotate(
-        ultima_interacao=Max('interacoes__data')
-    ).all()
+    contatos = Lassberg.objects.select_related('cidade', 'cidade__regiao')
 
     busca = request.GET.get('busca', '')
     estado = request.GET.get('estado', '')
-    regiao_id = request.GET.get('regiao', '')
+    regioes_sel = [r for r in request.GET.getlist('regiao') if r]
     cidade_id = request.GET.get('cidade', '')
 
     if busca:
@@ -674,8 +992,8 @@ def lassberg_list(request):
         )
     if estado:
         contatos = contatos.filter(estado=estado)
-    if regiao_id:
-        contatos = contatos.filter(cidade__regiao_id=regiao_id)
+    if regioes_sel:
+        contatos = contatos.filter(cidade__regiao_id__in=regioes_sel)
     if cidade_id:
         contatos = contatos.filter(cidade_id=cidade_id)
 
@@ -684,39 +1002,87 @@ def lassberg_list(request):
     )
 
     if request.GET.get('export') == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="lassberg.csv"'
-        response.charset = 'utf-8-sig'
-        writer = csv.writer(response)
-        writer.writerow(['Nome', 'Telefone', 'Email', 'Cidade', 'Estado', 'Observações'])
-        for c in contatos:
-            writer.writerow([c.nome, c.telefone, c.email, c.cidade_nome, c.estado, c.observacoes])
-        return response
+        return _lassberg_csv(contatos, 'lassberg.csv')
 
     paginator, page_obj = _paginate(request, contatos)
 
-    cidades_filtro = []
-    if regiao_id:
-        cidades_filtro = Cidade.objects.filter(regiao_id=regiao_id).order_by('nome')
+    cidades_filtro = Cidade.objects.filter(regiao_id__in=regioes_sel).order_by('nome') if regioes_sel else []
+
+    # Chips de filtros ativos
+    base_params = request.GET.copy()
+    base_params.pop('page', None)
+    base_params.pop('export', None)
+    filtros_ativos = []
+
+    def _chip(param, label, value, display):
+        sem = base_params.copy()
+        sem.setlist(param, [v for v in sem.getlist(param) if v != value])
+        filtros_ativos.append({'label': label, 'display': display or value, 'remove_qs': sem.urlencode()})
+
+    for r in regioes_sel:
+        _chip('regiao', 'Região', r, Regiao.objects.filter(id=r).values_list('sigla', flat=True).first() or r)
+    if busca:
+        _chip('busca', 'Busca', busca, busca)
+    if estado:
+        _chip('estado', 'Estado', estado, estado)
+    if cidade_id:
+        _chip('cidade', 'Cidade', cidade_id, Cidade.objects.filter(id=cidade_id).values_list('nome', flat=True).first() or cidade_id)
+
+    try:
+        per_page = int(request.GET.get('per_page', 50))
+    except (TypeError, ValueError):
+        per_page = 50
+    if per_page not in PER_PAGE_OPTIONS:
+        per_page = 50
 
     qs_params = request.GET.copy()
     qs_params.pop('page', None)
-    query_string = qs_params.urlencode()
 
     return render(request, 'liderancas/lassberg_list.html', {
         'page_obj': page_obj,
         'regioes': Regiao.objects.all().order_by('sigla'),
+        'regioes_sel': regioes_sel,
         'cidades_filtro': cidades_filtro,
         'estados': Lassberg.objects.exclude(estado='').values_list('estado', flat=True).distinct().order_by('estado'),
         'busca': busca,
         'estado_filtro': estado,
-        'regiao_filtro': regiao_id,
         'cidade_filtro': cidade_id,
+        'filtros_ativos': filtros_ativos,
         'total': paginator.count,
-        'query_string': query_string,
+        'total_geral': Lassberg.objects.count(),
+        'per_page': per_page,
+        'per_page_options': PER_PAGE_OPTIONS,
+        'query_string': qs_params.urlencode(),
         'current_sort': current_sort,
         'current_dir': current_dir,
     })
+
+
+@secao_required('liderancas:lassberg')
+def lassberg_bulk(request):
+    """Ações em massa sobre contatos Lassberg (exportar CSV / excluir)."""
+    nxt = request.POST.get('next', '')
+    back = redirect(nxt if nxt.startswith('/') else 'liderancas:lassberg_list')
+    if request.method != 'POST':
+        return back
+    ids = request.POST.getlist('selected_ids')
+    action = request.POST.get('bulk_action', '')
+    if not ids:
+        messages.warning(request, 'Nenhum registro selecionado.')
+        return back
+    qs = Lassberg.objects.filter(pk__in=ids)
+
+    if action == 'export_csv':
+        return _lassberg_csv(qs, 'lassberg_selecionados.csv')
+    elif action == 'delete':
+        n = 0
+        for o in qs:
+            o.soft_delete(user=request.user)
+            n += 1
+        messages.success(request, f'{n} contato(s) removido(s).')
+    else:
+        messages.error(request, 'Ação inválida.')
+    return back
 
 
 @secao_required('liderancas:lassberg')
@@ -773,7 +1139,7 @@ def lassberg_delete(request, pk):
     return redirect('liderancas:lassberg_list')
 
 
-@secao_required('liderancas')
+@secao_required('liderancas:lista')
 def bulk_action(request):
     """Ações em massa para liderancas."""
     if request.method != 'POST':
@@ -792,19 +1158,17 @@ def bulk_action(request):
         }
         return redirect(redirect_map.get(entity_type, 'liderancas:apoiador_list'))
 
-    model_map = {
-        'coordenador': CoordenadorRegional,
-        'cabo': CaboEleitoral,
-        'apoiador': Apoiador,
+    outros_map = {
         'egresso': Egresso,
         'lassberg': Lassberg,
     }
-    model = model_map.get(entity_type)
-    if not model:
+    if entity_type in ('coordenador', 'cabo', 'apoiador'):
+        qs = Lideranca.objects.filter(pk__in=ids, papel=entity_type)
+    elif entity_type in outros_map:
+        qs = outros_map[entity_type].objects.filter(pk__in=ids)
+    else:
         messages.error(request, 'Tipo inválido.')
         return redirect('liderancas:apoiador_list')
-
-    qs = model.objects.filter(pk__in=ids)
 
     if action == 'delete':
         count = 0
@@ -830,12 +1194,12 @@ def bulk_action(request):
                 writer.writerow([a.nome, a.telefone, a.email, a.cidade.nome, a.cidade.regiao.sigla, a.get_tipo_display(), a.get_status_display(), a.get_prioridade_display()])
         elif entity_type == 'cabo':
             writer.writerow(['Nome', 'Telefone', 'Email', 'Cidade', 'Região', 'Coordenador', 'Prioridade'])
-            for c in qs.select_related('cidade', 'cidade__regiao', 'coordenador'):
-                writer.writerow([c.nome, c.telefone, c.email, c.cidade.nome, c.cidade.regiao.sigla, c.coordenador.nome if c.coordenador else '', c.get_prioridade_display()])
+            for c in qs.select_related('cidade', 'cidade__regiao', 'coordenador_responsavel'):
+                writer.writerow([c.nome, c.telefone, c.email, c.cidade.nome, c.cidade.regiao.sigla, c.coordenador_responsavel.nome if c.coordenador_responsavel_id else '', c.get_prioridade_display()])
         elif entity_type == 'coordenador':
             writer.writerow(['Nome', 'Telefone', 'Email', 'Região', 'Cidade Base', 'Prioridade'])
-            for c in qs.select_related('regiao', 'cidade_base'):
-                writer.writerow([c.nome, c.telefone, c.email, c.regiao.sigla, c.cidade_base.nome, c.get_prioridade_display()])
+            for c in qs.select_related('regiao', 'cidade'):
+                writer.writerow([c.nome, c.telefone, c.email, c.regiao.sigla if c.regiao else '', c.cidade.nome, c.get_prioridade_display()])
         return response
 
     redirect_map = {
@@ -850,15 +1214,20 @@ def bulk_action(request):
 
 # ==================== INTERAÇÕES ====================
 
-@secao_required('liderancas')
+def _resolve_entidade(entidade_tipo, pk):
+    """Resolve a entidade e o nome do FK no InteracaoLog.
+    Coordenador/cabo/apoiador → modelo unificado Lideranca (FK 'lideranca')."""
+    if entidade_tipo in ('coordenador', 'cabo', 'apoiador'):
+        return get_object_or_404(Lideranca, pk=pk, papel=entidade_tipo), 'lideranca'
+    outros = {'egresso': Egresso, 'lassberg': Lassberg}
+    model = outros.get(entidade_tipo)
+    if not model:
+        return None, None
+    return get_object_or_404(model, pk=pk), entidade_tipo
+
+
+@secao_required('liderancas:lista')
 def interacao_add(request, entidade_tipo, pk):
-    model_map = {
-        'coordenador': CoordenadorRegional,
-        'cabo': CaboEleitoral,
-        'apoiador': Apoiador,
-        'egresso': Egresso,
-        'lassberg': Lassberg,
-    }
     redirect_map = {
         'coordenador': 'liderancas:coordenador_list',
         'cabo': 'liderancas:cabo_list',
@@ -866,18 +1235,16 @@ def interacao_add(request, entidade_tipo, pk):
         'egresso': 'liderancas:egresso_list',
         'lassberg': 'liderancas:lassberg_list',
     }
-    model = model_map.get(entidade_tipo)
-    if not model:
+    entidade, fk_field = _resolve_entidade(entidade_tipo, pk)
+    if entidade is None:
         messages.error(request, 'Tipo de entidade inválido.')
         return redirect('liderancas:apoiador_list')
-
-    entidade = get_object_or_404(model, pk=pk)
 
     if request.method == 'POST':
         form = InteracaoLogForm(request.POST)
         if form.is_valid():
             log = form.save(commit=False)
-            setattr(log, entidade_tipo, entidade)
+            setattr(log, fk_field, entidade)
             log.registrado_por = request.user
             log.save()
             messages.success(request, 'Interação registrada com sucesso.')
@@ -896,18 +1263,9 @@ def interacao_add(request, entidade_tipo, pk):
 @login_required_view
 def interacao_add_ajax(request, entidade_tipo, pk):
     """Registra interação via AJAX (modal)."""
-    model_map = {
-        'coordenador': CoordenadorRegional,
-        'cabo': CaboEleitoral,
-        'apoiador': Apoiador,
-        'egresso': Egresso,
-        'lassberg': Lassberg,
-    }
-    model = model_map.get(entidade_tipo)
-    if not model:
+    entidade, fk_field = _resolve_entidade(entidade_tipo, pk)
+    if entidade is None:
         return JsonResponse({'ok': False, 'error': 'Tipo inválido.'}, status=400)
-
-    entidade = get_object_or_404(model, pk=pk)
 
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'Método não permitido.'}, status=405)
@@ -915,7 +1273,7 @@ def interacao_add_ajax(request, entidade_tipo, pk):
     form = InteracaoLogForm(request.POST)
     if form.is_valid():
         log = form.save(commit=False)
-        setattr(log, entidade_tipo, entidade)
+        setattr(log, fk_field, entidade)
         log.registrado_por = request.user
         log.save()
         return JsonResponse({'ok': True})
@@ -924,21 +1282,13 @@ def interacao_add_ajax(request, entidade_tipo, pk):
         return JsonResponse({'ok': False, 'errors': errors}, status=400)
 
 
-@secao_required('liderancas')
+@secao_required('liderancas:lista')
 def interacao_list(request, entidade_tipo, pk):
-    model_map = {
-        'coordenador': CoordenadorRegional,
-        'cabo': CaboEleitoral,
-        'apoiador': Apoiador,
-        'egresso': Egresso,
-        'lassberg': Lassberg,
-    }
-    model = model_map.get(entidade_tipo)
-    if not model:
+    entidade, fk_field = _resolve_entidade(entidade_tipo, pk)
+    if entidade is None:
         return JsonResponse({'error': 'Tipo inválido'}, status=400)
 
-    entidade = get_object_or_404(model, pk=pk)
-    interacoes = InteracaoLog.objects.filter(**{entidade_tipo: entidade}).select_related('registrado_por')
+    interacoes = InteracaoLog.objects.filter(**{fk_field: entidade}).select_related('registrado_por')
 
     data = [{
         'id': i.id,
@@ -957,19 +1307,16 @@ def interacao_list(request, entidade_tipo, pk):
 def csv_import(request, entidade_tipo):
     model_config = {
         'coordenador': {
-            'model': CoordenadorRegional,
             'fields': ['nome', 'telefone', 'email', 'regiao_sigla', 'cidade_nome', 'instagram', 'prioridade', 'frequencia_relacionamento', 'observacoes'],
             'redirect': 'liderancas:coordenador_list',
             'label': 'Coordenadores',
         },
         'cabo': {
-            'model': CaboEleitoral,
             'fields': ['nome', 'telefone', 'email', 'regiao_sigla', 'cidade_nome', 'instagram', 'prioridade', 'frequencia_relacionamento', 'observacoes'],
             'redirect': 'liderancas:cabo_list',
             'label': 'Cabos Eleitorais',
         },
         'apoiador': {
-            'model': Apoiador,
             'fields': ['nome', 'telefone', 'email', 'regiao_sigla', 'cidade_nome', 'tipo', 'origem_contato', 'instagram', 'prioridade', 'grau_influencia', 'frequencia_relacionamento', 'status', 'observacoes'],
             'redirect': 'liderancas:apoiador_list',
             'label': 'Apoiadores',
@@ -1028,18 +1375,20 @@ def csv_import(request, entidade_tipo):
                 obj_data['frequencia_relacionamento'] = freq_map.get(freq_raw, freq_raw.lower())
 
                 if entidade_tipo == 'coordenador':
-                    obj_data['cidade_base'] = cidade
+                    obj_data['cidade'] = cidade
                     obj_data['regiao'] = regiao
-                    CoordenadorRegional.objects.create(**obj_data)
+                    Lideranca.objects.create(papel='coordenador', **obj_data)
                 elif entidade_tipo == 'cabo':
                     obj_data['cidade'] = cidade
-                    coord = CoordenadorRegional.objects.filter(regiao=regiao).first()
+                    obj_data['regiao'] = regiao
+                    coord = Lideranca.objects.filter(papel='coordenador', regiao=regiao).first()
                     if coord:
-                        obj_data['coordenador'] = coord
-                    CaboEleitoral.objects.create(**obj_data)
+                        obj_data['coordenador_responsavel'] = coord
+                    Lideranca.objects.create(papel='cabo', **obj_data)
                 elif entidade_tipo == 'apoiador':
                     obj_data['cidade'] = cidade
-                    tipo_map = dict((v, k) for k, v in Apoiador.TIPO_CHOICES)
+                    obj_data['regiao'] = regiao
+                    tipo_map = dict((v, k) for k, v in Lideranca.TIPO_CHOICES)
                     tipo_raw = row.get('Tipo', '').strip()
                     obj_data['tipo'] = tipo_map.get(tipo_raw, tipo_raw.lower() if tipo_raw else 'comunitario')
                     obj_data['origem_contato'] = row.get('Origem', '').strip()
@@ -1049,7 +1398,7 @@ def csv_import(request, entidade_tipo):
                     status_map = {'Ativo': 'ativo', 'Inativo': 'inativo', 'Pendente': 'pendente'}
                     status_raw = row.get('Status', 'ativo').strip()
                     obj_data['status'] = status_map.get(status_raw, status_raw.lower())
-                    Apoiador.objects.create(**obj_data)
+                    Lideranca.objects.create(papel='apoiador', **obj_data)
 
                 created += 1
             except Exception as e:
@@ -1070,36 +1419,36 @@ def csv_import(request, entidade_tipo):
 
 # ==================== DASHBOARD ====================
 
-@secao_required('liderancas')
+@secao_required('liderancas:lista')
 def dashboard(request):
     now = timezone.now()
     last_7 = now - timedelta(days=7)
     last_30 = now - timedelta(days=30)
 
     # Totais
-    total_coord = CoordenadorRegional.objects.count()
-    total_cabos = CaboEleitoral.objects.count()
-    total_apoiadores = Apoiador.objects.count()
+    total_coord = Lideranca.objects.filter(papel='coordenador').count()
+    total_cabos = Lideranca.objects.filter(papel='cabo').count()
+    total_apoiadores = Lideranca.objects.aprovados().filter(papel='apoiador').count()
 
     # Apoiadores por tipo
     apoiadores_por_tipo = list(
-        Apoiador.objects.values('tipo').annotate(total=Count('id')).order_by('-total')
+        Lideranca.objects.aprovados().filter(papel='apoiador').values('tipo').annotate(total=Count('id')).order_by('-total')
     )
-    tipo_map = dict(Apoiador.TIPO_CHOICES)
+    tipo_map = dict(Lideranca.TIPO_CHOICES)
     for item in apoiadores_por_tipo:
         item['label'] = tipo_map.get(item['tipo'], item['tipo'])
 
     # Apoiadores por status
     apoiadores_por_status = list(
-        Apoiador.objects.values('status').annotate(total=Count('id')).order_by('-total')
+        Lideranca.objects.aprovados().filter(papel='apoiador').values('status').annotate(total=Count('id')).order_by('-total')
     )
-    status_map = dict(Apoiador.STATUS_CHOICES)
+    status_map = dict(Lideranca.STATUS_CHOICES)
     for item in apoiadores_por_status:
         item['label'] = status_map.get(item['status'], item['status'])
 
     # Por região (top 10)
     apoiadores_por_regiao = list(
-        Apoiador.objects.values('cidade__regiao__sigla').annotate(total=Count('id')).order_by('-total')[:10]
+        Lideranca.objects.aprovados().filter(papel='apoiador').values('cidade__regiao__sigla').annotate(total=Count('id')).order_by('-total')[:10]
     )
 
     # Interações recentes
@@ -1108,11 +1457,11 @@ def dashboard(request):
 
     # Últimas interações
     ultimas_interacoes = InteracaoLog.objects.select_related(
-        'registrado_por', 'coordenador', 'cabo', 'apoiador'
+        'registrado_por', 'lideranca', 'egresso', 'lassberg'
     )[:10]
 
     # Sem contato há mais de 30 dias
-    sem_contato_apoiadores = Apoiador.objects.annotate(
+    sem_contato_apoiadores = Lideranca.objects.aprovados().filter(papel='apoiador').annotate(
         ultima=Max('interacoes__data')
     ).filter(
         Q(ultima__lt=last_30) | Q(ultima__isnull=True)
@@ -1120,27 +1469,13 @@ def dashboard(request):
 
     # Resumo da Semana (o placar do ciclo de relacionamento)
     contatos_alcancados_7d = (
-        InteracaoLog.objects.filter(data__gte=last_7, coordenador__isnull=False).values('coordenador').distinct().count()
-        + InteracaoLog.objects.filter(data__gte=last_7, cabo__isnull=False).values('cabo').distinct().count()
-        + InteracaoLog.objects.filter(data__gte=last_7, apoiador__isnull=False).values('apoiador').distinct().count()
+        InteracaoLog.objects.filter(data__gte=last_7, lideranca__isnull=False).values('lideranca').distinct().count()
     )
-    fila_total = 0
-    for tipo, qs in (
-        ('coordenador', CoordenadorRegional.objects.all()),
-        ('cabo', CaboEleitoral.objects.all()),
-        ('apoiador', Apoiador.objects.all()),
-    ):
-        for c in qs.annotate(ultima=Max('interacoes__data')):
-            prazo = FREQ_PRAZOS.get(c.frequencia_relacionamento, 30)
-            dias = (now - c.ultima).days if c.ultima else None
-            if dias is None or dias > prazo:
-                fila_total += 1
     from datetime import date
     dias_eleicao = (date(2026, 10, 4) - now.date()).days
 
     return render(request, 'liderancas/dashboard.html', {
         'contatos_alcancados_7d': contatos_alcancados_7d,
-        'fila_total': fila_total,
         'dias_eleicao': dias_eleicao,
         'total_coord': total_coord,
         'total_cabos': total_cabos,
@@ -1159,72 +1494,263 @@ def dashboard(request):
 
 api_cidades = core_api_cidades
 
+# Cada tipo de registro de rede está sob a sua seção de permissão (CLAUDE.md §3.7).
+# A limpeza com IA que GRAVA no registro precisa respeitar essa fronteira — senão
+# vira escrita IDOR (qualquer autenticado sobrescreve observações por pk).
+IA_LIMPAR_MODELOS = {
+    'lideranca': (Lideranca, 'liderancas:lista'),
+    'voluntario': (Voluntario, 'equipes:mobilizacao'),
+    'egresso': (Egresso, 'liderancas:egressos'),
+    'lassberg': (Lassberg, 'liderancas:lassberg'),
+}
+
+
+@login_required_view
+def api_limpar_texto(request):
+    """Revisa o campo Observações com IA (Claude) e devolve a versão limpa.
+    Back-office: usado pelos formulários de Leads e Mobilização. Requer
+    ANTHROPIC_API_KEY no servidor; online apenas."""
+    import json as _json
+    from .ia import limpar_texto, IANaoConfigurada, IAError
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido.'}, status=405)
+    # Operação que gasta tokens: só para quem tem alguma seção que usa a limpeza.
+    if not any(request.user.pode_acessar(secao)
+               for _m, secao in IA_LIMPAR_MODELOS.values()):
+        return JsonResponse({'error': 'Acesso restrito'}, status=403)
+    try:
+        payload = _json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    texto = (payload.get('text') or '').strip()
+    if not texto:
+        return JsonResponse({'error': 'Nada para limpar.'}, status=400)
+    try:
+        return JsonResponse({'text': limpar_texto(texto)})
+    except IANaoConfigurada:
+        return JsonResponse({'error': 'Limpeza com IA não configurada no servidor.'}, status=503)
+    except IAError:
+        return JsonResponse({'error': 'Não foi possível limpar agora. Tente novamente.'}, status=502)
+
+
+@login_required_view
+def api_limpar_salvar(request):
+    """Revisa o campo Observações de UM registro com IA e GRAVA na hora.
+    Usado pelos pop-ups de Observações nas listas de Leads e Mobilização."""
+    import json as _json
+    from .ia import limpar_texto, IANaoConfigurada, IAError
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido.'}, status=405)
+    try:
+        payload = _json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    entrada = IA_LIMPAR_MODELOS.get((payload.get('tipo') or '').strip())
+    pk = payload.get('pk')
+    if not entrada or not pk:
+        return JsonResponse({'error': 'Registro inválido.'}, status=400)
+    Model, secao = entrada
+    if not request.user.pode_acessar(secao):
+        return JsonResponse({'error': 'Acesso restrito'}, status=403)
+    obj = Model.objects.filter(pk=pk).first()
+    if not obj:
+        return JsonResponse({'error': 'Registro não encontrado.'}, status=404)
+    original = (obj.observacoes or '').strip()
+    if not original:
+        return JsonResponse({'error': 'Sem observações para limpar.'}, status=400)
+    try:
+        novo = limpar_texto(original)
+    except IANaoConfigurada:
+        return JsonResponse({'error': 'Limpeza com IA não configurada no servidor.'}, status=503)
+    except IAError:
+        return JsonResponse({'error': 'Não foi possível limpar agora. Tente novamente.'}, status=502)
+    if novo and novo != original:
+        obj.observacoes = novo
+        obj.save(update_fields=['observacoes'])
+    return JsonResponse({'text': obj.observacoes})
+
 
 # ==================== MOBILIZAÇÃO ====================
 
+VOLUNTARIO_CSV_HEADER = ['Nome', 'Telefone', 'Região', 'Cidade', 'Endereço',
+                         'Disponibilidades', 'Observações', 'Cadastrado por', 'Data']
+
+
+def _busca_vol_q(busca):
+    from django.db import connection
+    ic = 'unaccent__icontains' if connection.vendor == 'postgresql' else 'icontains'
+    return (
+        Q(**{f'nome__{ic}': busca}) | Q(telefone__icontains=busca) |
+        Q(**{f'cidade__nome__{ic}': busca}) | Q(**{f'observacoes__{ic}': busca})
+    )
+
+
+def _voluntarios_csv(qs, filename):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.charset = 'utf-8-sig'
+    writer = csv.writer(response)
+    writer.writerow(VOLUNTARIO_CSV_HEADER)
+    disp_map = dict(Voluntario.DISPONIBILIDADE_CHOICES)
+    for v in qs:
+        disps = ', '.join(disp_map.get(d, d) for d in (v.disponibilidades or []))
+        writer.writerow([
+            v.nome, v.telefone,
+            v.regiao.sigla if v.regiao_id else '', v.cidade.nome if v.cidade_id else '',
+            v.endereco, disps, v.observacoes,
+            v.cadastrado_por.get_full_name() if v.cadastrado_por else '',
+            v.created_at.strftime('%d/%m/%Y %H:%M'),
+        ])
+    return response
+
+
 @secao_required('equipes:mobilizacao')
 def mobilizacao_list(request):
-    voluntarios = Voluntario.objects.select_related('regiao', 'cidade', 'cadastrado_por').all()
+    """Lista de voluntários (Mobilização) — espelha a lista de Lideranças,
+    com filtros, ordenação, ações em massa e moderação."""
+    qs = Voluntario.objects.select_related('regiao', 'cidade', 'cadastrado_por')
 
     busca = request.GET.get('busca', '')
-    regiao_id = request.GET.get('regiao', '')
+    regioes_sel = [r for r in request.GET.getlist('regiao') if r]
+    disps_sel = [d for d in request.GET.getlist('disponibilidade') if d]
     cidade_id = request.GET.get('cidade', '')
-    disponibilidade = request.GET.get('disponibilidade', '')
+    aprovacao = request.GET.get('aprovacao', '')
+
+    if aprovacao in ('pendente', 'aprovado', 'rejeitado'):
+        qs = qs.filter(aprovacao=aprovacao)
+    else:
+        qs = qs.exclude(aprovacao='rejeitado')
 
     if busca:
-        voluntarios = voluntarios.filter(
-            Q(nome__icontains=busca) | Q(telefone__icontains=busca)
-        )
-    if regiao_id:
-        voluntarios = voluntarios.filter(regiao_id=regiao_id)
+        qs = qs.filter(_busca_vol_q(busca))
+    if regioes_sel:
+        qs = qs.filter(regiao_id__in=regioes_sel)
     if cidade_id:
-        voluntarios = voluntarios.filter(cidade_id=cidade_id)
-    if disponibilidade:
-        voluntarios = voluntarios.filter(disponibilidades__contains=disponibilidade)
+        qs = qs.filter(cidade_id=cidade_id)
+    if disps_sel:
+        from django.db.models.functions import Cast
+        from django.db.models import TextField
+        qs = qs.annotate(_disp_txt=Cast('disponibilidades', TextField()))
+        dq = Q()
+        for d in disps_sel:
+            dq |= Q(_disp_txt__icontains='"%s"' % d)  # match exato pelo valor entre aspas
+        qs = qs.filter(dq)
 
-    # Exportar CSV
+    qs, current_sort, current_dir = _apply_sorting(
+        request, qs, ['nome', 'cidade__nome', 'regiao__sigla', 'created_at'],
+    )
+
     if request.GET.get('export') == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="mobilizacao.csv"'
-        response.charset = 'utf-8-sig'
-        writer = csv.writer(response)
-        writer.writerow(['Nome', 'Telefone', 'Região', 'Cidade', 'Disponibilidades', 'Observações', 'Cadastrado por', 'Data'])
-        disp_map = dict(Voluntario.DISPONIBILIDADE_CHOICES)
-        for v in voluntarios:
-            disps = ', '.join(disp_map.get(d, d) for d in v.disponibilidades)
-            writer.writerow([
-                v.nome,
-                v.telefone,
-                v.regiao.sigla if v.regiao else '',
-                v.cidade.nome if v.cidade else '',
-                disps,
-                v.observacoes,
-                v.cadastrado_por.get_full_name() if v.cadastrado_por else '',
-                v.created_at.strftime('%d/%m/%Y %H:%M'),
-            ])
-        return response
+        return _voluntarios_csv(qs, 'mobilizacao.csv')
 
-    paginator, page_obj = _paginate(request, voluntarios)
+    paginator, page_obj = _paginate(request, qs)
 
-    cidades_filtro = []
-    if regiao_id:
-        cidades_filtro = Cidade.objects.filter(regiao_id=regiao_id).order_by('nome')
+    cidades_filtro = Cidade.objects.filter(regiao_id__in=regioes_sel).order_by('nome') if regioes_sel else []
+
+    # Chips de filtros ativos
+    base_params = request.GET.copy()
+    base_params.pop('page', None)
+    base_params.pop('export', None)
+    filtros_ativos = []
+
+    def _chip(param, label, value, display):
+        sem = base_params.copy()
+        sem.setlist(param, [v for v in sem.getlist(param) if v != value])
+        filtros_ativos.append({'label': label, 'display': display or value, 'remove_qs': sem.urlencode()})
+
+    for r in regioes_sel:
+        _chip('regiao', 'Região', r, Regiao.objects.filter(id=r).values_list('sigla', flat=True).first() or r)
+    for d in disps_sel:
+        _chip('disponibilidade', 'Disponib.', d, dict(Voluntario.DISPONIBILIDADE_CHOICES).get(d, d))
+    if busca:
+        _chip('busca', 'Busca', busca, busca)
+    if cidade_id:
+        _chip('cidade', 'Cidade', cidade_id, Cidade.objects.filter(id=cidade_id).values_list('nome', flat=True).first() or cidade_id)
+    if aprovacao:
+        _chip('aprovacao', 'Aprovação', aprovacao, dict(Voluntario._meta.get_field('aprovacao').choices).get(aprovacao, aprovacao))
+
+    try:
+        per_page = int(request.GET.get('per_page', 50))
+    except (TypeError, ValueError):
+        per_page = 50
+    if per_page not in PER_PAGE_OPTIONS:
+        per_page = 50
 
     qs_params = request.GET.copy()
     qs_params.pop('page', None)
+    sort_base = request.GET.copy()
+    sort_base.pop('page', None)
+    sort_base.pop('sort', None)
+    sort_base.pop('dir', None)
 
     return render(request, 'liderancas/mobilizacao_list.html', {
         'page_obj': page_obj,
-        'regioes': Regiao.objects.all().order_by('sigla'),
-        'cidades_filtro': cidades_filtro,
-        'disponibilidade_choices': Voluntario.DISPONIBILIDADE_CHOICES,
-        'busca': busca,
-        'regiao_filtro': regiao_id,
-        'cidade_filtro': cidade_id,
-        'disponibilidade_filtro': disponibilidade,
         'total': paginator.count,
+        'total_geral': Voluntario.objects.count(),
+        'regioes': Regiao.objects.all().order_by('sigla'),
+        'regioes_sel': regioes_sel,
+        'cidades_filtro': cidades_filtro,
+        'cidade_filtro': cidade_id,
+        'disponibilidade_choices': Voluntario.DISPONIBILIDADE_CHOICES,
+        'disps_sel': disps_sel,
+        'busca': busca,
+        'aprovacao_filtro': aprovacao,
+        'filtros_ativos': filtros_ativos,
+        'pode_aprovar': request.user.pode_acessar('equipes:aprovar'),
+        'pendentes_total': Voluntario.objects.filter(aprovacao='pendente').count(),
+        'rejeitados_total': Voluntario.objects.filter(aprovacao='rejeitado').count(),
+        'per_page': per_page,
+        'per_page_options': PER_PAGE_OPTIONS,
         'query_string': qs_params.urlencode(),
+        'qs_sort_base': sort_base.urlencode(),
+        'current_sort': current_sort,
+        'current_dir': current_dir,
     })
+
+
+@secao_required('equipes:mobilizacao')
+def mobilizacao_bulk(request):
+    """Ações em massa sobre voluntários (exportar/excluir + aprovar/rejeitar)."""
+    nxt = request.POST.get('next', '')
+    back = redirect(nxt if nxt.startswith('/') else 'liderancas:mobilizacao_list')
+    if request.method != 'POST':
+        return back
+    ids = request.POST.getlist('selected_ids')
+    action = request.POST.get('bulk_action', '')
+    if not ids:
+        messages.warning(request, 'Nenhum voluntário selecionado.')
+        return back
+    qs = Voluntario.objects.filter(pk__in=ids)
+
+    if action == 'export_csv':
+        return _voluntarios_csv(qs.select_related('regiao', 'cidade', 'cadastrado_por'),
+                                'mobilizacao_selecionados.csv')
+    elif action == 'delete':
+        n = 0
+        for o in qs:
+            o.soft_delete(user=request.user)
+            n += 1
+        messages.success(request, f'{n} voluntário(s) removido(s).')
+    elif action in ('aprovar', 'rejeitar'):
+        if not request.user.pode_acessar('equipes:aprovar'):
+            messages.error(request, 'Você não tem permissão para aprovar/rejeitar voluntários.')
+            return back
+        if action == 'aprovar':
+            n = qs.exclude(aprovacao='aprovado').update(
+                aprovacao='aprovado', aprovado_por=request.user,
+                aprovado_em=timezone.now(), motivo_rejeicao='',
+            )
+            messages.success(request, f'{n} voluntário(s) aprovado(s).')
+        else:
+            motivo = request.POST.get('motivo_rejeicao', '').strip()
+            n = qs.exclude(aprovacao='rejeitado').update(
+                aprovacao='rejeitado', aprovado_por=request.user,
+                aprovado_em=timezone.now(), motivo_rejeicao=motivo,
+            )
+            messages.success(request, f'{n} voluntário(s) rejeitado(s).')
+    else:
+        messages.error(request, 'Ação inválida.')
+    return back
 
 
 @secao_required('equipes:mobilizacao')
@@ -1274,6 +1800,6 @@ def mobilizacao_edit(request, pk):
 def mobilizacao_delete(request, pk):
     vol = get_object_or_404(Voluntario, pk=pk)
     if request.method == 'POST':
-        vol.delete()
+        vol.soft_delete(user=request.user)
         messages.success(request, 'Voluntário removido com sucesso.')
     return redirect('liderancas:mobilizacao_list')

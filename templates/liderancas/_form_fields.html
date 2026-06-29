@@ -8,6 +8,9 @@
         <div class="form-group{% if field.name == 'observacoes' or field.name == 'endereco' or field.name == 'disponibilidades' %} full{% endif %}">
             <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
             {{ field }}
+            {% if field.name == 'observacoes' %}
+            <button type="button" class="ia-clean-btn" data-ia-clean title="Corrigir e organizar o texto com IA">✨ Limpar com IA</button>
+            {% endif %}
             {{ field.errors }}
         </div>
         {% endfor %}

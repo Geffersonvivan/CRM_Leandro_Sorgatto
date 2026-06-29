@@ -9,7 +9,7 @@
         background: #fff; color: #6b7280; cursor: pointer; display: inline-flex;
         align-items: center; justify-content: center; transition: all 0.15s;
     }
-    .actions .btn-icon:hover { background: #e6edf8; color: #002776; border-color: #002776; }
+    .actions .btn-icon:hover { background: #e6edf8; color: var(--navy); border-color: var(--navy); }
     .actions .btn-icon.danger:hover { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
     .actions .btn-icon svg { width: 14px; height: 14px; }
     .actions .btn-icon { position: relative; }
@@ -22,8 +22,8 @@
     }
     .actions .btn-icon:hover::after { opacity: 1; }
 
-    .obs-link { color: #002776; cursor: pointer; text-decoration: underline dotted; }
-    .obs-link:hover { color: #003da5; }
+    .obs-link { color: var(--navy); cursor: pointer; text-decoration: underline dotted; }
+    .obs-link:hover { color: var(--navy-700); }
     .pagination-info { text-align: center; font-size: 0.78rem; color: #64748b; padding-bottom: 12px; }
     .pagination .disabled { color: #cbd5e1; cursor: default; }
     .pagination .disabled:hover { background: transparent; border-color: #e2e8f0; }
@@ -79,8 +79,8 @@
     }
     .bulk-bar.active { display: flex; }
     .bulk-bar select { padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.78rem; }
-    .bulk-bar .count { font-weight: 600; color: #002776; }
-    .row-check { width: 15px; height: 15px; cursor: pointer; accent-color: #002776; }
+    .bulk-bar .count { font-weight: 600; color: var(--navy); }
+    .row-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--navy); }
 </style>
 {% endblock %}
 
@@ -155,7 +155,7 @@
                 <th>Telefone</th>
                 <th>Email</th>
                 {% sortable_th "regiao__sigla" "Região" "" %}
-                {% sortable_th "cidade_base__nome" "Cidade Base" "" %}
+                {% sortable_th "cidade__nome" "Cidade Base" "" %}
                 <th>Instagram</th>
                 {% sortable_th "prioridade" "Prior." "" %}
                 <th>Freq.</th>
@@ -172,14 +172,14 @@
                 <td class="col-tel">{{ c.telefone|whatsapp_link }}</td>
                 <td class="col-email">{{ c.email|default:"-" }}</td>
                 <td class="col-regiao"><span class="badge">{{ c.regiao.sigla }}</span></td>
-                <td class="col-cidade">{{ c.cidade_base }}</td>
+                <td class="col-cidade">{{ c.cidade }}</td>
                 <td class="col-insta">{{ c.instagram|instagram_link }}</td>
                 <td class="col-sm">{{ c.get_prioridade_display }}</td>
                 <td class="col-sm">{{ c.get_frequencia_relacionamento_display }}</td>
                 <td class="col-contato">{{ c.ultima_interacao|contact_badge }}</td>
                 <td class="col-obs">
                     {% if c.observacoes %}
-                    <span class="obs-link" onclick="openObs(this)" data-nome="{{ c.nome|escapejs }}" data-obs="{{ c.observacoes|escapejs }}">{{ c.observacoes|truncatechars:15 }}</span>
+                    <span class="obs-link" onclick="openObs(this)" data-nome="{{ c.nome }}" data-obs="{{ c.observacoes }}">{{ c.observacoes|truncatechars:15 }}</span>
                     {% else %}-{% endif %}
                 </td>
                 <td class="col-acoes">

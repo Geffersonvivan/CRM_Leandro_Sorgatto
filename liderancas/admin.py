@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Regiao, Cidade, CoordenadorRegional, CaboEleitoral, Apoiador, InteracaoLog, Egresso, Lassberg
+from .models import Regiao, Cidade, Lideranca, InteracaoLog, Egresso, Lassberg
 
 
 @admin.register(Regiao)
@@ -17,30 +17,12 @@ class CidadeAdmin(admin.ModelAdmin):
     ordering = ['nome']
 
 
-@admin.register(CoordenadorRegional)
-class CoordenadorRegionalAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'telefone', 'email', 'regiao', 'cidade_base', 'prioridade', 'is_active', 'created_at']
+@admin.register(Lideranca)
+class LiderancaAdmin(admin.ModelAdmin):
+    list_display = ['nome', 'papel', 'telefone', 'email', 'cidade', 'coordenador_responsavel', 'tipo', 'cargo', 'status', 'prioridade', 'is_active', 'created_at']
     search_fields = ['nome', 'telefone', 'email']
-    list_filter = ['regiao', 'prioridade', 'frequencia_relacionamento', 'is_active']
-    raw_id_fields = ['cidade_base']
-    ordering = ['nome']
-
-
-@admin.register(CaboEleitoral)
-class CaboEleitoralAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'telefone', 'email', 'cidade', 'coordenador', 'prioridade', 'is_active', 'created_at']
-    search_fields = ['nome', 'telefone', 'email']
-    list_filter = ['cidade__regiao', 'prioridade', 'frequencia_relacionamento', 'is_active']
-    raw_id_fields = ['cidade', 'coordenador']
-    ordering = ['nome']
-
-
-@admin.register(Apoiador)
-class ApoiadorAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'telefone', 'email', 'cidade', 'tipo', 'cargo', 'status', 'prioridade', 'grau_influencia', 'is_active', 'created_at']
-    search_fields = ['nome', 'telefone', 'email']
-    list_filter = ['tipo', 'cargo', 'status', 'prioridade', 'grau_influencia', 'cidade__regiao', 'is_active']
-    raw_id_fields = ['cidade']
+    list_filter = ['papel', 'tipo', 'cargo', 'status', 'prioridade', 'grau_influencia', 'cidade__regiao', 'is_active']
+    raw_id_fields = ['cidade', 'regiao', 'coordenador_responsavel']
     ordering = ['nome']
 
 
@@ -65,7 +47,7 @@ class LassbergAdmin(admin.ModelAdmin):
 @admin.register(InteracaoLog)
 class InteracaoLogAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'tipo', 'data', 'registrado_por', 'created_at']
-    search_fields = ['descricao', 'coordenador__nome', 'cabo__nome', 'apoiador__nome']
+    search_fields = ['descricao', 'lideranca__nome', 'egresso__nome', 'lassberg__nome']
     list_filter = ['tipo', 'data']
-    raw_id_fields = ['coordenador', 'cabo', 'apoiador']
+    raw_id_fields = ['lideranca', 'egresso', 'lassberg']
     ordering = ['-data']

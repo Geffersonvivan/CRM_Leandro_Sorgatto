@@ -1,42 +1,16 @@
+/* Sidebar de nível único.
+   Desktop: expande no hover / foco de teclado (CSS).
+   Toque (sem hover): tocar na régua — fora dos links — abre/fecha. */
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
-    const items = sidebar.querySelectorAll('.sidebar-item');
-    const userArea = sidebar.querySelector('.sidebar-user');
+    if (!sidebar) return;
 
-    items.forEach(item => {
-        const btn = item.querySelector('.sidebar-icon');
-
-        btn.addEventListener('click', () => {
-            const wasActive = item.classList.contains('active');
-
-            // Remove active de todos
-            items.forEach(i => i.classList.remove('active'));
-
-            if (wasActive) {
-                // Clicou no mesmo: colapsa
-                sidebar.classList.remove('expanded');
-            } else {
-                // Clicou em outro: expande e ativa
-                item.classList.add('active');
-                sidebar.classList.add('expanded');
-            }
+    if (window.matchMedia('(hover: none)').matches) {
+        sidebar.addEventListener('click', (e) => {
+            if (e.target.closest('a, button, form')) return;  // links/ações navegam normalmente
+            sidebar.classList.toggle('open');
         });
-    });
-
-    // Clique no icone do usuario expande a sidebar
-    if (userArea) {
-        userArea.addEventListener('click', (e) => {
-            // Nao interferir no botao Sair
-            if (e.target.closest('.sidebar-logout')) return;
-
-            items.forEach(i => i.classList.remove('active'));
-            sidebar.classList.toggle('expanded');
-        });
+        const main = document.getElementById('main-content');
+        if (main) main.addEventListener('click', () => sidebar.classList.remove('open'));
     }
-
-    // Clique fora fecha a sidebar
-    document.getElementById('main-content').addEventListener('click', () => {
-        items.forEach(i => i.classList.remove('active'));
-        sidebar.classList.remove('expanded');
-    });
 });

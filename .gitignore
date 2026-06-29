@@ -9,12 +9,18 @@ venv/
 
 # Django
 db.sqlite3
+db.sqlite3.*
+*.sqlite3
+*.bak
+*.bak-*
 *.log
 media/
 staticfiles/
 
 # Environment
 .env
+.env.*
+*.env
 
 # Old project
 Antigo/
@@ -33,3 +39,6 @@ Thumbs.db
 # Dados pessoais (NUNCA commitar — repositório é público)
 Planilha/
 import_pendencias.csv
+
+# Auditoria interna (detalhes de vulnerabilidades — NUNCA commitar)
+Auditoria_CRM/

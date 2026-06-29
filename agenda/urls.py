@@ -28,6 +28,7 @@ urlpatterns = [
 
     # API
     path('api/eventos-calendario/', views.api_eventos_calendario, name='api_eventos_calendario'),
+    path('api/roteiros-calendario/', views.api_roteiros_calendario, name='api_roteiros_calendario'),
     path('api/eventos/<int:pk>/', views.api_evento_detalhe, name='api_evento_detalhe'),
     path('api/roteiro-dia/', views.api_roteiro_dia, name='api_roteiro_dia'),
     path('api/roteiro-salvar/', views.api_salvar_roteiro, name='api_salvar_roteiro'),

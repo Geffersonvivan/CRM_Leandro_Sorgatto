@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from usuarios.views import admin_required, secao_required
-from liderancas.models import CoordenadorRegional, CaboEleitoral, Apoiador, Cidade
+from liderancas.models import Lideranca, Cidade
 from tarefas.models import Tarefa
 from .models import Compromisso, Evento, Roteiro, RoteiroPonto
 from .forms import CompromissoForm, EventoForm, RoteiroForm, RoteiroPontoFormSet
@@ -49,9 +49,9 @@ def compromisso_create(request):
         import json as json_mod
         initial, selecionados = {}, None
         contato, chave = None, None
-        for param, model in (('apoiador', Apoiador), ('cabo', CaboEleitoral), ('coordenador', CoordenadorRegional)):
+        for param, papel in (('apoiador', 'apoiador'), ('cabo', 'cabo'), ('coordenador', 'coordenador')):
             if request.GET.get(param):
-                contato = model.objects.filter(pk=request.GET[param]).first()
+                contato = Lideranca.objects.filter(papel=papel, pk=request.GET[param]).first()
                 chave = param
                 break
         if contato:
@@ -276,8 +276,8 @@ def _sugestoes_cidades(regiao, limite=8):
     agora = tz.now()
     por_cidade = {}
     fontes = (
-        CaboEleitoral.objects.filter(cidade__regiao=regiao).select_related('cidade'),
-        Apoiador.objects.filter(cidade__regiao=regiao).select_related('cidade'),
+        Lideranca.objects.filter(papel='cabo', cidade__regiao=regiao).select_related('cidade'),
+        Lideranca.objects.filter(papel='apoiador', cidade__regiao=regiao).select_related('cidade'),
     )
     for qs in fontes:
         for c in qs.annotate(ultima=Max('interacoes__data')):
@@ -393,19 +393,19 @@ def _contatos_payload(qs):
 
 @secao_required('demandas:agenda')
 def api_coordenadores_regiao(request, regiao_id):
-    qs = CoordenadorRegional.objects.filter(regiao_id=regiao_id)
+    qs = Lideranca.objects.filter(papel='coordenador', regiao_id=regiao_id)
     return JsonResponse(_contatos_payload(qs), safe=False)
 
 
 @secao_required('demandas:agenda')
 def api_cabos_cidade(request, cidade_id):
-    qs = CaboEleitoral.objects.filter(cidade_id=cidade_id)
+    qs = Lideranca.objects.filter(papel='cabo', cidade_id=cidade_id)
     return JsonResponse(_contatos_payload(qs), safe=False)
 
 
 @secao_required('demandas:agenda')
 def api_apoiadores_cidade(request, cidade_id):
-    qs = Apoiador.objects.filter(cidade_id=cidade_id)
+    qs = Lideranca.objects.filter(papel='apoiador', cidade_id=cidade_id)
     return JsonResponse(_contatos_payload(qs), safe=False)
 
 
@@ -461,8 +461,8 @@ def api_tarefas_calendario(request):
             'start': dia,
             'allDay': True,
             'display': 'block',
-            'color': '#ef4444' if tem_vencida else '#64748b',
-            'borderColor': '#ef4444' if tem_vencida else '#64748b',
+            'color': '#ef4444' if tem_vencida else '#0d9488',
+            'borderColor': '#ef4444' if tem_vencida else '#0d9488',
             'classNames': ['fc-tarefa-event'],
             'order': 1,
             'extendedProps': {
@@ -742,6 +742,26 @@ def evento_list(request):
 
 @secao_required('demandas:eventos')
 def evento_create(request):
+    # Fluxo modal (XHR), igual ao Compromisso
+    if request.method == 'POST' and _is_ajax(request):
+        form = EventoForm(request.POST, request.FILES)
+        if form.is_valid():
+            evento = form.save(commit=False)
+            evento.cadastrado_por = request.user
+            evento.save()
+            form.save_m2m()
+            return JsonResponse({'success': True})
+        html = render_to_string('agenda/_evento_form.html', {'form': form, 'action': request.path}, request=request)
+        return JsonResponse({'success': False, 'html': html})
+    if _is_ajax(request):
+        initial = {}
+        if request.GET.get('data'):
+            initial['data'] = request.GET['data']
+        form = EventoForm(initial=initial)
+        html = render_to_string('agenda/_evento_form.html', {'form': form, 'action': request.path}, request=request)
+        return JsonResponse({'html': html})
+
+    # Fallback página inteira (sem JS)
     if request.method == 'POST':
         form = EventoForm(request.POST, request.FILES)
         if form.is_valid():
@@ -752,7 +772,10 @@ def evento_create(request):
             messages.success(request, 'Evento cadastrado com sucesso!')
             return redirect('agenda:evento_list')
     else:
-        form = EventoForm()
+        initial = {}
+        if request.GET.get('data'):
+            initial['data'] = request.GET['data']
+        form = EventoForm(initial=initial)
     return render(request, 'agenda/evento_form.html', {
         'form': form,
         'titulo': 'Novo Evento',
@@ -762,6 +785,18 @@ def evento_create(request):
 @secao_required('demandas:eventos')
 def evento_edit(request, pk):
     evento = get_object_or_404(Evento, pk=pk)
+    if request.method == 'POST' and _is_ajax(request):
+        form = EventoForm(request.POST, request.FILES, instance=evento)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({'success': True})
+        html = render_to_string('agenda/_evento_form.html', {'form': form, 'action': request.path}, request=request)
+        return JsonResponse({'success': False, 'html': html})
+    if _is_ajax(request):
+        form = EventoForm(instance=evento)
+        html = render_to_string('agenda/_evento_form.html', {'form': form, 'action': request.path}, request=request)
+        return JsonResponse({'html': html})
+
     if request.method == 'POST':
         form = EventoForm(request.POST, request.FILES, instance=evento)
         if form.is_valid():
@@ -785,6 +820,7 @@ def evento_delete(request, pk):
     return redirect('agenda:evento_list')
 
 
+@secao_required('demandas:agenda')
 def api_eventos_calendario(request):
     """Retorna eventos confirmados para o FullCalendar."""
     eventos = Evento.objects.filter(
@@ -800,11 +836,11 @@ def api_eventos_calendario(request):
             end = f'{e.data}T{e.horario_fim}'
         result.append({
             'id': f'evento-{e.id}',
-            'title': f'📌 {e.nome}',
+            'title': f'🚩 {e.nome}',
             'start': start,
             'end': end,
-            'color': '#e91e8b',
-            'textColor': '#fff',
+            'color': '#f4c430',
+            'textColor': '#0c1b38',
             'allDay': not e.horario_inicio,
             'order': 0,
             'extendedProps': {
@@ -813,6 +849,33 @@ def api_eventos_calendario(request):
                 'relevancia': e.get_relevancia_display(),
                 'publico': e.publico_estimado,
             },
+        })
+    return JsonResponse(result, safe=False)
+
+
+@secao_required('demandas:agenda')
+def api_roteiros_calendario(request):
+    """Roteiros salvos como chips (dia inteiro) no calendário, no dia do roteiro."""
+    from django.db.models import Count
+    start = request.GET.get('start')
+    end = request.GET.get('end')
+    qs = Roteiro.objects.annotate(n_pontos=Count('pontos'))
+    if start:
+        qs = qs.filter(data__gte=start[:10])
+    if end:
+        qs = qs.filter(data__lte=end[:10])
+    result = []
+    for r in qs:
+        result.append({
+            'id': f'roteiro-{r.pk}',
+            'title': f'🧭 {r.titulo} ({r.n_pontos})',
+            'start': r.data.isoformat(),
+            'allDay': True,
+            'display': 'block',
+            'color': '#ef6a32',
+            'textColor': '#fff',
+            'order': 2,
+            'extendedProps': {'tipo': 'roteiro', 'pk': r.pk, 'data': r.data.isoformat()},
         })
     return JsonResponse(result, safe=False)
 
@@ -1058,7 +1121,7 @@ def api_estrategia_agenda(request):
 
     cidades = list(Cidade.objects.select_related('regiao').all())
     ap = {r['cidade_id']: r['n'] for r in
-          Apoiador.objects.filter(status='ativo').values('cidade_id').annotate(n=models.Count('id'))}
+          Lideranca.objects.filter(papel='apoiador', status='ativo').values('cidade_id').annotate(n=models.Count('id'))}
 
     comp_fut, comp_ever, cidades_mes = set(), set(), set()
     comp_semana = 0

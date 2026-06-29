@@ -5,7 +5,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-from dashboard.views import home_view
+from dashboard.views import capa_view
 from core.views import ajuda
 
 
@@ -20,11 +20,10 @@ urlpatterns = [
     path('dashboard/', include('dashboard.urls')),
     path('tarefas/', include('tarefas.urls')),
     path('notificacoes/', include('notificacoes.urls')),
-    path('doacoes/', include('doacoes.urls')),
     path('mapa/', include('mapa.urls')),
     path('oportunidades/', include('oportunidades.urls')),
     path('app/', include('pwa.urls')),
-    path('', login_required(home_view), name='home'),
+    path('', login_required(capa_view), name='home'),
 ]
 
 if settings.DEBUG:
