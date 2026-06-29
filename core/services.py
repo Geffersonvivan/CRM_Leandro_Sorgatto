@@ -1,6 +1,6 @@
 from django.db.models import Count
 
-from liderancas.models import Apoiador
+from liderancas.models import Lideranca
 from usuarios.models import Usuario
 
 
@@ -12,7 +12,7 @@ def calcular_scores_rede():
     é a soma dos diretos dos seus convidados.
     """
     diretos_map = dict(
-        Apoiador.objects.exclude(cadastrado_por=None)
+        Lideranca.objects.aprovados().filter(papel='apoiador').exclude(cadastrado_por=None)
         .values('cadastrado_por')
         .annotate(total=Count('id'))
         .values_list('cadastrado_por', 'total')

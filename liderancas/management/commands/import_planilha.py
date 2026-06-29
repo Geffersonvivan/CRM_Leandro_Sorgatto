@@ -29,7 +29,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from liderancas.models import (
-    Apoiador, CaboEleitoral, Cidade, CoordenadorRegional, Egresso, Lassberg,
+    Cidade, Egresso, Lassberg, Lideranca,
 )
 
 ORIGEM = 'Planilha CONTATOS LIDERANÇAS'
@@ -171,12 +171,13 @@ class Command(BaseCommand):
             obj = self.seen[key]
             self.fill(obj, defaults)
             return obj
-        obj = Apoiador.all_objects.filter(cidade=cidade, nome__iexact=nome).first()
+        obj = Lideranca.all_objects.filter(
+            papel='apoiador', cidade=cidade, nome__iexact=nome).first()
         if obj:
             self.fill(obj, defaults)
             self.stat('apoiadores atualizados')
         else:
-            obj = Apoiador(nome=nome, cidade=cidade, tipo=tipo, **{
+            obj = Lideranca(papel='apoiador', nome=nome, cidade=cidade, tipo=tipo, **{
                 k: v for k, v in defaults.items() if v
             })
             if not self.dry_run:
@@ -191,12 +192,14 @@ class Command(BaseCommand):
             obj = self.seen[key]
             self.fill(obj, defaults)
             return obj
-        obj = CaboEleitoral.all_objects.filter(cidade=cidade, nome__iexact=nome).first()
+        obj = Lideranca.all_objects.filter(
+            papel='cabo', cidade=cidade, nome__iexact=nome).first()
         if obj:
             self.fill(obj, defaults)
             self.stat('cabos atualizados')
         else:
-            obj = CaboEleitoral(nome=nome, cidade=cidade, coordenador=coordenador, **{
+            obj = Lideranca(papel='cabo', nome=nome, cidade=cidade,
+                            coordenador_responsavel=coordenador, **{
                 k: v for k, v in defaults.items() if v
             })
             if not self.dry_run:
@@ -237,7 +240,10 @@ class Command(BaseCommand):
             coord_cidades.setdefault(coord, []).append(cidade)
 
         self.coordenadores = {}
-        coords_existentes = {norm(c.nome): c for c in CoordenadorRegional.all_objects.all()}
+        coords_existentes = {
+            norm(c.nome): c
+            for c in Lideranca.all_objects.filter(papel='coordenador')
+        }
         for coord_nome, cidades in coord_cidades.items():
             validas = [c for c in cidades if c]
             base = Counter(c.pk for c in validas).most_common(1)
@@ -247,10 +253,11 @@ class Command(BaseCommand):
                 continue
             obj = coords_existentes.get(norm(coord_nome))
             if not obj:
-                obj = CoordenadorRegional(
+                obj = Lideranca(
+                    papel='coordenador',
                     nome=coord_nome.title(),
                     regiao=cidade_base.regiao,
-                    cidade_base=cidade_base,
+                    cidade=cidade_base,
                     observacoes=f'Origem: {ORIGEM} (coluna COORDENADOR)',
                 )
                 if not self.dry_run:

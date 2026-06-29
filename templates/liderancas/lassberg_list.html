@@ -4,90 +4,111 @@
 {% block extra_css %}
 <style>
     .actions { display: flex; gap: 3px; flex-wrap: nowrap; }
-    .actions .btn-icon {
-        width: 28px; height: 28px; padding: 0; border: 1px solid #d1d5db; border-radius: 6px;
-        background: #fff; color: #6b7280; cursor: pointer; display: inline-flex;
-        align-items: center; justify-content: center; transition: all 0.15s;
-    }
-    .actions .btn-icon:hover { background: #e6edf8; color: #002776; border-color: #002776; }
-    .actions .btn-icon.danger:hover { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
+    .actions .btn-icon { width: 28px; height: 28px; padding: 0; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #6b7280; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; position: relative; }
+    .actions .btn-icon:hover { background: #e6edf8; color: var(--navy); border-color: var(--navy); }
     .actions .btn-icon svg { width: 14px; height: 14px; }
+    .actions .btn-icon::after { content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; font-size: 0.65rem; padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 0.1s; margin-top: 4px; }
+    .actions .btn-icon:hover::after { opacity: 1; }
+    .actions .btn-icon.danger:hover { background:#fef2f2; color:#dc2626; border-color:#dc2626; }
+    .obs-link { color: var(--navy); cursor: pointer; text-decoration: underline dotted; }
 
-    .obs-link { color: #002776; cursor: pointer; text-decoration: underline dotted; }
-    .obs-link:hover { color: #003da5; }
-    .modal-box { padding: 20px 24px; width: 520px; }
-    .modal-body { word-break: break-word; }
+    /* Chips */
+    .chips-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 12px; }
+    .chips-label { font-size:0.75rem; color:#64748b; font-weight:600; }
+    .chip { display:inline-flex; align-items:center; gap:4px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; border-radius:14px; padding:3px 10px; font-size:0.74rem; text-decoration:none; }
+    .chip:hover { background:#e0e7ff; }
+    .chip-k { font-weight:600; }
+    .chip-x { font-weight:700; margin-left:2px; }
+    .chip-clear { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
 
-    .table-scroll { overflow-x: auto; }
-    .table-scroll table { width: 100%; border-collapse: collapse; }
-    .table-scroll th, .table-scroll td {
-        font-size: 0.74rem; padding: 6px 8px;
-        text-align: left; vertical-align: middle;
-        border-bottom: 1px solid #f1f5f9;
-    }
-    .table-scroll thead th {
-        font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px;
-        color: #64748b; font-weight: 600; background: #f8fafc;
-        border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 1;
-        white-space: nowrap;
-    }
+    /* Filtros — visual uniforme */
+    .filters-card { border:1px solid #eef0f4; border-radius:14px; overflow:visible; }
+    .filters-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:14px 16px; align-items:end; }
+    .filters-actions-row { display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap; }
+    .filters-actions-row .fa-spacer { flex:1 1 auto; }
+    .filters-row .filter-group { display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .filters-row .filter-group > label { font-size:0.64rem; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:#94a3b8; }
+    .filters-row input[type=text], .filters-row select, .ms-btn { width:100%; height:38px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:9px; background:#fff; padding:0 12px; font-size:0.82rem; color:#1e293b; transition:border-color .12s, box-shadow .12s; }
+    .filters-row input[type=text]:focus, .filters-row select:focus, .ms-btn:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(0,39,118,.10); }
+    .filters-row input::placeholder { color:#cbd5e1; }
+
+    /* Multi-select dropdown (checkbox) */
+    .ms { position:relative; }
+    .ms-btn { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; }
+    .ms-btn:hover { border-color:#9ca3af; }
+    .ms-btn.has-sel { border-color:var(--navy); color:var(--navy); font-weight:600; }
+    .ms-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ms-caret { color:#9ca3af; font-size:0.62rem; flex-shrink:0; }
+    .ms-pop { position:absolute; left:0; top:calc(100% + 5px); z-index:30; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 30px rgba(15,23,42,.14); padding:6px; min-width:210px; max-height:260px; overflow-y:auto; display:none; }
+    .ms.open .ms-pop { display:block; }
+    .ms-opt { display:flex; align-items:center; gap:9px; padding:7px 9px; font-size:0.8rem; color:#374151; border-radius:7px; cursor:pointer; }
+    .ms-opt:hover { background:#f1f5f9; }
+    .ms-opt input { width:15px; height:15px; accent-color:var(--navy); cursor:pointer; }
+
+    /* Toolbar */
+    .tool-btn { padding:5px 10px; border:1px solid #d1d5db; border-radius:6px; background:#fff; cursor:pointer; font-size:0.78rem; color:#475569; }
+    .tool-btn:hover { border-color:var(--navy); color:var(--navy); }
+    .col-menu { position:relative; display:inline-block; }
+    .col-menu-pop { position:absolute; left:0; top:110%; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.12); padding:10px 14px; z-index:20; display:none; min-width:180px; }
+    .col-menu-pop.open { display:block; }
+    .col-menu-pop label { display:flex; align-items:center; gap:7px; font-size:0.8rem; color:#374151; padding:4px 0; cursor:pointer; }
+
+    /* Bulk bar */
+    .bulk-bar { display:none; background:#f0f6ff; border:1px solid #d0e2ff; border-radius:8px; padding:8px 14px; align-items:center; gap:12px; font-size:0.82rem; margin-bottom:10px; }
+    .bulk-bar.active { display:flex; }
+    .bulk-bar select { padding:4px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.78rem; }
+    .bulk-bar .count { font-weight:600; color:var(--navy); }
+    .row-check { width:15px; height:15px; cursor:pointer; accent-color:var(--navy); }
+
+    /* Planilha: rolagem própria com cabeçalho fixo */
+    .table-scroll { overflow: auto; max-height: calc(100vh - 330px); min-height: 220px; }
+    .table-scroll table { width: 100%; border-collapse: collapse; table-layout: auto; }
+    .table-scroll th, .table-scroll td { font-size: 0.76rem; padding: 8px 10px; text-align: left; vertical-align: middle; white-space: normal; word-break: break-word; border-bottom: 1px solid #f1f5f9; }
+    .table-scroll th { white-space: nowrap; }
+    .table-scroll .nw { white-space: nowrap; }
+    .table-scroll thead th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px; color: #64748b; font-weight: 600; background: #eef1f6; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 3; }
     .table-scroll tbody tr:hover { background: #f8fafc; }
-    .table-scroll td .badge { font-size: 0.66rem; padding: 2px 7px; white-space: nowrap; }
-
-    .col-nome { white-space: nowrap; }
-    .col-tel { white-space: nowrap; }
-    .col-email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .col-sm { text-align: center !important; white-space: nowrap; }
-    .col-acoes { white-space: nowrap; }
-    .col-contato { text-align: center !important; white-space: nowrap; }
-    .modal-label { font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 2px; }
-    #addIntModal .modal-body { padding: 16px 24px; white-space: normal; }
-    #intModal .modal-body { padding: 0; white-space: normal; }
-    .int-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; }
-    .int-table thead { background: #f8fafc; }
-    .int-table th {
-        font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.3px;
-        color: #64748b; font-weight: 600; padding: 10px 14px; text-align: left;
-        border-bottom: 2px solid #e2e8f0;
-    }
-    .int-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #374151; }
-    .int-table .int-desc { white-space: normal; max-width: 220px; line-height: 1.4; }
-    .int-table .int-date { white-space: nowrap; color: #64748b; font-size: 0.76rem; }
-    .int-table .int-user { color: #64748b; font-size: 0.76rem; }
-
-    /* Filtros em linha única */
-    #filterForm .filters-row { flex-wrap: nowrap; gap: 18px; align-items: center; }
-    #filterForm .filter-group { min-width: 0; flex: 1 1 0; }
-    #filterForm .fg-busca { flex: 1.3 1 0; }
-    #filterForm .filter-group input,
-    #filterForm .filter-group select { width: 100%; text-overflow: ellipsis; }
-    #filterForm .filter-actions { display: flex; gap: 8px; flex-shrink: 0; padding-top: 21px; }
-    @media (max-width: 900px) {
-        #filterForm .filters-row { flex-wrap: wrap; }
-        #filterForm .filter-group { min-width: 160px; }
-    }
+    .table-scroll.dense th, .table-scroll.dense td { padding: 4px 8px; font-size: 0.72rem; }
+    .col-check { width: 34px; text-align:center !important; }
 </style>
 {% endblock %}
 
 {% block content %}
-
 <div class="page-header">
-    <h1 class="page-title" data-tip="Distribuidores Lassberg importados da planilha de contatos.">Lassberg <span class="page-subtitle">{{ total }} registros</span></h1>
+    <h1 class="page-title">Lassberg <span class="page-subtitle">{{ total }}{% if total != total_geral %} de {{ total_geral }}{% endif %} registros</span></h1>
     <div style="display:flex;gap:8px;align-items:center;">
-        <a href="?{{ query_string }}&export=csv" class="btn btn-outline btn-sm" title="Exportar CSV">Exportar CSV</a>
-        <a href="{% url 'liderancas:lassberg_create' %}" class="btn btn-primary" onclick="return openFormModal(this.href, 'Novo Contato Lassberg')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Novo Contato
-        </a>
+        <a href="?{{ query_string }}&export=csv" class="btn btn-outline btn-sm">Exportar CSV</a>
+        <a href="{% url 'liderancas:lassberg_create' %}" class="btn btn-primary" onclick="return openFormModal(this.href, 'Novo Contato Lassberg')">+ Contato</a>
     </div>
 </div>
 
 <div class="filters-card">
-    <form method="get" id="filterForm">
+    <form method="get" id="filtrosForm">
+        <input type="hidden" name="per_page" value="{{ per_page }}">
         <div class="filters-row">
-            <div class="filter-group fg-busca">
+            <div class="filter-group">
                 <label>Busca</label>
-                <input type="text" name="busca" placeholder="Nome, telefone, email, cidade..." value="{{ busca }}">
+                <input type="text" name="busca" placeholder="Buscar contatos…" title="Busca por nome, telefone, e-mail ou cidade" value="{{ busca }}">
+            </div>
+            <div class="filter-group">
+                <label>Região</label>
+                <div class="ms" data-placeholder="Todas">
+                    <button type="button" class="ms-btn" onclick="toggleMs(this)"><span class="ms-label">Todas</span><span class="ms-caret">▾</span></button>
+                    <div class="ms-pop" id="msRegiao">
+                        {% for r in regioes %}
+                        <label class="ms-opt"><input type="checkbox" name="regiao" value="{{ r.id }}" {% if r.id|stringformat:"d" in regioes_sel %}checked{% endif %}> {{ r.sigla }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Cidade</label>
+                <select name="cidade" id="filtroCidade">
+                    <option value="">Todas</option>
+                    {% for c in cidades_filtro %}
+                    <option value="{{ c.id }}" {% if cidade_filtro == c.id|stringformat:"d" %}selected{% endif %}>{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="filter-group">
                 <label>Estado</label>
@@ -98,44 +119,60 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="filter-group">
-                <label>Região (SC)</label>
-                <select name="regiao" id="filtroRegiao" onchange="onRegiaoChange()">
-                    <option value="">Todas</option>
-                    {% for r in regioes %}
-                    <option value="{{ r.id }}" {% if regiao_filtro == r.id|stringformat:"d" %}selected{% endif %}>{{ r.sigla }}</option>
-                    {% endfor %}
-                </select>
+        </div>
+        <div class="filters-actions-row">
+            <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+            <a href="{% url 'liderancas:lassberg_list' %}" class="btn btn-outline btn-sm">Limpar</a>
+            <span class="fa-spacer"></span>
+            <div class="col-menu">
+                <button type="button" class="tool-btn" onclick="toggleColMenu()">Colunas ▾</button>
+                <div class="col-menu-pop" id="colMenuPop">
+                    <label><input type="checkbox" data-col="email"> E-mail</label>
+                    <label><input type="checkbox" data-col="cadpor"> Cadastrado por</label>
+                </div>
             </div>
-            <div class="filter-group">
-                <label>Cidade (SC)</label>
-                <select name="cidade" id="filtroCidade">
-                    <option value="">Todas</option>
-                    {% for c in cidades_filtro %}
-                    <option value="{{ c.id }}" {% if cidade_filtro == c.id|stringformat:"d" %}selected{% endif %}>{{ c.nome }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="filter-actions">
-                <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
-                <a href="{% url 'liderancas:lassberg_list' %}" class="btn btn-outline btn-sm">Limpar</a>
-            </div>
+            <button type="button" class="tool-btn" onclick="toggleDensity()">Densidade</button>
         </div>
     </form>
 </div>
 
+{% if filtros_ativos %}
+<div class="chips-bar">
+    <span class="chips-label">Filtros ativos:</span>
+    {% for f in filtros_ativos %}
+    <a class="chip" href="?{{ f.remove_qs }}" title="Remover {{ f.label }}"><span class="chip-k">{{ f.label }}:</span> {{ f.display }} <span class="chip-x">&times;</span></a>
+    {% endfor %}
+    <a class="chip chip-clear" href="{% url 'liderancas:lassberg_list' %}">Limpar tudo</a>
+</div>
+{% endif %}
+
+<div class="bulk-bar" id="bulkBar">
+    <span><span class="count" id="bulkCount">0</span> selecionado(s)</span>
+    <select id="bulkAction">
+        <option value="">— Ação em massa —</option>
+        <option value="export_csv">Exportar selecionados (CSV)</option>
+        <option value="delete">Excluir selecionados</option>
+    </select>
+    <button type="button" class="btn btn-primary btn-sm" onclick="applyBulk()">Aplicar</button>
+</div>
+
+<form method="post" action="{% url 'liderancas:lassberg_bulk' %}" id="bulkForm">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <input type="hidden" name="bulk_action" id="bulkActionInput">
+</form>
+
 <div class="card" style="padding:0; overflow:hidden;">
-<div class="table-scroll">
+<div class="table-scroll" id="tableScroll">
     <table>
         <thead>
             <tr>
+                <th class="col-check"><input type="checkbox" id="checkAll" class="row-check" onchange="toggleAll(this)"></th>
                 {% sortable_th "nome" "Nome" "" %}
                 <th>Telefone</th>
-                <th>Email</th>
+                <th class="col-opt col-email">E-mail</th>
                 {% sortable_th "cidade_nome" "Cidade" "" %}
-                {% sortable_th "estado" "Estado" "" %}
-                <th>Região</th>
-                <th>Contato</th>
+                <th class="col-opt col-cadpor">Cadastrado por</th>
                 <th>Obs.</th>
                 <th>Ações</th>
             </tr>
@@ -143,42 +180,27 @@
         <tbody>
             {% for c in page_obj %}
             <tr>
-                <td class="col-nome">{{ c.nome }}</td>
-                <td class="col-tel">{{ c.telefone|whatsapp_link }}</td>
-                <td class="col-email">{{ c.email|default:"-" }}</td>
-                <td class="col-nome">{{ c.cidade_nome|default:"-" }}</td>
-                <td>{{ c.estado|default:"-" }}</td>
-                <td>{% if c.cidade %}<span class="badge">{{ c.cidade.regiao.sigla }}</span>{% else %}-{% endif %}</td>
-                <td class="col-contato">{{ c.ultima_interacao|contact_badge }}</td>
-                <td class="col-obs">
-                    {% if c.observacoes %}
-                    <span class="obs-link" onclick="openObs(this)" data-nome="{{ c.nome|escapejs }}" data-obs="{{ c.observacoes|escapejs }}">{{ c.observacoes|truncatechars:15 }}</span>
-                    {% else %}-{% endif %}
+                <td class="col-check"><input type="checkbox" class="row-check bulk-check" form="bulkForm" name="selected_ids" value="{{ c.pk }}" onchange="updateBulk()"></td>
+                <td style="min-width:150px;">{{ c.nome }}</td>
+                <td class="nw">{{ c.telefone|whatsapp_link }}</td>
+                <td class="col-opt col-email">{{ c.email|default:"-" }}</td>
+                <td>{{ c.cidade_nome|default:"-" }}{% if c.estado %} <span style="color:#94a3b8;">/ {{ c.estado }}</span>{% endif %}{% if c.cidade_id %} <span class="badge">{{ c.cidade.regiao.sigla }}</span>{% endif %}</td>
+                <td class="col-opt col-cadpor">{% if c.cadastrado_por %}{{ c.cadastrado_por.get_full_name|default:c.cadastrado_por.username }}{% else %}-{% endif %}</td>
+                <td style="min-width:80px;">
+                    {% if c.observacoes %}<span class="obs-link" onclick="openObs(this)" data-tipo="lassberg" data-pk="{{ c.pk }}" data-nome="{{ c.nome }}" data-obs="{{ c.observacoes }}">{{ c.observacoes|truncatechars:15 }}</span>{% else %}-{% endif %}
                 </td>
-                <td class="col-acoes">
+                <td class="nw" style="min-width:90px;">
                     <div class="actions">
-                        <a href="{% url 'liderancas:lassberg_edit' c.pk %}" class="btn-icon" title="Editar" onclick="return openFormModal(this.href, 'Editar Contato Lassberg')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </a>
-                        <button type="button" class="btn-icon" title="Registrar interação" onclick="openInteracao('lassberg', {{ c.pk }}, '{{ c.nome|escapejs }}')">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        </button>
-                        <button type="button" class="btn-icon" title="Histórico" onclick="showInteracoes('lassberg', {{ c.pk }})">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        </button>
+                        <a href="{% url 'liderancas:lassberg_edit' c.pk %}" class="btn-icon" data-tip="Editar" onclick="return openFormModal(this.href, 'Editar Contato Lassberg')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></a>
                         <form method="post" action="{% url 'liderancas:lassberg_delete' c.pk %}" onsubmit="return confirm('Remover este contato?')" style="display:inline;">
                             {% csrf_token %}
-                            <button type="submit" class="btn-icon danger" title="Excluir">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            </button>
+                            <button type="submit" class="btn-icon danger" data-tip="Excluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                         </form>
                     </div>
                 </td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="9" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum contato encontrado.</td>
-            </tr>
+            <tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum contato encontrado.</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -187,62 +209,10 @@
 </div>
 
 <div class="modal-overlay" id="obsModal" onclick="if(event.target===this)closeObs()">
-    <div class="modal-box">
-        <div class="modal-header">
-            <span class="modal-title" id="obsTitle"></span>
-            <button class="modal-close" onclick="closeObs()">&times;</button>
-        </div>
-        <div class="modal-body" id="obsBody"></div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="intModal" onclick="if(event.target===this)closeInt()">
-    <div class="modal-box" style="width:600px;">
-        <div class="modal-header">
-            <span class="modal-title" id="intTitle"></span>
-            <button class="modal-close" onclick="closeInt()">&times;</button>
-        </div>
-        <div class="modal-body" id="intBody" style="max-height:400px;overflow-y:auto;"></div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="addIntModal" onclick="if(event.target===this)closeAddInt()">
-    <div class="modal-box" style="width:520px;">
-        <div class="modal-header">
-            <span class="modal-title" id="addIntTitle"></span>
-            <button class="modal-close" onclick="closeAddInt()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="addIntForm" onsubmit="return submitInteracao(event)">
-                {% csrf_token %}
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                    <div>
-                        <label class="modal-label">Tipo *</label>
-                        <select name="tipo" class="form-input" required>
-                            <option value="">---------</option>
-                            <option value="ligacao">Ligação</option>
-                            <option value="visita">Visita</option>
-                            <option value="reuniao">Reunião</option>
-                            <option value="whatsapp">WhatsApp</option>
-                            <option value="email">E-mail</option>
-                            <option value="evento">Evento</option>
-                            <option value="outro">Outro</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="modal-label">Data *</label>
-                        <input type="datetime-local" name="data" class="form-input" required>
-                    </div>
-                </div>
-                <div style="margin-bottom:10px;">
-                    <label class="modal-label">Descrição *</label>
-                    <textarea name="descricao" class="form-input" rows="3" placeholder="Descreva a interação..." required></textarea>
-                </div>
-                <div style="display:flex;gap:8px;padding-top:4px;">
-                    <button type="submit" class="btn btn-primary btn-sm">Registrar</button>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="closeAddInt()">Cancelar</button>
-                </div>
-            </form>
+    <div class="modal-box" style="width:520px;"><div class="modal-header"><span class="modal-title" id="obsTitle"></span><button class="modal-close" onclick="closeObs()">&times;</button></div><div class="modal-body" id="obsBody"></div>
+        <div class="modal-body" style="padding-top:0;display:flex;align-items:center;gap:10px;">
+            <button type="button" class="ia-clean-btn" id="obsIaBtn" onclick="limparObs()" title="Corrigir e organizar o texto com IA e salvar">✨ Limpar com IA</button>
+            <span id="obsIaStatus" style="font-size:.8rem;color:#6b7280;"></span>
         </div>
     </div>
 </div>
@@ -250,76 +220,110 @@
 
 {% block extra_js %}
 <script>
-function openObs(el) {
-    document.getElementById('obsTitle').textContent = el.dataset.nome + ' — Observações';
-    document.getElementById('obsBody').textContent = el.dataset.obs;
-    document.getElementById('obsModal').classList.add('active');
+// Multi-select dropdowns (checkbox)
+function updateMsLabel(ms) {
+    var sel = Array.from(ms.querySelectorAll('input[type=checkbox]')).filter(function (c) { return c.checked; });
+    var lbl = ms.querySelector('.ms-label'), btn = ms.querySelector('.ms-btn');
+    if (sel.length === 0) { lbl.textContent = ms.dataset.placeholder || 'Todas'; btn.classList.remove('has-sel'); }
+    else if (sel.length === 1) { lbl.textContent = sel[0].parentNode.textContent.trim(); btn.classList.add('has-sel'); }
+    else { lbl.textContent = sel.length + ' selecionadas'; btn.classList.add('has-sel'); }
 }
-function closeObs() {
-    document.getElementById('obsModal').classList.remove('active');
+function toggleMs(btn) {
+    var ms = btn.closest('.ms'), wasOpen = ms.classList.contains('open');
+    document.querySelectorAll('.ms.open').forEach(function (m) { m.classList.remove('open'); });
+    if (!wasOpen) ms.classList.add('open');
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeObs(); closeInt(); closeAddInt(); } });
+document.addEventListener('click', function (e) { if (!e.target.closest('.ms')) document.querySelectorAll('.ms.open').forEach(function (m) { m.classList.remove('open'); }); });
+document.querySelectorAll('.ms').forEach(function (ms) {
+    updateMsLabel(ms);
+    ms.querySelectorAll('input[type=checkbox]').forEach(function (c) { c.addEventListener('change', function () { updateMsLabel(ms); }); });
+});
 
-var _intTipo = '', _intPk = 0;
-function openInteracao(tipo, pk, nome) {
-    _intTipo = tipo; _intPk = pk;
-    document.getElementById('addIntTitle').textContent = 'Nova Interação — ' + nome;
-    document.getElementById('addIntForm').reset();
-    var now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    document.querySelector('#addIntForm [name=data]').value = now.toISOString().slice(0, 16);
-    document.getElementById('addIntModal').classList.add('active');
+// Cidade em cascata: quando exatamente 1 região marcada
+function cidadeFromRegioes() {
+    var fc = document.getElementById('filtroCidade'); if (!fc) return;
+    var checked = Array.from(document.querySelectorAll('#msRegiao input:checked')).map(function (c) { return c.value; });
+    if (checked.length !== 1) return;
+    fetch('/liderancas/api/cidades/' + checked[0] + '/').then(function (r) { return r.json(); }).then(function (cs) {
+        fc.innerHTML = '<option value="">Todas</option>';
+        cs.forEach(function (c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.nome; fc.appendChild(o); });
+    });
 }
-function closeAddInt() { document.getElementById('addIntModal').classList.remove('active'); }
-function submitInteracao(e) {
-    e.preventDefault();
-    var form = document.getElementById('addIntForm');
-    var fd = new FormData(form);
-    fetch('/liderancas/interacao/' + _intTipo + '/' + _intPk + '/ajax/', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) { closeAddInt(); location.reload(); }
-            else { alert(data.error || Object.values(data.errors || {}).join('\n') || 'Erro ao salvar.'); }
-        })
-        .catch(() => alert('Erro de conexão.'));
-    return false;
-}
-function showInteracoes(tipo, pk) {
-    document.getElementById('intTitle').textContent = 'Histórico de Interações';
-    document.getElementById('intBody').innerHTML = '<p style="color:#9ca3af;text-align:center;">Carregando...</p>';
-    document.getElementById('intModal').classList.add('active');
-    fetch(`/liderancas/interacao/${tipo}/${pk}/lista/`)
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('intTitle').textContent = `Interações — ${data.nome}`;
-            if (!data.interacoes.length) {
-                document.getElementById('intBody').innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px;">Nenhuma interação registrada.</p>';
-                return;
-            }
-            let html = '<table class="int-table"><thead><tr><th>Tipo</th><th>Descrição</th><th>Data</th><th>Por</th></tr></thead><tbody>';
-            data.interacoes.forEach(i => {
-                html += `<tr><td><span class="badge">${i.tipo}</span></td><td class="int-desc">${i.descricao}</td><td class="int-date">${i.data}</td><td class="int-user">${i.registrado_por}</td></tr>`;
-            });
-            html += '</tbody></table>';
-            document.getElementById('intBody').innerHTML = html;
-        });
-}
-function closeInt() { document.getElementById('intModal').classList.remove('active'); }
+document.querySelectorAll('#msRegiao input[type=checkbox]').forEach(function (c) { c.addEventListener('change', cidadeFromRegioes); });
 
-function onRegiaoChange() {
-    var regiaoId = document.getElementById('filtroRegiao').value;
-    var cidadeSelect = document.getElementById('filtroCidade');
-    cidadeSelect.innerHTML = '<option value="">Todas</option>';
-    if (!regiaoId) return;
-    fetch('/liderancas/api/cidades/' + regiaoId + '/')
-        .then(function(r) { return r.json(); })
-        .then(function(cidades) {
-            cidades.forEach(function(c) {
-                var opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.nome;
-                cidadeSelect.appendChild(opt);
-            });
-        });
+// Colunas opcionais (localStorage)
+var COL_KEY = 'lassberg_cols';
+function applyCols(state) {
+    document.querySelectorAll('#colMenuPop input[data-col]').forEach(function (chk) {
+        var on = !!state[chk.dataset.col]; chk.checked = on;
+        document.querySelectorAll('.col-' + chk.dataset.col).forEach(function (el) { el.style.display = on ? '' : 'none'; });
+    });
 }
+function loadCols() { try { return JSON.parse(localStorage.getItem(COL_KEY)) || {}; } catch (e) { return {}; } }
+(function () {
+    applyCols(loadCols());
+    document.querySelectorAll('#colMenuPop input[data-col]').forEach(function (chk) {
+        chk.addEventListener('change', function () { var st = loadCols(); st[chk.dataset.col] = chk.checked; localStorage.setItem(COL_KEY, JSON.stringify(st)); applyCols(st); });
+    });
+})();
+function toggleColMenu() { document.getElementById('colMenuPop').classList.toggle('open'); }
+document.addEventListener('click', function (e) { if (!e.target.closest('.col-menu')) document.getElementById('colMenuPop').classList.remove('open'); });
+
+// Densidade
+if (localStorage.getItem('lassberg_dense') === '1') document.getElementById('tableScroll').classList.add('dense');
+function toggleDensity() { var t = document.getElementById('tableScroll'); t.classList.toggle('dense'); localStorage.setItem('lassberg_dense', t.classList.contains('dense') ? '1' : '0'); }
+
+// Encaixa a planilha até o rodapé
+function fitTable() {
+    var ts = document.getElementById('tableScroll'); if (!ts) return;
+    var top = ts.getBoundingClientRect().top;
+    var pag = ts.nextElementSibling, pagH = pag ? pag.offsetHeight : 0;
+    var h = Math.floor(window.innerHeight - top - pagH - 20);
+    ts.style.maxHeight = (h > 200 ? h : 200) + 'px';
+}
+window.addEventListener('resize', fitTable);
+window.addEventListener('load', fitTable);
+fitTable();
+
+// Seleção em massa
+function toggleAll(el) { document.querySelectorAll('.bulk-check').forEach(function (c) { c.checked = el.checked; }); updateBulk(); }
+function updateBulk() { var n = document.querySelectorAll('.bulk-check:checked').length; document.getElementById('bulkCount').textContent = n; document.getElementById('bulkBar').classList.toggle('active', n > 0); }
+function applyBulk() {
+    var n = document.querySelectorAll('.bulk-check:checked').length;
+    if (!n) { alert('Selecione ao menos um registro.'); return; }
+    var a = document.getElementById('bulkAction').value;
+    if (!a) { alert('Escolha uma ação.'); return; }
+    if (a === 'delete' && !confirm('Excluir os ' + n + ' registro(s) selecionado(s)?')) return;
+    document.getElementById('bulkActionInput').value = a;
+    document.getElementById('bulkForm').submit();
+}
+
+// Observações
+var _obsEl = null;
+function openObs(el) { _obsEl = el; document.getElementById('obsTitle').textContent = el.dataset.nome + ' — Observações'; document.getElementById('obsBody').textContent = el.dataset.obs; document.getElementById('obsIaStatus').textContent = ''; document.getElementById('obsModal').classList.add('active'); }
+function closeObs() { document.getElementById('obsModal').classList.remove('active'); }
+function _iaCsrf() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || ''; }
+function limparObs() {
+    if (!_obsEl) return;
+    var btn = document.getElementById('obsIaBtn'), st = document.getElementById('obsIaStatus');
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = '✨ Limpando…'; st.textContent = '';
+    fetch('/liderancas/api/limpar-salvar/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _iaCsrf() },
+        body: JSON.stringify({ tipo: _obsEl.dataset.tipo, pk: _obsEl.dataset.pk })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+            if (res.ok && res.j.text) {
+                var t = res.j.text;
+                document.getElementById('obsBody').textContent = t;
+                _obsEl.dataset.obs = t;
+                _obsEl.textContent = t.length > 15 ? t.slice(0, 15) + '…' : t;
+                st.style.color = '#047857'; st.textContent = 'Revisado e salvo ✓';
+            } else { st.style.color = '#b91c1c'; st.textContent = res.j.error || 'Não foi possível limpar.'; }
+        }).catch(function () { st.style.color = '#b91c1c'; st.textContent = 'Falha de conexão.'; })
+        .finally(function () { btn.disabled = false; btn.textContent = label; });
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeObs(); } });
+document.addEventListener('keydown', function (e) { if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); document.querySelector('#filtrosForm [name=busca]').focus(); } });
 </script>
 {% endblock %}

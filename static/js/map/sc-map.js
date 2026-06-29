@@ -11,6 +11,10 @@ class SCMap {
         this.onRegionClick = null;
         this.onCityClick = null;
         this.mapMode = 'regioes';
+        // Índice de cruzamento por cidade (StrategicAnalysisAPI) — usado para
+        // anexar o "dossiê cruzado" a QUALQUER tooltip de cidade, em todos os modos.
+        this._cross = null;
+        this._crossAvg = 0;
         this.width = 900;
         this.height = 550;
         this.heatmapEnabled = false;
@@ -404,6 +408,8 @@ class SCMap {
     }
 
     init() {
+        // Carrega o índice de cruzamento (uma vez) p/ os dossiês de cidade
+        this._loadCross();
         // Limpar SVG existente
         d3.select(`#${this.containerId}`).select('svg').remove();
 
@@ -485,9 +491,87 @@ class SCMap {
         container.appendChild(div);
     }
 
-    _showTip(html, x, y) {
+    // Carrega o índice de cruzamento (StrategicAnalysisAPI já cruza eleitoral +
+    // estrutura + IBGE + CRM por cidade) e indexa por slug. Falha em silêncio.
+    _loadCross() {
+        fetch('/mapa/api/strategic/')
+            .then(r => r.json())
+            .then(d => {
+                this._crossAvg = d.avg_penetration || 0;
+                const ix = {};
+                (d.cities || []).forEach(c => { ix[c.slug] = c; });
+                this._cross = ix;
+            })
+            .catch(() => { /* sem cruzamento → tooltips seguem normais */ });
+    }
+
+    // Motor de decisão transparente: deriva o verbo da classificação que o backend
+    // já calcula (auditável), temperada por aliados e lacuna. Só dado real.
+    _decision(e) {
+        const aliados = (e.politicos && e.politicos.aliados) || 0;
+        const gap = e.gap || 0;
+        const cls = e.classification;
+        if (cls === 'hostil') return aliados > 0
+            ? { v: 'carona', l: 'CARONA', c: '#7c3aed', why: 'território adversário, mas você tem aliado: entre pela carona' }
+            : { v: 'ignorar', l: 'IGNORAR', c: '#64748b', why: 'território do adversário, sem aliado seu' };
+        if (cls === 'disputa') return { v: 'blindar', l: 'BLINDAR', c: '#1d4ed8', why: 'cidade em disputa: defenda/dispute o terreno' };
+        if (cls === 'maquina_voto') return { v: 'blindar', l: 'BLINDAR', c: '#1d4ed8', why: 'aliado + cabos ativos: proteja a máquina e colha' };
+        if (cls === 'aliado_ativar') return { v: 'carona', l: 'CARONA', c: '#7c3aed', why: 'aliado dormindo (sem cabo): ative a estrutura dele' };
+        if (cls === 'construir') return { v: 'expandir', l: 'EXPANDIR', c: '#15803d', why: `lacuna de ${gap.toLocaleString('pt-BR')} votos e sem aliado: recrute e cresça` };
+        return gap >= 120
+            ? { v: 'expandir', l: 'EXPANDIR', c: '#15803d', why: 'há voto a conquistar — avalie o perfil para a abordagem' }
+            : { v: 'ignorar', l: 'IGNORAR', c: '#64748b', why: 'pouco voto disponível — não priorizar' };
+    }
+
+    // Bloco de dossiê cruzado anexado a qualquer tooltip de cidade. Nunca lança.
+    _crossBlock(slug) {
+        try {
+            if (!this._cross || !slug) return '';
+            const e = this._cross[slug];
+            if (!e) return '';
+            const n = v => (v || 0).toLocaleString('pt-BR');
+            const voters = e.registered_voters || 0;
+            const dens = voters > 0 ? (e.apoiadores || 0) / (voters / 1000) : 0;
+            const pen = e.penetration || 0;
+            const avg = this._crossAvg || 0;
+            const pol = e.politicos || {};
+            const crm = e.crm || {};
+            const dec = this._decision(e);
+            const dens1 = dens.toFixed(1).replace('.', ',');
+            const row = (lbl, val) => `<div class="xc-row"><span class="xc-k">${lbl}</span><span class="xc-v">${val}</span></div>`;
+            let h = '<div class="xc-sep"></div>';
+            h += `<div class="xc-decision" style="border-color:${dec.c}"><span class="xc-badge" style="background:${dec.c}">${dec.l}</span><span class="xc-why">${dec.why}</span></div>`;
+            // Potencial eleitoral (real)
+            const cmp = avg ? (pen >= avg * 1.1 ? '<span style="color:#15803d">acima da média</span>' : pen < avg * 0.9 ? '<span style="color:#dc2626">abaixo da média</span>' : '<span style="color:#64748b">na média</span>') : '';
+            h += row('Penetração 2022', `${String(pen).replace('.', ',')}%${cmp ? ' — ' + cmp : ''}`);
+            if (e.gap) h += row('Lacuna para a meta', `<span style="color:#15803d;font-weight:700">+${n(e.gap)} votos</span>`);
+            // Minha rede (real) — separado para nunca cortar
+            h += row('Apoiadores na rede', n(e.apoiadores));
+            h += row('Densidade da rede', `${dens1} por mil eleitores`);
+            const estr = [];
+            estr.push(crm.has_coordinator ? 'com coordenador' : 'sem coordenador');
+            if (crm.cabos) estr.push(`${crm.cabos} ${crm.cabos === 1 ? 'cabo eleitoral' : 'cabos eleitorais'}`);
+            h += row('Estrutura local', estr.join(' · '));
+            if (crm.demandas_vencidas) h += row('Demandas vencidas', `<span style="color:#dc2626;font-weight:700">${n(crm.demandas_vencidas)}</span>`);
+            // Palanque / aliados (real)
+            if (pol.aliados) {
+                h += row('Aliados na cidade', n(pol.aliados));
+                if (pol.votos_maquina) h += row('Votos de máquina', n(pol.votos_maquina));
+            }
+            // Concorrência (real)
+            if (e.adversario_nome) h += row('Adversário', `${e.adversario_nome}${e.adversario_partido ? ` (${e.adversario_partido})` : ''}`);
+            // Perfil socioeconômico (PIB oficial ● ; renda estimada ○)
+            if (e.ibge) {
+                if (e.ibge.pib_per_capita != null) h += row('PIB per capita <span class="xc-real">(oficial)</span>', `R$ ${n(e.ibge.pib_per_capita)}`);
+                if (e.ibge.renda_per_capita != null) h += row('Renda per capita <span class="xc-proxy">(estimada)</span>', `R$ ${n(Math.round(e.ibge.renda_per_capita))}`);
+            }
+            return h;
+        } catch (_) { return ''; }
+    }
+
+    _showTip(html, x, y, slug) {
         const t = this._tip;
-        t.innerHTML = html;
+        t.innerHTML = html + (slug ? this._crossBlock(slug) : '');
         t.style.transform = `translate3d(${x + 14}px, ${y - 14}px, 0)`;
         t.style.opacity = '1';
     }
@@ -653,7 +737,7 @@ class SCMap {
             for (const key of soKeys) {
                 if (c[key] === undefined) continue;
                 let val = '';
-                if (key === 'pib') val = 'R$ ' + (c.pib_raw || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0});
+                if (key === 'pib') val = 'R$ ' + (c.pib_pc || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0});
                 else if (key === 'renda') val = 'R$ ' + (c.renda_raw || 0).toLocaleString('pt-BR', {maximumFractionDigits: 0}) + '/mês';
                 else if (key === 'bf') {
                     const fam = c.bf_raw || 0;
@@ -715,7 +799,7 @@ class SCMap {
             .on('mouseenter', (event, d) => {
                 self.g.selectAll('path.perfil-city').attr('stroke', '#94a3b8').attr('stroke-width', 0.6);
                 d3.select(event.currentTarget).attr('stroke', '#475569').attr('stroke-width', 1.4);
-                self._showTip(self._perfilTipHtml(d), event.pageX, event.pageY);
+                self._showTip(self._perfilTipHtml(d), event.pageX, event.pageY, d.properties.slug);
             })
             .on('mousemove', (event) => { self._moveTip(event.pageX, event.pageY); })
             .on('mouseleave', () => {
@@ -901,7 +985,7 @@ class SCMap {
             .on('mouseenter', (event, d) => {
                 self.g.selectAll('path.concorrencia-city').attr('stroke', '#94a3b8').attr('stroke-width', 0.6);
                 d3.select(event.currentTarget).attr('stroke', '#475569').attr('stroke-width', 1.4);
-                self._showTip(self._concorrenciaTipHtml(d), event.pageX, event.pageY);
+                self._showTip(self._concorrenciaTipHtml(d), event.pageX, event.pageY, d.properties.slug);
             })
             .on('mousemove', (event) => { self._moveTip(event.pageX, event.pageY); })
             .on('mouseleave', () => {
@@ -1162,7 +1246,7 @@ class SCMap {
             .attr('stroke-width', 0.4)
             .attr('cursor', 'pointer')
             .on('mouseenter', (event, d) => {
-                self._showTip(buildTip(d.properties.name, d.properties.slug), event.pageX, event.pageY);
+                self._showTip(buildTip(d.properties.name, d.properties.slug), event.pageX, event.pageY, d.properties.slug);
             })
             .on('mousemove', (event) => { self._moveTip(event.pageX, event.pageY); })
             .on('mouseleave', () => { self._hideTip(); })
@@ -1869,7 +1953,7 @@ class SCMap {
         }
         this.g.selectAll('path.region')
             .on('mouseenter', (event, d) => {
-                this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY);
+                this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY, d.properties.slug);
             });
     }
 
@@ -2016,7 +2100,7 @@ class SCMap {
         }
         this.g.selectAll('path.city')
             .on('mouseenter', (event, d) => {
-                this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY);
+                this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY, d.properties.slug);
             })
             .on('click', (event, d) => {
                 this._hideTip();
@@ -2078,7 +2162,7 @@ class SCMap {
                 .attr('stroke-width', 1.2)
                 .attr('cursor', 'pointer')
                 .on('mouseenter', (event, d) => {
-                    this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY);
+                    this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY, d.properties.slug);
                 })
                 .on('mousemove', (event) => {
                     this._moveTip(event.pageX, event.pageY);
@@ -2180,7 +2264,7 @@ class SCMap {
                 .attr('stroke-width', 1)
                 .attr('cursor', 'pointer')
                 .on('mouseenter', (event, d) => {
-                    this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY);
+                    this._showTip(tipHtmls.get(d.properties.slug), event.pageX, event.pageY, d.properties.slug);
                 })
                 .on('mousemove', (event) => {
                     this._moveTip(event.pageX, event.pageY);

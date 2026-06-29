@@ -7,6 +7,10 @@ urlpatterns = [
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
 
+    # Lista unificada de Lideranças (com filtro por papel)
+    path('', views.lideranca_list, name='lideranca_list'),
+    path('bulk/', views.lideranca_bulk_action, name='lideranca_bulk'),
+
     # Coordenadores Regionais
     path('coordenadores/', views.coordenador_list, name='coordenador_list'),
     path('coordenadores/novo/', views.coordenador_create, name='coordenador_create'),
@@ -25,17 +29,16 @@ urlpatterns = [
     path('apoiadores/<int:pk>/editar/', views.apoiador_edit, name='apoiador_edit'),
     path('apoiadores/<int:pk>/excluir/', views.apoiador_delete, name='apoiador_delete'),
 
-    # Fila de Relacionamento
-    path('fila/', views.fila_relacionamento, name='fila_relacionamento'),
-
     # Egressos
     path('egressos/', views.egresso_list, name='egresso_list'),
+    path('egressos/bulk/', views.egresso_bulk, name='egresso_bulk'),
     path('egressos/novo/', views.egresso_create, name='egresso_create'),
     path('egressos/<int:pk>/editar/', views.egresso_edit, name='egresso_edit'),
     path('egressos/<int:pk>/excluir/', views.egresso_delete, name='egresso_delete'),
 
     # Lassberg
     path('lassberg/', views.lassberg_list, name='lassberg_list'),
+    path('lassberg/bulk/', views.lassberg_bulk, name='lassberg_bulk'),
     path('lassberg/novo/', views.lassberg_create, name='lassberg_create'),
     path('lassberg/<int:pk>/editar/', views.lassberg_edit, name='lassberg_edit'),
     path('lassberg/<int:pk>/excluir/', views.lassberg_delete, name='lassberg_delete'),
@@ -45,6 +48,7 @@ urlpatterns = [
     path('mobilizacao/novo/', views.mobilizacao_create, name='mobilizacao_create'),
     path('mobilizacao/<int:pk>/editar/', views.mobilizacao_edit, name='mobilizacao_edit'),
     path('mobilizacao/<int:pk>/excluir/', views.mobilizacao_delete, name='mobilizacao_delete'),
+    path('mobilizacao/bulk/', views.mobilizacao_bulk, name='mobilizacao_bulk'),
 
     # Ações em massa
     path('bulk-action/', views.bulk_action, name='bulk_action'),
@@ -59,4 +63,8 @@ urlpatterns = [
 
     # API cidades por região (para JS dinâmico)
     path('api/cidades/<int:regiao_id>/', views.api_cidades, name='api_cidades'),
+
+    # Limpeza de Observações com IA (Claude)
+    path('api/limpar/', views.api_limpar_texto, name='api_limpar'),
+    path('api/limpar-salvar/', views.api_limpar_salvar, name='api_limpar_salvar'),
 ]

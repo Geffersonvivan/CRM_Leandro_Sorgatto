@@ -120,7 +120,7 @@ def usuario_toggle(request, pk):
 def usuario_pwa_list(request):
     from django.db.models import Q, Count
     usuarios = Usuario.objects.filter(vinculo__in=['coordenador', 'cabo', 'replicador']).annotate(
-        total_apoiadores=Count('apoiadores_cadastrados')
+        total_apoiadores=Count('liderancas_cadastradas', filter=Q(liderancas_cadastradas__papel='apoiador', liderancas_cadastradas__aprovacao='aprovado'))
     )
 
     busca = request.GET.get('busca', '')

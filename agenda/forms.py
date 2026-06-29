@@ -5,7 +5,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils import timezone
 from liderancas.models import Cidade
-from liderancas.models import Regiao, CoordenadorRegional, CaboEleitoral, Apoiador
+from liderancas.models import Regiao, Lideranca
 from .models import Compromisso, Evento, Roteiro, RoteiroPonto
 
 
@@ -14,15 +14,15 @@ class CompromissoForm(forms.ModelForm):
     # contatos do modal (populado via API por região/cidade); os campos aqui
     # só validam e salvam os IDs postados.
     coordenadores = forms.ModelMultipleChoiceField(
-        queryset=CoordenadorRegional.objects.all(), required=False,
+        queryset=Lideranca.objects.filter(papel='coordenador'), required=False,
         widget=forms.MultipleHiddenInput,
     )
     cabos = forms.ModelMultipleChoiceField(
-        queryset=CaboEleitoral.objects.all(), required=False,
+        queryset=Lideranca.objects.filter(papel='cabo'), required=False,
         widget=forms.MultipleHiddenInput,
     )
     apoiadores = forms.ModelMultipleChoiceField(
-        queryset=Apoiador.objects.all(), required=False,
+        queryset=Lideranca.objects.filter(papel='apoiador'), required=False,
         widget=forms.MultipleHiddenInput,
     )
     aliados = forms.ModelMultipleChoiceField(

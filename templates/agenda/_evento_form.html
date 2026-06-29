@@ -1,0 +1,96 @@
+<form id="evento-modal-form" method="post" action="{{ action }}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-grid">
+        <div class="form-group full">
+            <label for="id_nome">Nome do Evento *</label>
+            {{ form.nome }}
+            {{ form.nome.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_tipo">Tipo *</label>
+            {{ form.tipo }}
+            {{ form.tipo.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_data">Data *</label>
+            {{ form.data }}
+            {{ form.data.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_horario_inicio">Horário Início</label>
+            {{ form.horario_inicio }}
+            {{ form.horario_inicio.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_horario_fim">Horário Fim</label>
+            {{ form.horario_fim }}
+            {{ form.horario_fim.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_regiao">Região</label>
+            {{ form.regiao }}
+            {{ form.regiao.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_cidade">Cidade *</label>
+            {{ form.cidade }}
+            {{ form.cidade.errors }}
+        </div>
+        <div class="form-group full">
+            <label for="id_local">Local / Endereço</label>
+            {{ form.local }}
+            {{ form.local.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_publico_estimado">Público Estimado</label>
+            {{ form.publico_estimado }}
+            {{ form.publico_estimado.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_relevancia">Relevância Política</label>
+            {{ form.relevancia }}
+            {{ form.relevancia.errors }}
+        </div>
+        <div class="form-group">
+            <label for="id_status">Status</label>
+            {{ form.status }}
+            {{ form.status.errors }}
+        </div>
+        {% if form.aliados.field.queryset.exists %}
+        <div class="form-group full">
+            <label>🎤 Aliados de chapa presentes</label>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;">
+                {% for ch in form.aliados %}<label style="display:flex;align-items:center;gap:5px;font-size:.88rem;cursor:pointer;">{{ ch.tag }} {{ ch.choice_label }}</label>{% endfor %}
+            </div>
+            <span style="font-size:0.72rem;color:#94a3b8;">O mapa de Transferência cruza com os redutos dos aliados marcados.</span>
+            {{ form.aliados.errors }}
+        </div>
+        {% endif %}
+        <div class="form-group full">
+            <label for="id_observacoes">Observações</label>
+            {{ form.observacoes }}
+            <span style="font-size:0.72rem;color:#94a3b8;">{{ form.fields.observacoes.help_text }}</span>
+            {{ form.observacoes.errors }}
+        </div>
+        <div class="form-group full">
+            <label for="id_resultado">Resultado / Avaliação</label>
+            {{ form.resultado }}
+            <span style="font-size:0.72rem;color:#94a3b8;">{{ form.fields.resultado.help_text }}</span>
+            {{ form.resultado.errors }}
+        </div>
+        <div class="form-group full">
+            <label for="id_imagem">Imagem do Evento</label>
+            {% if form.instance.imagem %}
+            <div style="margin-bottom:8px;">
+                <img src="{{ form.instance.imagem.url }}" alt="Imagem atual" style="max-width:180px;border-radius:8px;border:1px solid #e2e8f0;">
+            </div>
+            {% endif %}
+            {{ form.imagem }}
+            {{ form.imagem.errors }}
+        </div>
+    </div>
+    <div class="form-actions" style="margin-top:18px;display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Salvar{% else %}Cadastrar{% endif %}</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+    </div>
+</form>

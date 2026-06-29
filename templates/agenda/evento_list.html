@@ -38,6 +38,8 @@
 
 {% block content %}
 
+{% include 'agenda/_section_nav.html' %}
+
 <div class="page-header">
     <h1 class="page-title" data-tip="Eventos externos da comunidade que o candidato pode participar. Inaugurações, festas, encontros, feiras, etc.">Eventos <span class="page-subtitle">{{ total }} registros</span></h1>
     <a href="{% url 'agenda:evento_create' %}" class="btn btn-primary">

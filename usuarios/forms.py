@@ -18,19 +18,17 @@ SECOES_CHOICES = [
     # Equipes
     ('equipes', 'Equipes'),
     ('equipes:mobilizacao', '— Mobilização'),
+    ('equipes:aprovar', '— Aprovar voluntários do app'),
     # Lideranças
     ('liderancas', 'Lideranças'),
-    ('liderancas:apoiadores', '— Apoiadores'),
-    ('liderancas:cabos_eleitorais', '— Cabos Eleitorais'),
-    ('liderancas:coordenador_regional', '— Coordenador Regional'),
+    ('liderancas:lista', '— Lideranças'),
     ('liderancas:egressos', '— Egressos'),
-    ('liderancas:fila', '— Fila de Relacionamento'),
     ('liderancas:lassberg', '— Lassberg'),
+    ('liderancas:aprovar', '— Aprovar leads do app'),
     # Mapa
     ('mapa', 'Mapa'),
     ('mapa:demandas', '— Demandas'),
     ('mapa:dep_aliados', '— Dep. Aliados'),
-    ('mapa:doacoes', '— Doações'),
     ('mapa:eleicoes_2022', '— Eleições 2022'),
     ('mapa:estrategico', '— Estratégico'),
     ('mapa:mapa_calor', '— Mapa de Calor'),

@@ -74,12 +74,12 @@
 </div>
 
 <div class="cv-ciclo">
-    <a class="cv-passo" href="{% url 'liderancas:fila_relacionamento' %}">
+    <a class="cv-passo" href="{% url 'liderancas:lideranca_list' %}">
         <span class="num">1</span>
-        <span class="emoji">⏰</span>
-        <h3>A Fila avisa</h3>
-        <p>A <strong>Fila de Relacionamento</strong> cruza a frequência combinada com cada contato (semanal, quinzenal, mensal) e mostra quem está esquecido — o mais urgente no topo.</p>
-        <span class="ir">Abrir a Fila →</span>
+        <span class="emoji">👥</span>
+        <h3>A base organizada</h3>
+        <p>Em <strong>Lideranças</strong> ficam coordenadores, cabos e apoiadores numa só lista — com a frequência de relacionamento combinada com cada contato e o registro de interações.</p>
+        <span class="ir">Abrir Lideranças →</span>
     </a>
     <a class="cv-passo" href="{% url 'agenda:compromisso_list' %}">
         <span class="num">2</span>
@@ -124,7 +124,6 @@
     <h2>Tours guiados</h2>
     <p style="font-size:0.85rem;color:#64748b;margin-bottom:14px;">Reveja o passo a passo iluminado em cada tela:</p>
     <div class="cv-tours">
-        <a class="cv-tour-btn" href="{% url 'liderancas:fila_relacionamento' %}?tour=1">⏰ Tour da Fila</a>
         <a class="cv-tour-btn" href="{% url 'agenda:compromisso_list' %}?tour=1">📅 Tour da Agenda</a>
         <a class="cv-tour-btn" href="{% url 'agenda:roteiro_list' %}?tour=1">🗺️ Tour dos Roteiros</a>
     </div>

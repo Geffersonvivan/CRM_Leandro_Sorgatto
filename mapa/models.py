@@ -94,6 +94,16 @@ class IndicadorMunicipal(models.Model):
     def __str__(self):
         return f'{self.cidade.nome} ({self.ano_referencia})'
 
+    @property
+    def pib_per_capita(self):
+        """PIB per capita em R$ por habitante. `pib` é armazenado em R$ mil
+        (verbose_name), logo ×1000 / população. Fonte única para popup, CSV e
+        APIs — evita a divergência de 1000× já corrigida no balão (CLAUDE.md §5.3).
+        Sem população (>0) → None (sem dado; não entra em cálculo/exibição)."""
+        if not self.populacao or self.populacao <= 0:
+            return None
+        return float(self.pib) * 1000 / self.populacao
+
 
 class AliadoChapa(models.Model):
     """Aliado de chapa (cargo diferente do LS) cujos redutos de 2022 servem de

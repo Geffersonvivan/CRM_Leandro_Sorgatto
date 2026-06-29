@@ -55,15 +55,18 @@ class Compromisso(models.Model):
     )
     participantes = models.TextField(blank=True)
     coordenadores = models.ManyToManyField(
-        'liderancas.CoordenadorRegional', blank=True, related_name='compromissos',
+        'liderancas.Lideranca', blank=True, related_name='compromissos_coordenador',
+        limit_choices_to={'papel': 'coordenador'},
         verbose_name='Coordenadores participantes',
     )
     cabos = models.ManyToManyField(
-        'liderancas.CaboEleitoral', blank=True, related_name='compromissos',
+        'liderancas.Lideranca', blank=True, related_name='compromissos_cabo',
+        limit_choices_to={'papel': 'cabo'},
         verbose_name='Cabos participantes',
     )
     apoiadores = models.ManyToManyField(
-        'liderancas.Apoiador', blank=True, related_name='compromissos',
+        'liderancas.Lideranca', blank=True, related_name='compromissos_apoiador',
+        limit_choices_to={'papel': 'apoiador'},
         verbose_name='Apoiadores participantes',
     )
     interacoes_geradas = models.BooleanField(
@@ -122,10 +125,10 @@ class Compromisso(models.Model):
             f'{self.cidade.nome} ({self.data_hora_inicio:%d/%m/%Y})'
         )
         criadas = 0
-        for m2m, fk in (('coordenadores', 'coordenador'), ('cabos', 'cabo'), ('apoiadores', 'apoiador')):
+        for m2m in ('coordenadores', 'cabos', 'apoiadores'):
             for contato in getattr(self, m2m).all():
                 InteracaoLog.objects.create(
-                    **{fk: contato},
+                    lideranca=contato,
                     tipo=tipo,
                     descricao=descricao,
                     data=self.data_hora_inicio,
