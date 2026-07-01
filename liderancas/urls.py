@@ -63,6 +63,8 @@ urlpatterns = [
 
     # API cidades por região (para JS dinâmico)
     path('api/cidades/<int:regiao_id>/', views.api_cidades, name='api_cidades'),
+    # API mapa região→cidades (tooltip de cidades ao passar o mouse na região)
+    path('api/regioes-cidades/', views.api_regioes_cidades, name='api_regioes_cidades'),
 
     # Limpeza de Observações com IA (Claude)
     path('api/limpar/', views.api_limpar_texto, name='api_limpar'),

@@ -8,6 +8,7 @@ from django.db.models import Q, Max, Count
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from core.views import api_cidades as core_api_cidades
+from core.views import api_regioes_cidades as core_api_regioes_cidades
 from usuarios.views import admin_required, secao_required
 from .models import Lideranca, Voluntario, Regiao, Cidade, InteracaoLog, Egresso, Lassberg
 from .forms import CoordenadorRegionalForm, CaboEleitoralForm, ApoiadorForm, VoluntarioForm, InteracaoLogForm, EgressoForm, LassbergForm
@@ -1493,6 +1494,7 @@ def dashboard(request):
 # ==================== API ====================
 
 api_cidades = core_api_cidades
+api_regioes_cidades = core_api_regioes_cidades
 
 # Cada tipo de registro de rede está sob a sua seção de permissão (CLAUDE.md §3.7).
 # A limpeza com IA que GRAVA no registro precisa respeitar essa fronteira — senão
