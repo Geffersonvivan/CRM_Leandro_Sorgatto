@@ -6,7 +6,30 @@ from django.forms import inlineformset_factory
 from django.utils import timezone
 from liderancas.models import Cidade
 from liderancas.models import Regiao, Lideranca
-from .models import Compromisso, Evento, Roteiro, RoteiroPonto
+from .models import Compromisso, Evento, EventoAnexo, Roteiro, RoteiroPonto
+
+ANEXO_MAX_BYTES = 10 * 1024 * 1024  # 10 MB por arquivo
+
+
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    """Campo de upload que aceita vários arquivos (<input multiple>)."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault(
+            'widget',
+            MultipleFileInput(attrs={'class': 'form-input', 'accept': 'image/*,application/pdf'}),
+        )
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single = super().clean
+        if isinstance(data, (list, tuple)):
+            return [single(d, initial) for d in data]
+        return [single(data, initial)] if data else []
 
 
 class CompromissoForm(forms.ModelForm):
@@ -165,6 +188,20 @@ class EventoForm(forms.ModelForm):
         required=False,
         widget=forms.Select(attrs={'class': 'form-input', 'id': 'id_regiao'}),
     )
+    # Não faz parte do model Evento: a view grava cada arquivo como EventoAnexo.
+    anexos = MultipleFileField(required=False, label='Anexos (imagens e PDFs)')
+
+    def clean_anexos(self):
+        arquivos = self.cleaned_data.get('anexos') or []
+        extensoes = tuple('.' + e for e in EventoAnexo.EXTENSOES)
+        for f in arquivos:
+            if not f.name.lower().endswith(extensoes):
+                raise forms.ValidationError(
+                    f'"{f.name}": tipo não permitido. Use imagens ou PDF.')
+            if f.size > ANEXO_MAX_BYTES:
+                raise forms.ValidationError(
+                    f'"{f.name}": arquivo maior que 10 MB.')
+        return arquivos
 
     class Meta:
         model = Evento

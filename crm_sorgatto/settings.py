@@ -144,7 +144,9 @@ STORAGES = {
 }
 
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Configurável por env para apontar a um volume persistente em produção
+# (ex.: volume do Railway montado em /data/media). Em dev, disco local.
+MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', BASE_DIR / 'media'))
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = '/'

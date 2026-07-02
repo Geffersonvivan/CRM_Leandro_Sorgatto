@@ -95,7 +95,7 @@
                 {{ form.resultado.errors }}
             </div>
             <div class="form-group full">
-                <label for="id_imagem">Imagem do Evento</label>
+                <label for="id_imagem">Imagem de capa</label>
                 {% if form.instance.imagem %}
                 <div style="margin-bottom:8px;">
                     <img src="{{ form.instance.imagem.url }}" alt="Imagem atual" style="max-width:200px;border-radius:8px;border:1px solid #e2e8f0;">
@@ -103,6 +103,21 @@
                 {% endif %}
                 {{ form.imagem }}
                 {{ form.imagem.errors }}
+            </div>
+            <div class="form-group full">
+                <label for="id_anexos">Anexos (imagens e PDFs)</label>
+                {% if form.instance.pk and form.instance.anexos.all %}
+                <ul class="anexos-existentes" style="list-style:none;padding:0;margin:0 0 8px;display:flex;flex-direction:column;gap:4px;">
+                    {% for a in form.instance.anexos.all %}
+                    <li data-anexo="{{ a.id }}" style="display:flex;align-items:center;gap:8px;font-size:.85rem;">
+                        <a href="{{ a.arquivo.url }}" target="_blank" rel="noopener">{% if a.is_imagem %}🖼️{% else %}📄{% endif %} {{ a.nome_arquivo }}</a>
+                        <button type="button" onclick="excluirAnexo({{ a.id }}, this)" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.8rem;">remover</button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {{ form.anexos }}
+                {{ form.anexos.errors }}
             </div>
         </div>
         <div class="form-actions">
@@ -115,6 +130,24 @@
 
 {% block extra_js %}
 <script>
+function getCookie(name) {
+    const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+}
+function excluirAnexo(id, btn) {
+    if (!confirm('Remover este anexo?')) return;
+    fetch(`/agenda/eventos/anexos/${id}/excluir/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest' },
+    }).then(r => r.json()).then(res => {
+        if (res.success) {
+            const li = btn.closest('[data-anexo]');
+            if (li) li.remove();
+        } else {
+            alert('Não foi possível remover o anexo.');
+        }
+    }).catch(() => alert('Erro ao remover o anexo.'));
+}
 document.addEventListener('DOMContentLoaded', () => {
     const regiao = document.getElementById('id_regiao');
     const cidade = document.getElementById('id_cidade');

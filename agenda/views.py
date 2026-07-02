@@ -10,12 +10,20 @@ from django.utils import timezone
 from usuarios.views import admin_required, secao_required
 from liderancas.models import Lideranca, Cidade
 from tarefas.models import Tarefa
-from .models import Compromisso, Evento, Roteiro, RoteiroPonto
+from .models import Compromisso, Evento, EventoAnexo, Roteiro, RoteiroPonto
 from .forms import CompromissoForm, EventoForm, RoteiroForm, RoteiroPontoFormSet
 
 
 def _is_ajax(request):
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _salvar_anexos_evento(request, form, evento):
+    """Cria um EventoAnexo para cada arquivo enviado no campo `anexos`."""
+    for arquivo in form.cleaned_data.get('anexos', []):
+        EventoAnexo.objects.create(
+            evento=evento, arquivo=arquivo, enviado_por=request.user,
+        )
 
 
 # ==================== COMPROMISSOS ====================
@@ -750,6 +758,7 @@ def evento_create(request):
             evento.cadastrado_por = request.user
             evento.save()
             form.save_m2m()
+            _salvar_anexos_evento(request, form, evento)
             return JsonResponse({'success': True})
         html = render_to_string('agenda/_evento_form.html', {'form': form, 'action': request.path}, request=request)
         return JsonResponse({'success': False, 'html': html})
@@ -769,6 +778,7 @@ def evento_create(request):
             evento.cadastrado_por = request.user
             evento.save()
             form.save_m2m()
+            _salvar_anexos_evento(request, form, evento)
             messages.success(request, 'Evento cadastrado com sucesso!')
             return redirect('agenda:evento_list')
     else:
@@ -789,6 +799,7 @@ def evento_edit(request, pk):
         form = EventoForm(request.POST, request.FILES, instance=evento)
         if form.is_valid():
             form.save()
+            _salvar_anexos_evento(request, form, evento)
             return JsonResponse({'success': True})
         html = render_to_string('agenda/_evento_form.html', {'form': form, 'action': request.path}, request=request)
         return JsonResponse({'success': False, 'html': html})
@@ -801,6 +812,7 @@ def evento_edit(request, pk):
         form = EventoForm(request.POST, request.FILES, instance=evento)
         if form.is_valid():
             form.save()
+            _salvar_anexos_evento(request, form, evento)
             messages.success(request, 'Evento atualizado com sucesso!')
             return redirect('agenda:evento_list')
     else:
@@ -820,12 +832,38 @@ def evento_delete(request, pk):
     return redirect('agenda:evento_list')
 
 
+@secao_required('demandas:eventos')
+def evento_anexo_delete(request, pk):
+    """Exclui um único anexo (registro + arquivo físico)."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método inválido'}, status=405)
+    anexo = get_object_or_404(EventoAnexo, pk=pk)
+    anexo.arquivo.delete(save=False)
+    anexo.delete()
+    return JsonResponse({'success': True})
+
+
 @secao_required('demandas:agenda')
 def api_eventos_calendario(request):
-    """Retorna eventos confirmados para o FullCalendar."""
-    eventos = Evento.objects.filter(
-        status='confirmado'
-    ).select_related('cidade')
+    """Retorna eventos da agenda pública (model Evento) para o FullCalendar.
+
+    Mostra eventos de qualquer status, exceto 'descartado' (estado oculto,
+    equivalente a rejeitado). O status é sinalizado por ícone no título e no
+    tooltip. Respeita o range start/end do mês visível.
+    """
+    STATUS_ICONE = {
+        'identificado': '🔎',
+        'avaliando': '⚖️',
+        'confirmado': '🚩',
+        'participou': '✅',
+    }
+    inicio = request.GET.get('start')
+    fim = request.GET.get('end')
+    eventos = Evento.objects.exclude(status='descartado').select_related('cidade')
+    if inicio:
+        eventos = eventos.filter(data__gte=inicio[:10])
+    if fim:
+        eventos = eventos.filter(data__lte=fim[:10])
     result = []
     for e in eventos:
         start = str(e.data)
@@ -836,7 +874,7 @@ def api_eventos_calendario(request):
             end = f'{e.data}T{e.horario_fim}'
         result.append({
             'id': f'evento-{e.id}',
-            'title': f'🚩 {e.nome}',
+            'title': f'{STATUS_ICONE.get(e.status, "🚩")} {e.nome}',
             'start': start,
             'end': end,
             'color': '#f4c430',
@@ -845,6 +883,7 @@ def api_eventos_calendario(request):
             'order': 0,
             'extendedProps': {
                 'tipo': 'evento_externo',
+                'status': e.get_status_display(),
                 'local': f'{e.cidade} — {e.local}' if e.local else str(e.cidade),
                 'relevancia': e.get_relevancia_display(),
                 'publico': e.publico_estimado,
@@ -882,7 +921,10 @@ def api_roteiros_calendario(request):
 
 def api_evento_detalhe(request, pk):
     """Retorna detalhes de um evento para o modal."""
-    e = get_object_or_404(Evento.objects.select_related('cidade', 'cidade__regiao'), pk=pk)
+    e = get_object_or_404(
+        Evento.objects.select_related('cidade', 'cidade__regiao').prefetch_related('anexos'),
+        pk=pk,
+    )
     return JsonResponse({
         'id': e.id,
         'nome': e.nome,
@@ -897,6 +939,11 @@ def api_evento_detalhe(request, pk):
         'observacoes': e.observacoes,
         'resultado': e.resultado,
         'imagem': e.imagem.url if e.imagem else None,
+        'anexos': [
+            {'id': a.id, 'url': a.arquivo.url, 'nome': a.nome_arquivo,
+             'is_imagem': a.is_imagem, 'legenda': a.legenda}
+            for a in e.anexos.all()
+        ],
     })
 
 

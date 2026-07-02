@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from liderancas.models import Regiao, Cidade
 
@@ -280,3 +281,41 @@ class Evento(models.Model):
 
     def __str__(self):
         return f'{self.nome} — {self.data:%d/%m/%Y}'
+
+
+class EventoAnexo(models.Model):
+    """Arquivos (imagens e PDFs) anexados a um evento. A capa continua sendo
+    o campo `imagem` do Evento; estes são os anexos adicionais."""
+    EXTENSOES = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf']
+
+    evento = models.ForeignKey(
+        Evento, on_delete=models.CASCADE, related_name='anexos',
+    )
+    arquivo = models.FileField(
+        upload_to='eventos/anexos/',
+        validators=[FileExtensionValidator(EXTENSOES)],
+        verbose_name='Arquivo',
+    )
+    legenda = models.CharField(max_length=200, blank=True, verbose_name='Legenda')
+    enviado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='eventos_anexos',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Anexo do evento'
+        verbose_name_plural = 'Anexos do evento'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return self.nome_arquivo
+
+    @property
+    def is_imagem(self):
+        return self.arquivo.name.lower().endswith(
+            ('.jpg', '.jpeg', '.png', '.webp', '.gif'))
+
+    @property
+    def nome_arquivo(self):
+        return self.arquivo.name.rsplit('/', 1)[-1]

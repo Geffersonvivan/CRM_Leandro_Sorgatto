@@ -25,6 +25,7 @@ urlpatterns = [
     path('eventos/novo/', views.evento_create, name='evento_create'),
     path('eventos/<int:pk>/editar/', views.evento_edit, name='evento_edit'),
     path('eventos/<int:pk>/excluir/', views.evento_delete, name='evento_delete'),
+    path('eventos/anexos/<int:pk>/excluir/', views.evento_anexo_delete, name='evento_anexo_delete'),
 
     # API
     path('api/eventos-calendario/', views.api_eventos_calendario, name='api_eventos_calendario'),
