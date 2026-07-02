@@ -6,8 +6,10 @@
 <style>
     /* ---- Layout full-height ---- */
     .agenda-wrapper { display: flex; flex-direction: column; height: calc(100vh - 60px); }
-    .page-header { padding-bottom: 16px; flex-shrink: 0; }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .page-header { padding-bottom: 16px; flex-shrink: 0; display: flex; align-items: center;
+        justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
+    .page-header .agenda-secnav { margin-bottom: 0; }
+    .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .header-actions .btn { height: 34px; padding: 0 13px; border-radius: 9px; font-size: .8rem; font-weight: 600;
         display: inline-flex; align-items: center; gap: 6px; line-height: 1;
         transition: background .14s, box-shadow .14s, transform .1s, border-color .14s; }
@@ -515,10 +517,8 @@
 {% block content %}
 <div class="agenda-wrapper">
 
-{% include 'agenda/_section_nav.html' %}
-
 <div class="page-header">
-    <h1 class="page-title" data-tip="Calendário de compromissos do candidato: reuniões, visitas, comícios, entrevistas e eventos.">Agenda</h1>
+    {% include 'agenda/_section_nav.html' %}
     <div class="header-actions">
         <div class="toggle-group">
             <button class="btn active" id="btn-calendar" onclick="toggleView('calendar')" data-tip="Visão de calendário|Mostra os compromissos no mês, dia a dia.">Calendário</button>
@@ -583,63 +583,22 @@
     </div>
 </div>
 
-<!-- 🎯 Painel estratégico da agenda -->
 <style>
-  .estr { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px 18px; margin-bottom:14px; box-shadow:0 1px 3px rgba(15,23,42,.05); }
-  .estr-head { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
-  .estr-head h3 { font-size:.92rem; font-weight:800; color:#0f172a; margin:0; }
-  .estr-head .estr-sub { font-size:.72rem; color:#94a3b8; font-weight:500; }
-  .estr-head .estr-chev { margin-left:auto; color:#94a3b8; transition:transform .15s; }
-  .estr.collapsed .estr-body { display:none; }
-  .estr.collapsed .estr-chev { transform:rotate(-90deg); }
-  .estr-body { margin-top:12px; }
-  .estr-pulse { display:flex; gap:10px; flex-wrap:wrap; }
-  .estr-card { flex:1; min-width:120px; background:#f8fafc; border:1px solid #eef2f7; border-radius:10px; padding:9px 12px; }
-  .estr-card .v { font-size:1.35rem; font-weight:800; color:#0f172a; line-height:1; }
-  .estr-card .l { font-size:.68rem; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin-top:3px; }
-  .estr-card.alvo .v { color:#b91c1c; }
-  .estr-ritmo { margin:12px 0 4px; font-size:.82rem; color:#334155; background:#fff7ed; border:1px solid #fed7aa; border-radius:9px; padding:8px 12px; }
-  .estr-ritmo b { color:#9a3412; }
-  .estr-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:14px; margin-top:12px; }
-  @media (max-width:900px){ .estr-cols{ grid-template-columns:1fr; } }
-  .estr-sec-t { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:#475569; margin-bottom:7px; }
-  .estr-item { display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid #f1f5f9; }
-  .estr-rank { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .estr-item .nm { font-weight:700; color:#1e293b; font-size:.82rem; }
-  .estr-item .meta { font-size:.7rem; color:#94a3b8; }
-  .estr-item .grow { flex:1; min-width:0; }
-  .estr-btn { font-size:.7rem; font-weight:700; border:1px solid #1e40af; color:#1e40af; background:#fff; border-radius:7px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
-  .estr-btn:hover { background:#1e40af; color:#fff; }
-  .estr-alert { display:flex; align-items:center; gap:7px; font-size:.78rem; padding:6px 0; color:#334155; }
-  .estr-badge { font-size:.66rem; font-weight:800; border-radius:6px; padding:2px 7px; }
-  .estr-badge.orf { background:#fef2f2; color:#b91c1c; }
-  .estr-badge.esf { background:#fff7ed; color:#9a3412; }
-  .estr-loading { color:#94a3b8; font-size:.8rem; padding:6px 0; }
   /* Realce de compromisso de prioridade alta no calendário */
   .fc-event.fc-prio-alta { box-shadow: inset 3px 0 0 #f59e0b; }
   .fc-event.fc-prio-alta .fc-event-title { font-weight: 700; }
 </style>
-<div class="estr collapsed" id="estrategiaPanel">
-    <div class="estr-head" onclick="toggleEstr()">
-        <span style="font-size:1.05rem;">🎯</span>
-        <h3 data-tip="Estratégia da semana|Cruza a agenda com a oportunidade eleitoral (onde o LS é fraco e tem muito voto) para dizer ONDE estar. Os alvos sem visita são o que custa voto.">Estratégia da semana</h3>
-        <span class="estr-sub" id="estrSub">carregando…</span>
-        <svg class="estr-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
-    <div class="estr-body" id="estrBody">
-        <div class="estr-loading">Calculando onde investir o tempo do candidato…</div>
-    </div>
-</div>
-
 <style>
     .cal-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
         margin: 0 0 10px; padding: 8px 14px; background: #fff; border: 1px solid #eef0f4; border-radius: 10px; }
     .cal-legend .cl-t { font-size: .64rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-right: 2px; }
     .cal-leg { display: inline-flex; align-items: center; gap: 7px; font-size: .74rem; font-weight: 600; color: #475569; }
     .cal-leg i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+    /* Slots mais compactos: menos rolagem, cabe na tela */
+    .fc .fc-timegrid-slot { height: 1.4em; }
     .fc-timegrid-event .fc-event-main { display: flex; }
     .fc-ev-custom { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        text-align: center; overflow: hidden; padding: 4px 6px; line-height: 1.2; }
+        text-align: center; overflow: hidden; padding: 2px 5px; line-height: 1.15; }
     .fc-ev-custom .fc-ev-title { font-weight: 700; font-size: .74rem; white-space: normal; letter-spacing: .1px; }
     .fc-ev-custom .fc-ev-time { font-size: .67rem; opacity: .9; margin-top: 2px; font-variant-numeric: tabular-nums; }
 </style>
@@ -849,6 +808,26 @@
 <script>
 let calendar;
 const csrfToken = '{{ csrf_token }}';
+
+// Faixa horária dinâmica do time-grid: baseline 07:00; se a semana/dia visível
+// tiver evento com horário mais cedo, recua o início do grid para a hora dele
+// (floor), garantindo que nenhum compromisso/evento fique escondido.
+function ajustarSlotMinDinamico() {
+    if (!calendar || !calendar.view) return;
+    if (calendar.view.type.indexOf('timeGrid') !== 0) return; // só semana/dia
+    const ini = calendar.view.activeStart, fim = calendar.view.activeEnd;
+    let minHora = 7; // baseline
+    calendar.getEvents().forEach(function (ev) {
+        if (ev.allDay || !ev.start) return;
+        if (ev.start < ini || ev.start >= fim) return; // fora do intervalo visível
+        const h = ev.start.getHours();
+        if (h < minHora) minHora = h;
+    });
+    const novo = (minHora < 10 ? '0' + minHora : '' + minHora) + ':00:00';
+    if (calendar.getOption('slotMinTime') !== novo) {
+        calendar.setOption('slotMinTime', novo);
+    }
+}
 
 // ---- Toggle view ----
 function toggleView(view) {
@@ -1478,8 +1457,12 @@ document.addEventListener('DOMContentLoaded', () => {
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
         slotMinTime: '07:00:00',
-        slotMaxTime: '22:00:00',
+        slotMaxTime: '24:00:00',
         scrollTime: '08:00:00',
+        // Faixa horária dinâmica: começa às 07:00, mas recua se a semana
+        // tiver evento mais cedo (ex.: 04:31 → grid começa às 04:00). Nada some.
+        datesSet: function () { ajustarSlotMinDinamico(); },
+        eventsSet: function () { ajustarSlotMinDinamico(); },
         nowIndicator: true,
         allDaySlot: true,
         slotDuration: '00:30:00',
@@ -1565,7 +1548,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return { domNodes: [wrap] };
         },
         height: '100%',
-        expandRows: true,
+        expandRows: false,
         stickyHeaderDates: true,
         eventOrder: 'order,start,-duration,allDay',
         buttonText: {
@@ -2181,6 +2164,7 @@ function salvarRoteiro() {
             badge.textContent = 'Salvo!';
             badge.style.background = '#f0fdf4';
             badge.style.color = '#16a34a';
+            if (calendar) calendar.refetchEvents();  // chip do roteiro aparece na hora
         } else {
             badge.textContent = data.error || 'Erro ao salvar';
             badge.style.background = '#fef2f2';
@@ -2251,71 +2235,5 @@ window.CRM_TOUR = {
     ],
 };
 
-// ===== Painel estratégico da agenda =====
-// Vem fechado por padrão; lembra a preferência se o usuário abrir.
-function toggleEstr() {
-    const p = document.getElementById('estrategiaPanel');
-    const collapsed = p.classList.toggle('collapsed');
-    try { localStorage.setItem('estrCollapsed', collapsed ? '1' : '0'); } catch (e) {}
-}
-(function () {
-    try {
-        if (localStorage.getItem('estrCollapsed') === '0') {
-            document.getElementById('estrategiaPanel').classList.remove('collapsed');
-        }
-    } catch (e) {}
-})();
-function agendarCidade(id) {
-    const url = '{% url "agenda:compromisso_create" %}?cidade=' + id;
-    if (typeof loadFormIntoModal === 'function') loadFormIntoModal(url, 'Novo Compromisso — Agendar Visita');
-    else window.location = '/agenda/compromissos/?cidade=' + id;
-}
-function _estrColor(o) { return o >= 66 ? '#b91c1c' : o >= 33 ? '#fb923c' : '#fde68a'; }
-function _estrItem(c, withBtn) {
-    const meta = `${c.regiao ? c.regiao.split(' ').slice(-1)[0] : ''} · pen ${c.penetracao}% · ${c.apoiadores} apoiador${c.apoiadores === 1 ? '' : 'es'}`;
-    return `<div class="estr-item">
-        <span class="estr-rank" style="background:${_estrColor(c.opp)}"></span>
-        <div class="grow"><div class="nm">${c.nome}</div><div class="meta">${meta}</div></div>
-        <span class="meta" style="font-weight:700;color:${_estrColor(c.opp)}">${c.opp}</span>
-        ${withBtn ? `<button class="estr-btn" onclick="agendarCidade(${c.cidade_id})">Agendar</button>` : ''}
-    </div>`;
-}
-function renderEstrategia(d) {
-    const p = d.pulso, b = d.burndown;
-    document.getElementById('estrSub').textContent =
-        `${p.alvos_sem_visita} alvos prioritários ainda sem visita`;
-    const sug = (d.sugestoes || []).map(c => _estrItem(c, true)).join('') ||
-        '<div class="estr-loading">Tudo coberto. 👏</div>';
-    const orf = (d.alertas.orfas_lista || []).map(c => _estrItem(c, true)).join('');
-    const esf = (d.alertas.esfriando_lista || []).map(c => _estrItem(c, true)).join('');
-    document.getElementById('estrBody').innerHTML = `
-        <div class="estr-pulse">
-            <div class="estr-card"><div class="v">${p.dias}</div><div class="l">dias p/ eleição</div></div>
-            <div class="estr-card"><div class="v">${p.compromissos_semana}</div><div class="l">compromissos/semana</div></div>
-            <div class="estr-card"><div class="v">${p.cidades_mes}</div><div class="l">cidades cobertas/mês</div></div>
-            <div class="estr-card alvo" data-tip="Alvos sem visita|Cidades de alta oportunidade (muito voto, você é fraco) sem nenhum compromisso futuro. É o tempo que você ainda não alocou."><div class="v">${p.alvos_sem_visita}</div><div class="l">alvos sem visita</div></div>
-        </div>
-        <div class="estr-ritmo" data-tip="Ritmo necessário|Alvos prioritários sem visita ÷ semanas até a eleição. É quantas cidades novas por semana você precisa cobrir para não deixar voto na mesa.">
-            🏁 Ritmo: <b>${b.sem_visita}</b> alvos prioritários sem visita ÷ <b>${b.semanas}</b> semanas = <b>~${b.ritmo} cidades/semana</b> para cobrir o terreno antes da eleição.
-        </div>
-        <div class="estr-cols">
-            <div>
-                <div class="estr-sec-t">🎯 Onde investir esta semana</div>
-                ${sug}
-            </div>
-            <div>
-                <div class="estr-sec-t">⚠️ Alertas</div>
-                <div class="estr-alert"><span class="estr-badge orf">${d.alertas.orfas}</span> oportunidades órfãs <span class="meta">(boas e nunca visitadas)</span></div>
-                ${orf}
-                <div class="estr-alert" style="margin-top:6px;"><span class="estr-badge esf">${d.alertas.esfriando}</span> bases esfriando <span class="meta">(fortes, sem visita marcada)</span></div>
-                ${esf}
-            </div>
-        </div>`;
-}
-document.addEventListener('DOMContentLoaded', function () {
-    fetch('{% url "agenda:api_estrategia_agenda" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(r => r.json()).then(renderEstrategia)
-        .catch(() => { document.getElementById('estrBody').innerHTML = '<div class="estr-loading">Não foi possível carregar a estratégia.</div>'; });
-});
 </script>
 {% endblock %}
