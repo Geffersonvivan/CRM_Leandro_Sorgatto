@@ -626,15 +626,27 @@
     .cal-legend .cl-t { font-size: .64rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-right: 2px; }
     .cal-leg { display: inline-flex; align-items: center; gap: 7px; font-size: .74rem; font-weight: 600; color: #475569; }
     .cal-leg i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+    .fc-timegrid-event .fc-event-main { display: flex; }
+    .fc-ev-custom { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; overflow: hidden; padding: 4px 6px; line-height: 1.2; }
+    .fc-ev-custom .fc-ev-title { font-weight: 700; font-size: .74rem; white-space: normal; letter-spacing: .1px; }
+    .fc-ev-custom .fc-ev-time { font-size: .67rem; opacity: .9; margin-top: 2px; font-variant-numeric: tabular-nums; }
 </style>
 <div class="calendar-container" id="calendar-view">
     <div class="cal-legend">
         <span class="cl-t">Legenda</span>
-        <span class="cal-leg"><i style="background:#002776"></i> Compromisso</span>
-        <span class="cal-leg"><i style="background:#f4c430"></i> Evento</span>
-        <span class="cal-leg"><i style="background:#ef6a32"></i> Roteiro</span>
+        <span class="cal-leg"><i style="background:#f4c430"></i> Evento (agenda pública) 🚩</span>
+        <span class="cal-leg"><i style="background:#ef6a32"></i> Roteiro 🧭</span>
         <span class="cal-leg"><i style="background:#0d9488"></i> Tarefa</span>
         <span class="cal-leg"><i style="background:#ef4444"></i> Tarefa atrasada</span>
+        <span class="cl-t" style="margin-left:6px">Compromisso por tipo</span>
+        <span class="cal-leg"><i style="background:#0073ea"></i> Reunião</span>
+        <span class="cal-leg"><i style="background:#a25ddc"></i> Evento</span>
+        <span class="cal-leg"><i style="background:#00c875"></i> Visita</span>
+        <span class="cal-leg"><i style="background:#e2445c"></i> Comício</span>
+        <span class="cal-leg"><i style="background:#fdab3d"></i> Entrevista</span>
+        <span class="cal-leg"><i style="background:#579bfc"></i> Viagem</span>
+        <span class="cal-leg"><i style="background:#c4c4c4"></i> Pessoal</span>
     </div>
     <div id="calendar"></div>
 </div>
@@ -1448,12 +1460,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const calEl = document.getElementById('calendar');
     calendar = new FullCalendar.Calendar(calEl, {
         locale: 'pt-br',
-        initialView: 'dayGridMonth',
+        initialView: 'timeGridWeek',
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: ''
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
+        slotMinTime: '07:00:00',
+        slotMaxTime: '22:00:00',
+        scrollTime: '08:00:00',
+        nowIndicator: true,
+        allDaySlot: true,
+        slotDuration: '00:30:00',
+        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        allDayText: 'Dia todo',
         eventSources: [
             { url: '{% url "agenda:api_compromissos_json" %}', id: 'compromissos' },
             { url: '{% url "agenda:api_tarefas_calendario" %}', id: 'tarefas' },
@@ -1512,6 +1533,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             el.title = tip;
         },
+        eventContent: function(arg) {
+            const p = arg.event.extendedProps || {};
+            // Mês, tarefas e itens de dia inteiro usam o render padrão do FullCalendar.
+            if (arg.view.type === 'dayGridMonth' || p.is_tarefa || arg.event.allDay) return;
+            const s = arg.event.start, e = arg.event.end;
+            const fmt = d => d ? d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+            const wrap = document.createElement('div');
+            wrap.className = 'fc-ev-custom';
+            const t = document.createElement('div');
+            t.className = 'fc-ev-title';
+            t.textContent = (p.prioridade === 'alta' ? '★ ' : '') + arg.event.title;
+            wrap.appendChild(t);
+            if (s) {
+                const h = document.createElement('div');
+                h.className = 'fc-ev-time';
+                h.textContent = fmt(s) + (e ? ' – ' + fmt(e) : '');
+                wrap.appendChild(h);
+            }
+            return { domNodes: [wrap] };
+        },
         height: '100%',
         expandRows: true,
         stickyHeaderDates: true,
@@ -1520,6 +1561,7 @@ document.addEventListener('DOMContentLoaded', () => {
             today: 'Hoje',
             month: 'Mês',
             week: 'Semana',
+            day: 'Dia',
             list: 'Lista',
         },
         eventDisplay: 'block',
@@ -1802,9 +1844,9 @@ function initTarefaModalForm() {
 function loadEventoFormModal(url, title) {
     openModal(title);
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
-        .then(function (r) { return r.json(); })
+        .then(function (r) { if (!r.ok) throw new Error('Erro: ' + r.status); return r.json(); })
         .then(function (data) { document.getElementById('modalBody').innerHTML = data.html; initEventoModalForm(); })
-        .catch(function () { document.getElementById('modalBody').innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626;">Erro ao carregar o formulário.</div>'; });
+        .catch(function (err) { document.getElementById('modalBody').innerHTML = '<div style="padding:40px;text-align:center;color:#dc2626;">Erro ao carregar o formulário.<br><small>' + (err.message || '') + '</small></div>'; });
 }
 function initEventoModalForm() {
     var form = document.getElementById('evento-modal-form');
