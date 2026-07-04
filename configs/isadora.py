@@ -45,7 +45,7 @@ CAMPANHA = {
     # Fase 2 — por ora documenta o contrato da Isadora, que exibe tudo).
     'COLUNAS_LIDERANCA': [
         'nome', 'cidade', 'telefone', 'email', 'instagram',
-        'coordenador_responsavel', 'categoria', 'voto',
+        'coordenador_responsavel', 'tipo', 'intencao_voto',
         'frequencia_relacionamento', 'votos_referencia', 'cadastrado_por',
         'uf', 'nivel', 'atendente', 'contato_feito', 'data_contato',
         'canal_atendimento', 'quem_e_eleitor', 'filiado_partido', 'segmentos',
