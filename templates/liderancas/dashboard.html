@@ -5,7 +5,7 @@
 
     .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
     .stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; text-align: center; }
-    .stat-value { font-size: 2rem; font-weight: 800; color: #002776; }
+    .stat-value { font-size: 2rem; font-weight: 800; color: #FF6B00; }
     .stat-label { font-size: 0.82rem; color: #6b7280; margin-top: 4px; }
     .stat-card.alert .stat-value { color: #dc2626; }
 
@@ -15,7 +15,7 @@
 
     .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.78rem; }
     .bar-label { width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #374151; }
-    .bar-fill { height: 20px; background: #002776; border-radius: 4px; min-width: 2px; transition: width 0.3s; }
+    .bar-fill { height: 20px; background: #FF6B00; border-radius: 4px; min-width: 2px; transition: width 0.3s; }
     .bar-count { font-weight: 600; color: #374151; min-width: 30px; }
 
     .log-table { width: 100%; font-size: 0.78rem; }
@@ -40,12 +40,6 @@
     <div class="semana-item">
         <span class="semana-num">{{ contatos_alcancados_7d }}</span>
         <span class="semana-lbl">contatos alcançados</span>
-    </div>
-    <div class="semana-sep"></div>
-    <div class="semana-item">
-        <span class="semana-num semana-alerta">{{ fila_total }}</span>
-        <span class="semana-lbl">na fila de relacionamento</span>
-        <a href="{% url 'liderancas:fila_relacionamento' %}" class="semana-cta">Ver fila →</a>
     </div>
     <div class="semana-sep"></div>
     <div class="semana-item">

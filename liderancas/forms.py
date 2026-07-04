@@ -1,6 +1,6 @@
 import re
 from django import forms
-from .models import CoordenadorRegional, CaboEleitoral, Apoiador, Voluntario, Cidade, Regiao, InteracaoLog, Egresso, Lassberg
+from .models import Lideranca, Voluntario, Cidade, Regiao, InteracaoLog
 
 
 class DuplicateCheckMixin:
@@ -9,12 +9,12 @@ class DuplicateCheckMixin:
     def _normalize_phone(self, phone):
         return re.sub(r'\D', '', phone) if phone else ''
 
-    def _check_duplicates(self, model):
+    def _check_duplicates(self, qs):
+        """qs: queryset onde procurar duplicatas (já filtrado por papel/model)."""
         telefone = self.cleaned_data.get('telefone', '')
         email = self.cleaned_data.get('email', '')
         phone_digits = self._normalize_phone(telefone)
 
-        qs = model.objects.all()
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
 
@@ -37,13 +37,13 @@ class CoordenadorRegionalForm(DuplicateCheckMixin, forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-input', 'id': 'id_regiao'}),
     )
 
-    field_order = ['nome', 'telefone', 'email', 'regiao', 'cidade_base', 'instagram', 'prioridade', 'frequencia_relacionamento', 'observacoes']
+    field_order = ['nome', 'telefone', 'email', 'regiao', 'cidade', 'instagram', 'prioridade', 'frequencia_relacionamento', 'observacoes']
 
     class Meta:
-        model = CoordenadorRegional
+        model = Lideranca
         fields = [
             'nome', 'telefone', 'email',
-            'cidade_base', 'instagram',
+            'cidade', 'instagram',
             'prioridade', 'frequencia_relacionamento',
             'observacoes',
         ]
@@ -51,7 +51,7 @@ class CoordenadorRegionalForm(DuplicateCheckMixin, forms.ModelForm):
             'nome': forms.TextInput(attrs={'class': 'form-input'}),
             'telefone': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '(00) 00000-0000'}),
             'email': forms.EmailInput(attrs={'class': 'form-input'}),
-            'cidade_base': forms.Select(attrs={'class': 'form-input', 'id': 'id_cidade'}),
+            'cidade': forms.Select(attrs={'class': 'form-input', 'id': 'id_cidade'}),
             'instagram': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '@usuario'}),
             'prioridade': forms.Select(attrs={'class': 'form-input'}),
             'frequencia_relacionamento': forms.Select(attrs={'class': 'form-input'}),
@@ -60,31 +60,33 @@ class CoordenadorRegionalForm(DuplicateCheckMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance.pk and self.instance.cidade_base_id:
-            self.fields['regiao'].initial = self.instance.cidade_base.regiao_id
-            self.fields['cidade_base'].queryset = Cidade.objects.filter(
-                regiao=self.instance.cidade_base.regiao
+        self.fields['cidade'].label = 'Cidade Base'
+        if self.instance.pk and self.instance.cidade_id:
+            self.fields['regiao'].initial = self.instance.cidade.regiao_id
+            self.fields['cidade'].queryset = Cidade.objects.filter(
+                regiao=self.instance.cidade.regiao
             )
         else:
             regiao_id = self.data.get('regiao') if self.data else None
             if regiao_id:
-                self.fields['cidade_base'].queryset = Cidade.objects.filter(regiao_id=regiao_id)
+                self.fields['cidade'].queryset = Cidade.objects.filter(regiao_id=regiao_id)
             else:
-                self.fields['cidade_base'].queryset = Cidade.objects.none()
+                self.fields['cidade'].queryset = Cidade.objects.none()
 
     def clean(self):
         super().clean()
-        self._check_duplicates(CoordenadorRegional)
+        self._check_duplicates(Lideranca.objects.filter(papel='coordenador'))
 
-        cidade = self.cleaned_data.get('cidade_base')
+        cidade = self.cleaned_data.get('cidade')
         regiao = self.cleaned_data.get('regiao')
         if cidade and regiao and cidade.regiao_id != regiao.pk:
-            self.add_error('cidade_base', 'A cidade base selecionada não pertence à região informada.')
+            self.add_error('cidade', 'A cidade base selecionada não pertence à região informada.')
 
         return self.cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        instance.papel = 'coordenador'
         instance.regiao = self.cleaned_data['regiao']
         if commit:
             instance.save()
@@ -101,7 +103,7 @@ class CaboEleitoralForm(DuplicateCheckMixin, forms.ModelForm):
     field_order = ['nome', 'telefone', 'email', 'regiao', 'cidade', 'instagram', 'prioridade', 'frequencia_relacionamento', 'observacoes']
 
     class Meta:
-        model = CaboEleitoral
+        model = Lideranca
         fields = [
             'nome', 'telefone', 'email',
             'cidade', 'instagram',
@@ -135,7 +137,7 @@ class CaboEleitoralForm(DuplicateCheckMixin, forms.ModelForm):
 
     def clean(self):
         super().clean()
-        self._check_duplicates(CaboEleitoral)
+        self._check_duplicates(Lideranca.objects.filter(papel='cabo'))
 
         cidade = self.cleaned_data.get('cidade')
         regiao = self.cleaned_data.get('regiao')
@@ -146,10 +148,12 @@ class CaboEleitoralForm(DuplicateCheckMixin, forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        instance.papel = 'cabo'
         cidade = self.cleaned_data['cidade']
-        coord = CoordenadorRegional.objects.filter(regiao=cidade.regiao).first()
+        instance.regiao = cidade.regiao if cidade else None
+        coord = Lideranca.objects.filter(papel='coordenador', regiao=cidade.regiao).first() if cidade else None
         if coord:
-            instance.coordenador = coord
+            instance.coordenador_responsavel = coord
         if commit:
             instance.save()
         return instance
@@ -162,33 +166,65 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-input', 'id': 'id_regiao'}),
     )
 
-    field_order = ['nome', 'telefone', 'email', 'regiao', 'cidade', 'tipo', 'cargo', 'origem_contato', 'instagram', 'prioridade', 'grau_influencia', 'frequencia_relacionamento', 'status', 'observacoes']
+    field_order = [
+        'nome', 'telefone', 'email', 'regiao', 'cidade', 'uf',
+        'tipo', 'cargo', 'nivel', 'votos_referencia', 'meta_votos_transferir',
+        'origem_contato', 'instagram', 'facebook',
+        'prioridade', 'grau_influencia', 'frequencia_relacionamento', 'status',
+        # PLANILHA CENTRAL — atendimento & relacionamento
+        'atendente', 'contato_feito', 'data_contato', 'canal_atendimento',
+        'intencao_voto', 'quem_e_eleitor', 'filiado_partido', 'segmentos', 'idade',
+        'vaquinha_enviada', 'doou', 'material_entregue', 'endereco',
+        'observacoes',
+    ]
 
     class Meta:
-        model = Apoiador
+        model = Lideranca
         fields = [
-            'nome', 'telefone', 'email', 'cidade',
-            'tipo', 'cargo', 'votos_referencia', 'meta_votos_transferir',
-            'origem_contato', 'instagram',
+            'nome', 'telefone', 'email', 'cidade', 'uf',
+            'tipo', 'cargo', 'nivel', 'votos_referencia', 'meta_votos_transferir',
+            'origem_contato', 'instagram', 'facebook',
             'prioridade', 'grau_influencia',
             'frequencia_relacionamento',
-            'status', 'observacoes',
+            'status',
+            # PLANILHA CENTRAL ISA
+            'atendente', 'contato_feito', 'data_contato', 'canal_atendimento',
+            'intencao_voto', 'quem_e_eleitor', 'filiado_partido', 'segmentos', 'idade',
+            'vaquinha_enviada', 'doou', 'material_entregue', 'endereco',
+            'observacoes',
         ]
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-input'}),
             'telefone': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '(00) 00000-0000'}),
             'email': forms.EmailInput(attrs={'class': 'form-input'}),
             'cidade': forms.Select(attrs={'class': 'form-input', 'id': 'id_cidade'}),
+            'uf': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'SC', 'maxlength': 2}),
             'tipo': forms.Select(attrs={'class': 'form-input'}),
             'cargo': forms.Select(attrs={'class': 'form-input'}),
+            'nivel': forms.Select(attrs={'class': 'form-input'}),
             'votos_referencia': forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '0'}),
             'meta_votos_transferir': forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '0'}),
             'origem_contato': forms.TextInput(attrs={'class': 'form-input'}),
             'instagram': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '@usuario'}),
+            'facebook': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'usuário ou link'}),
             'prioridade': forms.Select(attrs={'class': 'form-input'}),
             'grau_influencia': forms.Select(attrs={'class': 'form-input'}),
             'frequencia_relacionamento': forms.Select(attrs={'class': 'form-input'}),
             'status': forms.Select(attrs={'class': 'form-input'}),
+            # PLANILHA CENTRAL
+            'atendente': forms.TextInput(attrs={'class': 'form-input'}),
+            'data_contato': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
+            'canal_atendimento': forms.Select(attrs={'class': 'form-input'}),
+            'intencao_voto': forms.Select(attrs={'class': 'form-input'}),
+            'quem_e_eleitor': forms.TextInput(attrs={'class': 'form-input'}),
+            'filiado_partido': forms.TextInput(attrs={'class': 'form-input'}),
+            'segmentos': forms.TextInput(attrs={'class': 'form-input'}),
+            'idade': forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '—', 'min': 0}),
+            'endereco': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Rua, nº, bairro...'}),
+            'contato_feito': forms.CheckboxInput(attrs={'class': 'form-check'}),
+            'vaquinha_enviada': forms.CheckboxInput(attrs={'class': 'form-check'}),
+            'doou': forms.CheckboxInput(attrs={'class': 'form-check'}),
+            'material_entregue': forms.CheckboxInput(attrs={'class': 'form-check'}),
             'observacoes': forms.Textarea(attrs={'class': 'form-input', 'rows': 4}),
         }
 
@@ -231,7 +267,7 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
 
     def clean(self):
         super().clean()
-        self._check_duplicates(Apoiador)
+        self._check_duplicates(Lideranca.objects.filter(papel='apoiador'))
 
         cidade = self.cleaned_data.get('cidade')
         regiao = self.cleaned_data.get('regiao')
@@ -239,6 +275,15 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
             self.add_error('cidade', 'A cidade selecionada não pertence à região informada.')
 
         return self.cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.papel = 'apoiador'
+        cidade = self.cleaned_data.get('cidade')
+        instance.regiao = cidade.regiao if cidade else None
+        if commit:
+            instance.save()
+        return instance
 
 
 class VoluntarioForm(forms.ModelForm):
@@ -296,72 +341,6 @@ class VoluntarioForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-
-
-class EgressoForm(DuplicateCheckMixin, forms.ModelForm):
-    class Meta:
-        model = Egresso
-        fields = [
-            'nome', 'telefone', 'email', 'instagram',
-            'estado', 'cidade_nome', 'cidade',
-            'curso', 'instituicao', 'situacao_curso',
-            'observacoes',
-        ]
-        widgets = {
-            'nome': forms.TextInput(attrs={'class': 'form-input'}),
-            'telefone': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '(00) 00000-0000'}),
-            'email': forms.EmailInput(attrs={'class': 'form-input'}),
-            'instagram': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '@usuario'}),
-            'estado': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'SC', 'maxlength': '2', 'style': 'text-transform:uppercase;'}),
-            'cidade_nome': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Nome da cidade'}),
-            'cidade': forms.Select(attrs={'class': 'form-input'}),
-            'curso': forms.TextInput(attrs={'class': 'form-input'}),
-            'instituicao': forms.TextInput(attrs={'class': 'form-input'}),
-            'situacao_curso': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Formado'}),
-            'observacoes': forms.Textarea(attrs={'class': 'form-input', 'rows': 4}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['cidade'].queryset = Cidade.objects.order_by('nome')
-        self.fields['cidade'].required = False
-
-    def clean(self):
-        super().clean()
-        self._check_duplicates(Egresso)
-        estado = self.cleaned_data.get('estado', '')
-        if estado:
-            self.cleaned_data['estado'] = estado.upper()
-        return self.cleaned_data
-
-
-class LassbergForm(DuplicateCheckMixin, forms.ModelForm):
-    class Meta:
-        model = Lassberg
-        fields = [
-            'nome', 'telefone', 'email',
-            'estado', 'cidade_nome', 'cidade',
-            'observacoes',
-        ]
-        widgets = {
-            'nome': forms.TextInput(attrs={'class': 'form-input'}),
-            'telefone': forms.TextInput(attrs={'class': 'form-input', 'placeholder': '(00) 00000-0000'}),
-            'email': forms.EmailInput(attrs={'class': 'form-input'}),
-            'estado': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Santa Catarina'}),
-            'cidade_nome': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Nome da cidade'}),
-            'cidade': forms.Select(attrs={'class': 'form-input'}),
-            'observacoes': forms.Textarea(attrs={'class': 'form-input', 'rows': 4}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['cidade'].queryset = Cidade.objects.order_by('nome')
-        self.fields['cidade'].required = False
-
-    def clean(self):
-        super().clean()
-        self._check_duplicates(Lassberg)
-        return self.cleaned_data
 
 
 class InteracaoLogForm(forms.ModelForm):

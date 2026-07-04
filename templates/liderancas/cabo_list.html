@@ -9,7 +9,7 @@
         background: #fff; color: #6b7280; cursor: pointer; display: inline-flex;
         align-items: center; justify-content: center; transition: all 0.15s;
     }
-    .actions .btn-icon:hover { background: #e6edf8; color: #002776; border-color: #002776; }
+    .actions .btn-icon:hover { background: #e6edf8; color: var(--navy); border-color: var(--navy); }
     .actions .btn-icon.danger:hover { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
     .actions .btn-icon svg { width: 14px; height: 14px; }
     .actions .btn-icon { position: relative; }
@@ -22,8 +22,8 @@
     }
     .actions .btn-icon:hover::after { opacity: 1; }
 
-    .obs-link { color: #002776; cursor: pointer; text-decoration: underline dotted; }
-    .obs-link:hover { color: #003da5; }
+    .obs-link { color: var(--navy); cursor: pointer; text-decoration: underline dotted; }
+    .obs-link:hover { color: var(--navy-700); }
     .pagination-info { text-align: center; font-size: 0.78rem; color: #64748b; padding-bottom: 12px; }
     .pagination .disabled { color: #cbd5e1; cursor: default; }
     .pagination .disabled:hover { background: transparent; border-color: #e2e8f0; }
@@ -80,8 +80,8 @@
     }
     .bulk-bar.active { display: flex; }
     .bulk-bar select { padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.78rem; }
-    .bulk-bar .count { font-weight: 600; color: #002776; }
-    .row-check { width: 15px; height: 15px; cursor: pointer; accent-color: #002776; }
+    .bulk-bar .count { font-weight: 600; color: var(--navy); }
+    .row-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--navy); }
 
     /* Colunas compactas centralizadas (cabeçalho + conteúdo) */
     .table-scroll th:nth-child(3), .table-scroll td:nth-child(3),
@@ -172,7 +172,7 @@
                 {% sortable_th "nome" "Nome" "" %}
                 <th>Canais</th>
                 {% sortable_th "cidade__nome" "Cidade" "" %}
-                {% sortable_th "coordenador__nome" "Coordenador" "" %}
+                {% sortable_th "coordenador_responsavel__nome" "Coordenador" "" %}
                 {% sortable_th "prioridade" "Prior." "" %}
                 <th>Contato</th>
                 <th>Obs.</th>
@@ -191,12 +191,12 @@
                     <span class="chan-icons">{{ c.email|email_icon }}{{ c.instagram|instagram_icon }}{% if not c.email and not c.instagram %}<span class="cell-muted">–</span>{% endif %}</span>
                 </td>
                 <td class="col-cidade">{{ c.cidade }} <span class="badge">{{ c.cidade.regiao.sigla }}</span></td>
-                <td class="col-coord">{{ c.coordenador.nome|default:"-" }}</td>
+                <td class="col-coord">{{ c.coordenador_responsavel.nome|default:"-" }}</td>
                 <td class="col-sm">{{ c|relacionamento_dot }}</td>
                 <td class="col-contato">{{ c.ultima_interacao|contact_badge }}</td>
                 <td class="col-sm">
                     {% if c.observacoes %}
-                    <button type="button" class="btn-icon obs-btn" data-tip="Ver observações" onclick="openObs(this)" data-nome="{{ c.nome|escapejs }}" data-obs="{{ c.observacoes|escapejs }}" style="border:1px solid #d1d5db;border-radius:6px;background:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;color:#64748b;cursor:pointer;">
+                    <button type="button" class="btn-icon obs-btn" data-tip="Ver observações" onclick="openObs(this)" data-nome="{{ c.nome }}" data-obs="{{ c.observacoes }}" style="border:1px solid #d1d5db;border-radius:6px;background:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;color:#64748b;cursor:pointer;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     </button>
                     {% else %}<span class="cell-muted">–</span>{% endif %}

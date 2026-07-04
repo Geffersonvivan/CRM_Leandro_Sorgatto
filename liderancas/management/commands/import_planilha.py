@@ -5,13 +5,11 @@ Abas → destinos:
 - CTT LIDERANÇAS: coluna COORDENADOR → CoordenadorRegional;
   STATUS "LIDERANÇA" → CaboEleitoral; demais → Apoiador.
 - LIDERANÇAS CHAPECÓ → CaboEleitoral (cidade Chapecó, bairro nas observações).
-- EXECUTIVA → Apoiador político (cargo presidente_diretorio) + Cidade.presidente_pl.
+- EXECUTIVA → Apoiador político (cargo presidente_diretorio) + Cidade.presidente_diretorio.
 - PREFEITOS → Apoiador político (cargo prefeito) + Cidade.prefeito_nome.
 - VICE-PREFEITOS → Apoiador político (cargo vice_prefeito).
 - VEREADORES → Apoiador político (cargo vereador).
 - Uceff Lideranças / APOIADORES UCEFF → Apoiador comunitário.
-- ALUNOS EGRESSOS → Egresso.
-- LASSBERG → Lassberg.
 
 Idempotente: usa get_or_create por chave normalizada (nome + cidade) e
 apenas completa campos vazios/mescla observações em registros existentes.
@@ -25,11 +23,12 @@ import unicodedata
 from collections import Counter
 from difflib import get_close_matches
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from liderancas.models import (
-    Apoiador, CaboEleitoral, Cidade, CoordenadorRegional, Egresso, Lassberg,
+    Cidade, Lideranca,
 )
 
 ORIGEM = 'Planilha CONTATOS LIDERANÇAS'
@@ -127,7 +126,7 @@ def merge_obs(existing, new_block):
 
 
 class Command(BaseCommand):
-    help = 'Importa a planilha CONTATOS LIDERANÇAS.xlsx (coordenadores, cabos, apoiadores, egressos, lassberg).'
+    help = 'Importa a planilha CONTATOS LIDERANÇAS.xlsx (coordenadores, cabos, apoiadores).'
 
     def add_arguments(self, parser):
         parser.add_argument('arquivo', nargs='?', default='Planilha/CONTATOS LIDERANÇAS.xlsx')
@@ -171,12 +170,13 @@ class Command(BaseCommand):
             obj = self.seen[key]
             self.fill(obj, defaults)
             return obj
-        obj = Apoiador.all_objects.filter(cidade=cidade, nome__iexact=nome).first()
+        obj = Lideranca.all_objects.filter(
+            papel='apoiador', cidade=cidade, nome__iexact=nome).first()
         if obj:
             self.fill(obj, defaults)
             self.stat('apoiadores atualizados')
         else:
-            obj = Apoiador(nome=nome, cidade=cidade, tipo=tipo, **{
+            obj = Lideranca(papel='apoiador', nome=nome, cidade=cidade, tipo=tipo, **{
                 k: v for k, v in defaults.items() if v
             })
             if not self.dry_run:
@@ -191,12 +191,14 @@ class Command(BaseCommand):
             obj = self.seen[key]
             self.fill(obj, defaults)
             return obj
-        obj = CaboEleitoral.all_objects.filter(cidade=cidade, nome__iexact=nome).first()
+        obj = Lideranca.all_objects.filter(
+            papel='cabo', cidade=cidade, nome__iexact=nome).first()
         if obj:
             self.fill(obj, defaults)
             self.stat('cabos atualizados')
         else:
-            obj = CaboEleitoral(nome=nome, cidade=cidade, coordenador=coordenador, **{
+            obj = Lideranca(papel='cabo', nome=nome, cidade=cidade,
+                            coordenador_responsavel=coordenador, **{
                 k: v for k, v in defaults.items() if v
             })
             if not self.dry_run:
@@ -229,15 +231,19 @@ class Command(BaseCommand):
         rows = list(ws.iter_rows(values_only=True))[1:]
         # 1ª passada: coordenadores e suas cidades
         coord_cidades = {}
+        candidato_norm = norm(settings.CAMPANHA['CANDIDATO_PRIMEIRO_NOME'])
         for row in rows:
             coord = cell(row, 5)
-            if not coord or norm(coord) == 'leandro':
+            if not coord or norm(coord) == candidato_norm:
                 continue
             cidade = self.find_cidade(cell(row, 0))
             coord_cidades.setdefault(coord, []).append(cidade)
 
         self.coordenadores = {}
-        coords_existentes = {norm(c.nome): c for c in CoordenadorRegional.all_objects.all()}
+        coords_existentes = {
+            norm(c.nome): c
+            for c in Lideranca.all_objects.filter(papel='coordenador')
+        }
         for coord_nome, cidades in coord_cidades.items():
             validas = [c for c in cidades if c]
             base = Counter(c.pk for c in validas).most_common(1)
@@ -247,10 +253,11 @@ class Command(BaseCommand):
                 continue
             obj = coords_existentes.get(norm(coord_nome))
             if not obj:
-                obj = CoordenadorRegional(
+                obj = Lideranca(
+                    papel='coordenador',
                     nome=coord_nome.title(),
                     regiao=cidade_base.regiao,
-                    cidade_base=cidade_base,
+                    cidade=cidade_base,
                     observacoes=f'Origem: {ORIGEM} (coluna COORDENADOR)',
                 )
                 if not self.dry_run:
@@ -269,7 +276,7 @@ class Command(BaseCommand):
                 continue
             coord_raw = cell(row, 5)
             coordenador = self.coordenadores.get(norm(coord_raw)) if coord_raw else None
-            origem = 'Leandro' if norm(coord_raw) == 'leandro' else ORIGEM
+            origem = settings.CAMPANHA['CANDIDATO_PRIMEIRO_NOME'] if norm(coord_raw) == norm(settings.CAMPANHA['CANDIDATO_PRIMEIRO_NOME']) else ORIGEM
             obs = obs_block([
                 ('Função', cell(row, 3)),
                 ('Status planilha', cell(row, 4)),
@@ -374,99 +381,6 @@ class Command(BaseCommand):
                 'observacoes': obs,
             })
 
-    def import_egressos(self, ws):
-        aba = 'ALUNOS EGRESSOS'
-        existentes = set()
-        for nome, cid, tel in Egresso.all_objects.values_list('nome', 'cidade_nome', 'telefone'):
-            existentes.add((norm(nome), norm(cid)))
-        batch = []
-        inst_fix = {
-            'chapeco - uceff.': 'CHAPECÓ - UCEFF',
-            'chapeco - uceff': 'CHAPECÓ - UCEFF',
-            'itapiranga - uceff: centro universitario': 'ITAPIRANGA - UCEFF',
-            'sao miguel do oeste - uceff.': 'SÃO MIGUEL DO OESTE - UCEFF',
-            'uceff central.': 'UCEFF CENTRAL',
-            'barracao - polo unetri': 'BARRACÃO - POLO UNETRI',
-        }
-        for i, row in enumerate(list(ws.iter_rows(values_only=True))[1:], start=2):
-            nome = cell(row, 1)
-            if not nome:
-                continue
-            cidade_nome = cell(row, 0)
-            key = (norm(nome), norm(cidade_nome))
-            if key in existentes:
-                self.stat('egressos já existentes/duplicados (ignorados)')
-                continue
-            existentes.add(key)
-            estado = cell(row, 10).upper()
-            if estado in ('NI', 'NULL'):
-                estado = ''
-            inst_raw = cell(row, 9)
-            obs = obs_block([
-                ('Amigos', cell(row, 3)),
-                ('Mensagem enviada', cell(row, 4)),
-                ('Origem', f'{ORIGEM} (aba {aba})'),
-            ])
-            batch.append(Egresso(
-                nome=nome[:200],
-                telefone=clean_phone(row[7] if len(row) > 7 else ''),
-                email=clean_email(row[6] if len(row) > 6 else ''),
-                instagram=cell(row, 2)[:100],
-                cidade_nome=cidade_nome[:150],
-                estado=estado[:2],
-                cidade=self.find_cidade(cidade_nome) if estado in ('SC', '') else None,
-                curso=cell(row, 5)[:150],
-                instituicao=inst_fix.get(norm(inst_raw), inst_raw)[:150],
-                situacao_curso=cell(row, 8)[:50],
-                observacoes=obs,
-            ))
-            self.stat('egressos criados')
-        if not self.dry_run and batch:
-            Egresso.objects.bulk_create(batch, batch_size=500)
-
-    def import_lassberg(self, ws):
-        aba = 'LASSBERG'
-        existentes = {
-            (norm(n), norm(c))
-            for n, c in Lassberg.all_objects.values_list('nome', 'cidade_nome')
-        }
-        for i, row in enumerate(list(ws.iter_rows(values_only=True))[2:], start=3):
-            nome = cell(row, 1)
-            if not nome:
-                continue
-            # nomes vêm com código de cliente no início ("10.187.707 FULANO")
-            # ou documento no final ("FULANO 81166206904")
-            codigo = ''
-            m = re.match(r'^(\d[\d.\-/]*)\s+(.+)$', nome)
-            if m:
-                codigo, nome = m.group(1), m.group(2).strip()
-            m = re.match(r'^(.+?)\s+(\d{6,})$', nome)
-            if m:
-                nome = m.group(1).strip()
-                codigo = f'{codigo} / {m.group(2)}' if codigo else m.group(2)
-            cidade_nome = cell(row, 0)
-            key = (norm(nome), norm(cidade_nome))
-            if key in existentes:
-                self.stat('lassberg já existentes (ignorados)')
-                continue
-            existentes.add(key)
-            estado = cell(row, 3).title()
-            cidade = self.find_cidade(cidade_nome) if norm(estado) in ('santa catarina', '') else None
-            obj = Lassberg(
-                nome=nome[:200],
-                telefone=clean_phone(row[2] if len(row) > 2 else ''),
-                cidade_nome=cidade_nome[:150],
-                estado=estado[:30],
-                cidade=cidade,
-                observacoes=obs_block([
-                    ('Código cliente', codigo),
-                    ('Origem', f'{ORIGEM} (aba LASSBERG — distribuidores)'),
-                ]),
-            )
-            if not self.dry_run:
-                obj.save()
-            self.stat('lassberg criados')
-
     # ---------- main ----------
 
     def handle(self, *args, **options):
@@ -496,7 +410,7 @@ class Command(BaseCommand):
             self.import_ctt(wb['CTT LIDERANÇAS'])
             self.import_liderancas_chapeco(wb['LIDERANÇAS CHAPECÓ'])
             self.import_politicos(wb['EXECUTIVA'], 'EXECUTIVA', 1, 0, 1, 3,
-                                  'presidente_diretorio', col_email=4, update_field='presidente_pl')
+                                  'presidente_diretorio', col_email=4, update_field='presidente_diretorio')
             self.import_politicos(wb['PREFEITOS'], 'PREFEITOS', 2, 1, 2, 3,
                                   'prefeito', col_regional=0, update_field='prefeito_nome')
             self.import_politicos(wb['VICE-PREFEITOS'], 'VICE-PREFEITOS', 2, 1, 2, 3,
@@ -505,8 +419,6 @@ class Command(BaseCommand):
                                   'vereador', col_regional=0)
             self.import_uceff(wb['Uceff Lideranças'], 'Uceff Lideranças', 2)
             self.import_uceff(wb['APOIADORES UCEFF'], 'APOIADORES UCEFF', 2)
-            self.import_egressos(wb['ALUNOS EGRESSOS'])
-            self.import_lassberg(wb['LASSBERG'])
 
             if self.dry_run:
                 transaction.set_rollback(True)

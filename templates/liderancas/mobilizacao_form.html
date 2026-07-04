@@ -58,6 +58,7 @@
             <div class="form-group full">
                 <label for="id_observacoes">Observações</label>
                 {{ form.observacoes }}
+                <button type="button" class="ia-clean-btn" data-ia-clean title="Corrigir e organizar o texto com IA">✨ Limpar com IA</button>
                 {{ form.observacoes.errors }}
             </div>
         </div>
@@ -70,7 +71,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/liderancas-common.js"></script>
+<script src="/static/js/liderancas-common.js?v=2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     LiderancasCommon.initPhoneMask();

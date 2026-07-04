@@ -22,6 +22,38 @@ class SoftDeleteManager(models.Manager):
         return SoftDeleteQuerySet(self.model, using=self._db).deleted()
 
 
+def q_apoiadores_aprovados(prefix=''):
+    """Q canônico do apoiador que conta como oficial (CLAUDE.md §3.1): papel
+    apoiador, ativo e aprovado. `prefix` permite usar em agregações por relação
+    reversa, ex.: q_apoiadores_aprovados('liderancas') ou 'cidades__liderancas'.
+    Fonte única — evita o predicado de moderação copiado em ~25 querysets."""
+    p = f'{prefix}__' if prefix else ''
+    return models.Q(**{
+        f'{p}papel': 'apoiador', f'{p}status': 'ativo', f'{p}aprovacao': 'aprovado',
+    })
+
+
+class LiderancaQuerySet(SoftDeleteQuerySet):
+    def aprovados(self):
+        """Só o que é base oficial (CLAUDE.md §3.1)."""
+        return self.filter(aprovacao='aprovado')
+
+    def apoiadores_aprovados(self):
+        """Apoiadores que contam para placares/mapa/exports oficiais."""
+        return self.filter(q_apoiadores_aprovados())
+
+
+class LiderancaManager(SoftDeleteManager):
+    def get_queryset(self):
+        return LiderancaQuerySet(self.model, using=self._db).active()
+
+    def aprovados(self):
+        return self.get_queryset().aprovados()
+
+    def apoiadores_aprovados(self):
+        return self.get_queryset().apoiadores_aprovados()
+
+
 class SoftDeleteMixin(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -103,9 +135,9 @@ class Cidade(models.Model):
     prefeito_nome = models.CharField(max_length=200, blank=True)
     prefeito_partido = models.CharField(max_length=50, blank=True)
     num_vereadores = models.IntegerField(default=0)
-    num_vereadores_pl = models.IntegerField(default=0)
-    presidente_pl = models.CharField(max_length=200, blank=True, verbose_name='Presidente Diretório PL')
-    votos_sorgatto_2022 = models.IntegerField(default=0)
+    num_vereadores_partido = models.IntegerField(default=0)
+    presidente_diretorio = models.CharField(max_length=200, blank=True, verbose_name='Presidente Diretório NOVO')
+    votos_referencia_2022 = models.IntegerField(default=0)
     meta_votos = models.IntegerField(default=0)
     meta_doacoes = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     zona_eleitoral = models.CharField(max_length=50, blank=True)
@@ -141,7 +173,7 @@ class Cidade(models.Model):
                 import urllib.request, json, urllib.parse
                 cidade_encoded = urllib.parse.quote(f"{self.nome}, Santa Catarina, Brasil")
                 url = f"https://nominatim.openstreetmap.org/search?q={cidade_encoded}&format=json&limit=1"
-                req = urllib.request.Request(url, headers={'User-Agent': 'CRM-Sorgatto-App'})
+                req = urllib.request.Request(url, headers={'User-Agent': 'CRM-Isadora-App'})
                 with urllib.request.urlopen(req, timeout=5) as response:
                     data = json.loads(response.read().decode())
                     if data:
@@ -189,7 +221,19 @@ class ZonaEleitoral(models.Model):
         return f'Zona {self.numero} — {self.cidade}'
 
 
-class CoordenadorRegional(SoftDeleteMixin, models.Model):
+class Lideranca(SoftDeleteMixin, models.Model):
+    """Cadastro unificado de pessoas da rede política.
+    Substitui CoordenadorRegional, CaboEleitoral e Apoiador — o campo `papel`
+    discrimina o tipo. Campos específicos de apoiador ficam vazios para os demais."""
+
+    objects = LiderancaManager()
+    all_objects = LiderancaQuerySet.as_manager()
+
+    PAPEL_CHOICES = [
+        ('coordenador', 'Coordenador Regional'),
+        ('cabo', 'Cabo Eleitoral'),
+        ('apoiador', 'Apoiador'),
+    ]
     PRIORIDADE_CHOICES = [
         ('alta', 'Alta'),
         ('media', 'Média'),
@@ -201,114 +245,7 @@ class CoordenadorRegional(SoftDeleteMixin, models.Model):
         ('mensal', 'Mensal'),
         ('eventual', 'Eventual'),
     ]
-
-    nome = models.CharField(max_length=200)
-    telefone = models.CharField(max_length=20, blank=True)
-    email = models.EmailField(blank=True)
-    regiao = models.ForeignKey(Regiao, on_delete=models.PROTECT, related_name='coordenadores')
-    cidade_base = models.ForeignKey(
-        Cidade, on_delete=models.PROTECT, related_name='coordenadores',
-        verbose_name='Cidade Base',
-    )
-    instagram = models.CharField(max_length=100, blank=True)
-    prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media', verbose_name='Prioridade Comunicação')
-    frequencia_relacionamento = models.CharField(
-        max_length=15, choices=FREQUENCIA_CHOICES, default='mensal',
-        verbose_name='Frequência de Relacionamento',
-    )
-    observacoes = models.TextField(blank=True, verbose_name='Observações')
-
-    cadastrado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='coordenadores_cadastrados',
-    )
-    atualizado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='coordenadores_atualizados',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'Coordenador Regional'
-        verbose_name_plural = 'Coordenadores Regionais'
-        ordering = ['nome']
-
-    def __str__(self):
-        return f'{self.nome} — {self.regiao.sigla}'
-
-
-class CaboEleitoral(SoftDeleteMixin, models.Model):
-    PRIORIDADE_CHOICES = [
-        ('alta', 'Alta'),
-        ('media', 'Média'),
-        ('baixa', 'Baixa'),
-    ]
-
-    FREQUENCIA_CHOICES = [
-        ('semanal', 'Semanal'),
-        ('quinzenal', 'Quinzenal'),
-        ('mensal', 'Mensal'),
-        ('eventual', 'Eventual'),
-    ]
-
-    nome = models.CharField(max_length=200)
-    telefone = models.CharField(max_length=20, blank=True)
-    email = models.EmailField(blank=True)
-    cidade = models.ForeignKey(Cidade, on_delete=models.PROTECT, related_name='cabos_eleitorais')
-    coordenador = models.ForeignKey(
-        CoordenadorRegional,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='cabos',
-    )
-    instagram = models.CharField(max_length=100, blank=True)
-    prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media', verbose_name='Prioridade Comunicação')
-    frequencia_relacionamento = models.CharField(
-        max_length=15, choices=FREQUENCIA_CHOICES, default='mensal',
-        verbose_name='Frequência de Relacionamento',
-    )
-    observacoes = models.TextField(blank=True, verbose_name='Observações')
-
-    cadastrado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='cabos_cadastrados',
-    )
-    atualizado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='cabos_atualizados',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'Cabo Eleitoral'
-        verbose_name_plural = 'Cabos Eleitorais'
-        ordering = ['nome']
-
-    def save(self, *args, **kwargs):
-        if not self.coordenador_id:
-            coord = CoordenadorRegional.objects.filter(regiao=self.cidade.regiao).first()
-            if coord:
-                self.coordenador = coord
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f'{self.nome} — {self.cidade}'
-
-
-class Apoiador(SoftDeleteMixin, models.Model):
+    # Específicos de apoiador
     TIPO_CHOICES = [
         ('politico', 'Apoiador Político'),
         ('empresarial', 'Apoiador Empresarial'),
@@ -318,33 +255,16 @@ class Apoiador(SoftDeleteMixin, models.Model):
         ('imprensa', 'Imprensa'),
         ('pwa', 'Apoiador PWA'),
     ]
-
-    PRIORIDADE_CHOICES = [
-        ('alta', 'Alta'),
-        ('media', 'Média'),
-        ('baixa', 'Baixa'),
-    ]
-
-
     INFLUENCIA_CHOICES = [
         ('alto', 'Alto'),
         ('medio', 'Médio'),
         ('baixo', 'Baixo'),
     ]
-
-    FREQUENCIA_CHOICES = [
-        ('semanal', 'Semanal'),
-        ('quinzenal', 'Quinzenal'),
-        ('mensal', 'Mensal'),
-        ('eventual', 'Eventual'),
-    ]
-
     STATUS_CHOICES = [
         ('ativo', 'Ativo'),
         ('inativo', 'Inativo'),
         ('pendente', 'Pendente'),
     ]
-
     CARGO_CHOICES = [
         ('prefeito', 'Prefeito'),
         ('vice_prefeito', 'Vice-Prefeito'),
@@ -353,64 +273,184 @@ class Apoiador(SoftDeleteMixin, models.Model):
         ('ex_politico', 'Ex-Político'),
         ('outro', 'Outro'),
     ]
+    # Campos vindos da PLANILHA CENTRAL ISA (base de eleitores/apoiadores)
+    INTENCAO_VOTO_CHOICES = [
+        ('sim', 'Sim'),
+        ('talvez', 'Talvez'),
+        ('nao', 'Não'),
+        ('nao_contactado', 'Não contactado'),
+    ]
+    NIVEL_CHOICES = [
+        ('multiplicador', 'Multiplicador (líder)'),
+        ('lead', 'Lead'),
+    ]
+    CANAL_CHOICES = [
+        ('whatsapp', 'WhatsApp'),
+        ('instagram', 'Instagram'),
+        ('facebook', 'Facebook'),
+    ]
 
+    papel = models.CharField(max_length=12, choices=PAPEL_CHOICES, db_index=True)
+
+    # Comuns a todos
     nome = models.CharField(max_length=200)
     telefone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
-    cidade = models.ForeignKey(Cidade, on_delete=models.PROTECT, related_name='apoiadores')
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
-    cargo = models.CharField(
-        max_length=25, choices=CARGO_CHOICES, blank=True,
-        verbose_name='Cargo Político',
-    )
-    votos_referencia = models.IntegerField(
-        default=0, verbose_name='Votos de referência',
-        help_text='Votos que este político obteve na última eleição (base da máquina de voto).',
-    )
-    meta_votos_transferir = models.IntegerField(
-        default=0, verbose_name='Meta de votos a transferir',
-        help_text='Quantos votos deste político a campanha quer transferir para o LS.',
-    )
-    origem_contato = models.CharField(max_length=200, blank=True, verbose_name='Origem do Contato')
     instagram = models.CharField(max_length=100, blank=True)
-    prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media', verbose_name='Prioridade Comunicação')
-    grau_influencia = models.CharField(
-        max_length=10, choices=INFLUENCIA_CHOICES, default='medio',
-        verbose_name='Grau de Influência',
+    cidade = models.ForeignKey(Cidade, on_delete=models.PROTECT, related_name='liderancas')
+    regiao = models.ForeignKey(
+        Regiao, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='liderancas',
+        verbose_name='Região de atuação',
+        help_text='Usada pelo coordenador como área de atuação; nos demais, deriva da cidade.',
     )
+    coordenador_responsavel = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='liderados', limit_choices_to={'papel': 'coordenador'},
+        verbose_name='Coordenador Responsável',
+    )
+    prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media', verbose_name='Prioridade Comunicação')
     frequencia_relacionamento = models.CharField(
         max_length=15, choices=FREQUENCIA_CHOICES, default='mensal',
         verbose_name='Frequência de Relacionamento',
     )
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ativo')
     observacoes = models.TextField(blank=True, verbose_name='Observações')
 
+    # Específicos de apoiador (ficam vazios/zerados para coordenador e cabo)
+    tipo = models.CharField(
+        max_length=20, choices=TIPO_CHOICES, blank=True,
+        verbose_name='Categoria do Apoiador',
+    )
+    cargo = models.CharField(max_length=25, choices=CARGO_CHOICES, blank=True, verbose_name='Cargo Político')
+    votos_referencia = models.IntegerField(default=0, verbose_name='Votos de referência')
+    meta_votos_transferir = models.IntegerField(default=0, verbose_name='Meta de votos a transferir')
+    origem_contato = models.CharField(max_length=200, blank=True, verbose_name='Origem do Contato')
+    grau_influencia = models.CharField(
+        max_length=10, choices=INFLUENCIA_CHOICES, blank=True,
+        verbose_name='Grau de Influência',
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, blank=True)
+
+    # ── Campos da PLANILHA CENTRAL ISA (atendimento & relacionamento) ──
+    # Mesclados do arquivo "PLANILHA CENTRAL ISA DEPUTADA.xlsx" (aba ELEITORES).
+    # Todos opcionais — não afetam cadastros existentes nem o funil de moderação.
+    atendente = models.CharField(
+        max_length=100, blank=True, verbose_name='Atendente',
+        help_text='Quem fez/conduz o atendimento deste contato.',
+    )                                                       # planilha: ATENDENTE
+    intencao_voto = models.CharField(
+        max_length=15, choices=INTENCAO_VOTO_CHOICES, blank=True,
+        verbose_name='Intenção de voto',
+    )                                                       # planilha: VOTO
+    nivel = models.CharField(
+        max_length=15, choices=NIVEL_CHOICES, blank=True, verbose_name='Nível',
+    )                                                       # planilha: NÍVEL
+    uf = models.CharField(
+        max_length=2, blank=True, default='SC', verbose_name='UF',
+    )                                                       # planilha: UF
+    contato_feito = models.BooleanField(
+        default=False, verbose_name='Contato feito?',
+    )                                                       # planilha: Contato Feito?
+    data_contato = models.DateField(
+        null=True, blank=True, verbose_name='Data do contato',
+    )                                                       # planilha: DATA CONTATO
+    canal_atendimento = models.CharField(
+        max_length=12, choices=CANAL_CHOICES, blank=True,
+        verbose_name='Canal do último atendimento',
+    )                                                       # planilha: CANAL DO ÚLTIMO ATENDIMENTO
+    vaquinha_enviada = models.BooleanField(
+        default=False, verbose_name='Link da vaquinha enviado?',
+    )                                                       # planilha: Já mandou link da VAQUINHA?
+    doou = models.BooleanField(
+        default=False, verbose_name='Doou?',
+    )                                                       # planilha: DOOU?
+    filiado_partido = models.CharField(
+        max_length=100, blank=True, verbose_name='Filiado a algum partido?',
+    )                                                       # planilha: FILIADO A ALGUM PARTIDO?
+    quem_e_eleitor = models.CharField(
+        max_length=255, blank=True, verbose_name='Quem é o eleitor?',
+    )                                                       # planilha: QUEM É O ELEITOR?
+    facebook = models.CharField(
+        max_length=200, blank=True, verbose_name='Facebook',
+    )                                                       # planilha: FACEBOOK
+    endereco = models.CharField(
+        max_length=300, blank=True, verbose_name='Endereço (entrega de material)',
+    )                                                       # planilha: ENDEREÇO
+    material_entregue = models.BooleanField(
+        default=False, verbose_name='Material entregue?',
+    )                                                       # planilha: MATERIAL ENTREGUE?
+    idade = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name='Idade',
+    )                                                       # planilha: IDADE
+    segmentos = models.CharField(
+        max_length=255, blank=True, verbose_name='Segmentos/Interesses',
+    )                                                       # planilha: SEGMENTOS/INTERESSES
+    # Coluna "HISTÓRICO DO ATENDIMENTO" da planilha → registrada via InteracaoLog.
+
+    # Idempotência do cadastro offline via PWA (UUID gerado no aparelho)
+    pwa_client_id = models.CharField(
+        max_length=64, null=True, blank=True, unique=True, db_index=True,
+        verbose_name='ID do cadastro PWA',
+    )
+
+    # Moderação: leads do PWA entram como 'pendente' e precisam de aprovação
+    # para contar como base oficial (export/contagens). 'rejeitado' fica oculto.
+    APROVACAO_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('aprovado', 'Aprovado'),
+        ('rejeitado', 'Rejeitado'),
+    ]
+    ORIGEM_CHOICES = [
+        ('crm', 'CRM'),
+        ('pwa', 'App PWA'),
+        ('import', 'Importação'),
+    ]
+    aprovacao = models.CharField(
+        max_length=10, choices=APROVACAO_CHOICES, default='aprovado', db_index=True,
+        verbose_name='Aprovação',
+    )
+    origem = models.CharField(max_length=10, choices=ORIGEM_CHOICES, default='crm')
+    aprovado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='liderancas_aprovadas',
+    )
+    aprovado_em = models.DateTimeField(null=True, blank=True)
+    motivo_rejeicao = models.TextField(blank=True, verbose_name='Motivo da rejeição')
+
     cadastrado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='apoiadores_cadastrados',
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='liderancas_cadastradas',
     )
     atualizado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='apoiadores_atualizados',
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='liderancas_atualizadas',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Apoiador'
-        verbose_name_plural = 'Apoiadores'
+        verbose_name = 'Liderança'
+        verbose_name_plural = 'Lideranças'
         ordering = ['nome']
+        indexes = [
+            models.Index(fields=['papel', 'is_active']),
+        ]
+
+    def save(self, *args, **kwargs):
+        # Cabo sem coordenador → tenta um coordenador da mesma região (paridade com o modelo antigo)
+        if self.papel == 'cabo' and not self.coordenador_responsavel_id and self.cidade_id:
+            coord = Lideranca.objects.filter(
+                papel='coordenador', regiao=self.cidade.regiao,
+            ).first()
+            if coord:
+                self.coordenador_responsavel = coord
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.nome
+        return f'{self.nome} ({self.get_papel_display()})'
 
 
-class Voluntario(models.Model):
+class Voluntario(SoftDeleteMixin, models.Model):
     DISPONIBILIDADE_CHOICES = [
         ('panfletagem', 'Panfletagem'),
         ('bandeira', 'Bandeira'),
@@ -436,6 +476,25 @@ class Voluntario(models.Model):
     )
     endereco = models.CharField(max_length=300, blank=True, verbose_name='Endereço')
     observacoes = models.TextField(blank=True, verbose_name='Observações')
+
+    # Idempotência do cadastro offline via PWA
+    pwa_client_id = models.CharField(
+        max_length=64, null=True, blank=True, unique=True, db_index=True,
+        verbose_name='ID do cadastro PWA',
+    )
+    # Moderação (igual aos leads): cadastros do app entram como 'pendente'
+    aprovacao = models.CharField(
+        max_length=10, choices=Lideranca.APROVACAO_CHOICES, default='aprovado', db_index=True,
+        verbose_name='Aprovação',
+    )
+    origem = models.CharField(max_length=10, choices=Lideranca.ORIGEM_CHOICES, default='crm')
+    aprovado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='voluntarios_aprovados',
+    )
+    aprovado_em = models.DateTimeField(null=True, blank=True)
+    motivo_rejeicao = models.TextField(blank=True, verbose_name='Motivo da rejeição')
+
     cadastrado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -456,86 +515,6 @@ class Voluntario(models.Model):
         return [mapa.get(d, d) for d in self.disponibilidades]
 
 
-class Egresso(SoftDeleteMixin, models.Model):
-    nome = models.CharField(max_length=200)
-    telefone = models.CharField(max_length=20, blank=True)
-    email = models.EmailField(blank=True)
-    instagram = models.CharField(max_length=100, blank=True, verbose_name='Redes Sociais')
-    cidade_nome = models.CharField(max_length=150, blank=True, verbose_name='Cidade (texto)')
-    estado = models.CharField(max_length=2, blank=True, verbose_name='UF')
-    cidade = models.ForeignKey(
-        Cidade, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='egressos',
-        verbose_name='Cidade (SC)',
-    )
-    curso = models.CharField(max_length=150, blank=True)
-    instituicao = models.CharField(max_length=150, blank=True, verbose_name='Instituição')
-    situacao_curso = models.CharField(max_length=50, blank=True, verbose_name='Situação do Curso')
-    observacoes = models.TextField(blank=True, verbose_name='Observações')
-
-    cadastrado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='egressos_cadastrados',
-    )
-    atualizado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='egressos_atualizados',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'Egresso'
-        verbose_name_plural = 'Egressos'
-        ordering = ['nome']
-
-    def __str__(self):
-        return self.nome
-
-
-class Lassberg(SoftDeleteMixin, models.Model):
-    nome = models.CharField(max_length=200)
-    telefone = models.CharField(max_length=20, blank=True)
-    email = models.EmailField(blank=True)
-    cidade_nome = models.CharField(max_length=150, blank=True, verbose_name='Cidade (texto)')
-    estado = models.CharField(max_length=30, blank=True, verbose_name='Estado')
-    cidade = models.ForeignKey(
-        Cidade, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='lassbergs',
-        verbose_name='Cidade (SC)',
-    )
-    observacoes = models.TextField(blank=True, verbose_name='Observações')
-
-    cadastrado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='lassbergs_cadastrados',
-    )
-    atualizado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='lassbergs_atualizados',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'Lassberg'
-        verbose_name_plural = 'Lassberg'
-        ordering = ['nome']
-
-    def __str__(self):
-        return self.nome
-
-
 class InteracaoLog(models.Model):
     TIPO_CHOICES = [
         ('ligacao', 'Ligação'),
@@ -547,24 +526,8 @@ class InteracaoLog(models.Model):
         ('outro', 'Outro'),
     ]
 
-    coordenador = models.ForeignKey(
-        CoordenadorRegional, on_delete=models.CASCADE,
-        null=True, blank=True, related_name='interacoes',
-    )
-    cabo = models.ForeignKey(
-        CaboEleitoral, on_delete=models.CASCADE,
-        null=True, blank=True, related_name='interacoes',
-    )
-    apoiador = models.ForeignKey(
-        Apoiador, on_delete=models.CASCADE,
-        null=True, blank=True, related_name='interacoes',
-    )
-    egresso = models.ForeignKey(
-        Egresso, on_delete=models.CASCADE,
-        null=True, blank=True, related_name='interacoes',
-    )
-    lassberg = models.ForeignKey(
-        Lassberg, on_delete=models.CASCADE,
+    lideranca = models.ForeignKey(
+        'Lideranca', on_delete=models.CASCADE,
         null=True, blank=True, related_name='interacoes',
     )
 
@@ -589,18 +552,10 @@ class InteracaoLog(models.Model):
 
     @property
     def entidade(self):
-        return self.coordenador or self.cabo or self.apoiador or self.egresso or self.lassberg
+        return self.lideranca
 
     @property
     def entidade_tipo(self):
-        if self.coordenador_id:
-            return 'coordenador'
-        if self.cabo_id:
-            return 'cabo'
-        if self.apoiador_id:
-            return 'apoiador'
-        if self.egresso_id:
-            return 'egresso'
-        if self.lassberg_id:
-            return 'lassberg'
+        if self.lideranca_id:
+            return self.lideranca.papel
         return ''

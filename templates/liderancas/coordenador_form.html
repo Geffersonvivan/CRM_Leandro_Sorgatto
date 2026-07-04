@@ -39,8 +39,8 @@
             </div>
             <div class="form-group">
                 <label for="id_cidade">Cidade Base *</label>
-                {{ form.cidade_base }}
-                {{ form.cidade_base.errors }}
+                {{ form.cidade }}
+                {{ form.cidade.errors }}
             </div>
             <div class="form-group">
                 <label for="id_instagram">Instagram</label>
@@ -72,7 +72,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/liderancas-common.js"></script>
+<script src="/static/js/liderancas-common.js?v=2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     LiderancasCommon.initPhoneMask();

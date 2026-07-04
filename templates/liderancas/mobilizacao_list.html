@@ -3,58 +3,132 @@
 
 {% block extra_css %}
 <style>
-    .badge-disp { background: #fff7ed; color: #ea580c; font-size: 0.62rem; padding: 2px 5px; }
-    .actions { display: flex; gap: 4px; }
-    .obs-link { color: #002776; cursor: pointer; text-decoration: underline dotted; }
-    .obs-link:hover { color: #003da5; }
-    .pagination-info { text-align: center; font-size: 0.78rem; color: #64748b; padding-bottom: 12px; }
-    .pagination .disabled { color: #cbd5e1; cursor: default; }
-    .pagination .disabled:hover { background: transparent; border-color: #e2e8f0; }
-    .modal-box { padding: 24px 28px; width: 520px; }
-    .modal-body { word-break: break-word; }
-    .table-container table { table-layout: fixed; width: 100%; }
-    .table-container th, .table-container td {
-        font-size: 0.70rem; padding: 5px 4px;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        text-align: left; vertical-align: middle;
-    }
-    .table-container th { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.3px; }
-    .table-container td .btn-sm { padding: 2px 6px; font-size: 0.64rem; }
-    .table-container td.wrap-cell { white-space: normal; line-height: 1.3; }
+    .actions { display: flex; gap: 3px; flex-wrap: nowrap; }
+    .actions .btn-icon { width: 28px; height: 28px; padding: 0; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #6b7280; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; position: relative; }
+    .actions .btn-icon:hover { background: #e6edf8; color: var(--navy); border-color: var(--navy); }
+    .actions .btn-icon svg { width: 14px; height: 14px; }
+    .actions .btn-icon::after { content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; font-size: 0.65rem; padding: 3px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 0.1s; margin-top: 4px; }
+    .actions .btn-icon:hover::after { opacity: 1; }
+    .actions .btn-icon.ok:hover { background:#dcfce7; color:#15803d; border-color:#15803d; }
+    .actions .btn-icon.no:hover { background:#fee2e2; color:#b91c1c; border-color:#b91c1c; }
+    .actions .btn-icon.danger:hover { background:#fef2f2; color:#dc2626; border-color:#dc2626; }
+    .obs-link { color: var(--navy); cursor: pointer; text-decoration: underline dotted; }
+
+    /* Chips */
+    .chips-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 12px; }
+    .chips-label { font-size:0.75rem; color:#64748b; font-weight:600; }
+    .chip { display:inline-flex; align-items:center; gap:4px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; border-radius:14px; padding:3px 10px; font-size:0.74rem; text-decoration:none; }
+    .chip:hover { background:#e0e7ff; }
+    .chip-k { font-weight:600; }
+    .chip-x { font-weight:700; margin-left:2px; }
+    .chip-clear { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+
+    /* Filtros — visual uniforme */
+    .filters-card { border:1px solid #eef0f4; border-radius:14px; overflow:visible; }
+    .filters-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:14px 16px; align-items:end; }
+    .filters-actions-row { display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap; }
+    .filters-actions-row .fa-spacer { flex:1 1 auto; }
+    .filters-row .filter-group { display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .filters-row .filter-group > label { font-size:0.64rem; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:#94a3b8; }
+    .filters-row input[type=text], .filters-row select, .ms-btn { width:100%; height:38px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:9px; background:#fff; padding:0 12px; font-size:0.82rem; color:#1e293b; transition:border-color .12s, box-shadow .12s; }
+    .filters-row input[type=text]:focus, .filters-row select:focus, .ms-btn:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(255, 107, 0,.10); }
+    .filters-row input::placeholder { color:#cbd5e1; }
+
+    /* Multi-select dropdown (checkbox) */
+    .ms { position:relative; }
+    .ms-btn { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; }
+    .ms-btn:hover { border-color:#9ca3af; }
+    .ms-btn.has-sel { border-color:var(--navy); color:var(--navy); font-weight:600; }
+    .ms-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ms-caret { color:#9ca3af; font-size:0.62rem; flex-shrink:0; }
+    .ms-pop { position:absolute; left:0; top:calc(100% + 5px); z-index:30; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 30px rgba(15,23,42,.14); padding:6px; min-width:210px; max-height:260px; overflow-y:auto; display:none; }
+    .ms.open .ms-pop { display:block; }
+    .ms-opt { display:flex; align-items:center; gap:9px; padding:7px 9px; font-size:0.8rem; color:#374151; border-radius:7px; cursor:pointer; }
+    .ms-opt:hover { background:#f1f5f9; }
+    .ms-opt input { width:15px; height:15px; accent-color:var(--navy); cursor:pointer; }
+
+    /* Toolbar */
+    .tool-btn { padding:5px 10px; border:1px solid #d1d5db; border-radius:6px; background:#fff; cursor:pointer; font-size:0.78rem; color:#475569; }
+    .tool-btn:hover { border-color:var(--navy); color:var(--navy); }
+    .col-menu { position:relative; display:inline-block; }
+    .col-menu-pop { position:absolute; left:0; top:110%; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.12); padding:10px 14px; z-index:20; display:none; min-width:180px; }
+    .col-menu-pop.open { display:block; }
+    .col-menu-pop label { display:flex; align-items:center; gap:7px; font-size:0.8rem; color:#374151; padding:4px 0; cursor:pointer; }
+
+    /* Bulk bar */
+    .bulk-bar { display:none; background:#f0f6ff; border:1px solid #d0e2ff; border-radius:8px; padding:8px 14px; align-items:center; gap:12px; font-size:0.82rem; margin-bottom:10px; }
+    .bulk-bar.active { display:flex; }
+    .bulk-bar select { padding:4px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.78rem; }
+    .bulk-bar .count { font-weight:600; color:var(--navy); }
+    .row-check { width:15px; height:15px; cursor:pointer; accent-color:var(--navy); }
+
+    /* Planilha: rolagem própria com cabeçalho fixo */
+    .table-scroll { overflow: auto; max-height: calc(100vh - 330px); min-height: 220px; }
+    .table-scroll table { width: 100%; border-collapse: collapse; table-layout: auto; }
+    .table-scroll th, .table-scroll td { font-size: 0.76rem; padding: 8px 10px; text-align: left; vertical-align: middle; white-space: normal; word-break: break-word; border-bottom: 1px solid #f1f5f9; }
+    .table-scroll th { white-space: nowrap; }
+    .table-scroll .nw { white-space: nowrap; }
+    .table-scroll thead th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px; color: #64748b; font-weight: 600; background: #eef1f6; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 3; }
+    .table-scroll tbody tr:hover { background: #f8fafc; }
+    .table-scroll.dense th, .table-scroll.dense td { padding: 4px 8px; font-size: 0.72rem; }
+    .col-check { width: 34px; text-align:center !important; }
+    .badge-disp { background:#fff7ed; color:#ea580c; font-size:0.62rem; padding:2px 6px; border-radius:8px; }
+
+    /* Moderação */
+    .tr-pendente td { background:#fff5f5; }
+    .tr-rejeitado td { background:#f9fafb; color:#9ca3af; }
+    .apr-badge { font-size:0.58rem; padding:1px 6px; border-radius:8px; font-weight:700; margin-left:5px; white-space:nowrap; }
+    .apr-pendente { background:#fee2e2; color:#b91c1c; }
+    .apr-rejeitado { background:#e5e7eb; color:#6b7280; }
+    .pend-banner { display:flex; align-items:center; gap:10px; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:0.84rem; font-weight:600; }
+    .pend-banner > a { margin-left:auto; background:#b91c1c; color:#fff; padding:5px 12px; border-radius:8px; text-decoration:none; font-size:0.8rem; }
+    .pend-banner a.rej-link { margin-left:0; background:transparent; color:#991b1b; padding:0; text-decoration:underline; opacity:.85; font-size:0.78rem; }
+    .rej-banner { display:flex; align-items:center; gap:10px; background:#f3f4f6; border:1px solid #e5e7eb; color:#4b5563; border-radius:10px; padding:9px 14px; margin-bottom:12px; font-size:0.82rem; font-weight:600; }
+    .rej-banner a { margin-left:auto; color:#374151; text-decoration:underline; }
+    .int-table { width:100%; font-size:0.8rem; border-collapse:collapse; }
 </style>
 {% endblock %}
 
 {% block content %}
-
 <div class="page-header">
-    <h1 class="page-title" data-tip="Voluntários cadastrados via PWA para atividades de mobilização como panfletagem, carreata, boca de urna, etc.">Mobilização <span class="page-subtitle">{{ total }} voluntários</span></h1>
-    <div style="display:flex;gap:8px;">
-        <a href="{% url 'liderancas:mobilizacao_create' %}" class="btn btn-primary" onclick="return openFormModal(this.href, 'Novo Voluntário')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Novo Voluntário
-        </a>
-        <a href="?{{ query_string }}&export=csv" class="btn btn-success">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Exportar CSV
-        </a>
+    <h1 class="page-title" data-tip="Voluntários cadastrados via app para mobilização (panfletagem, carreata, boca de urna, etc.).">Mobilização <span class="page-subtitle">{{ total }}{% if total != total_geral %} de {{ total_geral }}{% endif %} voluntários</span></h1>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <a href="?{{ query_string }}&export=csv" class="btn btn-outline btn-sm">Exportar CSV</a>
+        <a href="{% url 'liderancas:mobilizacao_create' %}" class="btn btn-primary" onclick="return openFormModal(this.href, 'Novo Voluntário')">+ Voluntário</a>
     </div>
 </div>
 
+{% if pode_aprovar and pendentes_total %}
+<div class="pend-banner">
+    ⏳ {{ pendentes_total }} voluntário(s) do app aguardando aprovação
+    <a href="?aprovacao=pendente">Revisar pendentes →</a>
+    {% if rejeitados_total %}<a href="?aprovacao=rejeitado" class="rej-link">ver rejeitados ({{ rejeitados_total }})</a>{% endif %}
+</div>
+{% elif pode_aprovar and rejeitados_total %}
+<div class="rej-banner">
+    {{ rejeitados_total }} voluntário(s) rejeitado(s)
+    <a href="?aprovacao=rejeitado">ver rejeitados →</a>
+</div>
+{% endif %}
+
 <div class="filters-card">
-    <form method="get">
+    <form method="get" id="filtrosForm">
+        <input type="hidden" name="per_page" value="{{ per_page }}">
         <div class="filters-row">
             <div class="filter-group">
                 <label>Busca</label>
-                <input type="text" name="busca" placeholder="Nome, telefone..." value="{{ busca }}">
+                <input type="text" name="busca" placeholder="Buscar voluntários…" title="Busca por nome, telefone, cidade ou observações" value="{{ busca }}">
             </div>
             <div class="filter-group">
                 <label>Região</label>
-                <select name="regiao" id="filtroRegiao" onchange="onRegiaoChange()">
-                    <option value="">Todas</option>
-                    {% for r in regioes %}
-                    <option value="{{ r.id }}" {% if regiao_filtro == r.id|stringformat:"d" %}selected{% endif %}>{{ r.sigla }}</option>
-                    {% endfor %}
-                </select>
+                <div class="ms" data-placeholder="Todas">
+                    <button type="button" class="ms-btn" onclick="toggleMs(this)"><span class="ms-label">Todas</span><span class="ms-caret">▾</span></button>
+                    <div class="ms-pop" id="msRegiao">
+                        {% for r in regioes %}
+                        <label class="ms-opt"><input type="checkbox" name="regiao" value="{{ r.id }}" {% if r.id|stringformat:"d" in regioes_sel %}checked{% endif %}> {{ r.sigla }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
             <div class="filter-group">
                 <label>Cidade</label>
@@ -67,115 +141,271 @@
             </div>
             <div class="filter-group">
                 <label>Disponibilidade</label>
-                <select name="disponibilidade">
-                    <option value="">Todas</option>
-                    {% for value, label in disponibilidade_choices %}
-                    <option value="{{ value }}" {% if disponibilidade_filtro == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+                <div class="ms" data-placeholder="Todas">
+                    <button type="button" class="ms-btn" onclick="toggleMs(this)"><span class="ms-label">Todas</span><span class="ms-caret">▾</span></button>
+                    <div class="ms-pop">
+                        {% for val, lbl in disponibilidade_choices %}
+                        <label class="ms-opt"><input type="checkbox" name="disponibilidade" value="{{ val }}" {% if val in disps_sel %}checked{% endif %}> {{ lbl }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
-            <div class="filter-actions">
-                <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
-                <a href="{% url 'liderancas:mobilizacao_list' %}" class="btn btn-outline btn-sm">Limpar</a>
+        </div>
+        <div class="filters-actions-row">
+            <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+            <a href="{% url 'liderancas:mobilizacao_list' %}" class="btn btn-outline btn-sm">Limpar</a>
+            <span class="fa-spacer"></span>
+            <div class="col-menu">
+                <button type="button" class="tool-btn" onclick="toggleColMenu()">Colunas ▾</button>
+                <div class="col-menu-pop" id="colMenuPop">
+                    <label><input type="checkbox" data-col="endereco"> Endereço</label>
+                    <label><input type="checkbox" data-col="cadpor"> Cadastrado por</label>
+                </div>
             </div>
+            <button type="button" class="tool-btn" onclick="toggleDensity()">Densidade</button>
         </div>
     </form>
 </div>
 
-<div class="table-container">
+{% if filtros_ativos %}
+<div class="chips-bar">
+    <span class="chips-label">Filtros ativos:</span>
+    {% for f in filtros_ativos %}
+    <a class="chip" href="?{{ f.remove_qs }}" title="Remover {{ f.label }}"><span class="chip-k">{{ f.label }}:</span> {{ f.display }} <span class="chip-x">&times;</span></a>
+    {% endfor %}
+    <a class="chip chip-clear" href="{% url 'liderancas:mobilizacao_list' %}">Limpar tudo</a>
+</div>
+{% endif %}
+
+<div class="bulk-bar" id="bulkBar">
+    <span><span class="count" id="bulkCount">0</span> selecionado(s)</span>
+    <select id="bulkAction">
+        <option value="">— Ação em massa —</option>
+        {% if pode_aprovar %}
+        <optgroup label="Aprovação">
+            <option value="aprovar">✓ Aprovar selecionados</option>
+            <option value="rejeitar">✕ Rejeitar selecionados</option>
+        </optgroup>
+        {% endif %}
+        <option value="export_csv">Exportar selecionados (CSV)</option>
+        <option value="delete">Excluir selecionados</option>
+    </select>
+    <button type="button" class="btn btn-primary btn-sm" onclick="applyBulk()">Aplicar</button>
+</div>
+
+<form method="post" action="{% url 'liderancas:mobilizacao_bulk' %}" id="bulkForm">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <input type="hidden" name="bulk_action" id="bulkActionInput">
+    <input type="hidden" name="motivo_rejeicao" id="bulkMotivoInput">
+</form>
+
+<div class="card" style="padding:0; overflow:hidden;">
+<div class="table-scroll" id="tableScroll">
     <table>
         <thead>
             <tr>
-                <th style="width:8%;">Nome</th>
-                <th style="width:8%;">Telefone</th>
-                <th style="width:6%;">Região</th>
-                <th style="width:8%;">Cidade</th>
-                <th style="width:14%;">Endereço</th>
-                <th style="width:13%;">Dispon.</th>
-                <th style="width:12%;">Obs.</th>
-                <th style="width:7%;">Cadastro</th>
-                <th style="width:7%;">Data</th>
-                <th style="width:9%;">Ações</th>
+                <th class="col-check"><input type="checkbox" id="checkAll" class="row-check" onchange="toggleAll(this)"></th>
+                {% sortable_th "nome" "Nome" "" %}
+                <th>Telefone</th>
+                {% sortable_th "cidade__nome" "Cidade" "" %}
+                {% sortable_th "regiao__sigla" "Região" "" %}
+                <th class="col-opt col-endereco">Endereço</th>
+                <th>Disponibilidades</th>
+                <th>Obs.</th>
+                <th class="col-opt col-cadpor">Cadastrado por</th>
+                {% sortable_th "created_at" "Data" "" %}
+                <th>Ações</th>
             </tr>
         </thead>
         <tbody>
             {% for v in page_obj %}
-            <tr>
-                <td>{{ v.nome }}</td>
-                <td>{{ v.telefone|whatsapp_link }}</td>
-                <td>{% if v.regiao %}<span class="badge" style="background:#dbeafe;color:#1d4ed8;">{{ v.regiao.sigla }}</span>{% else %}-{% endif %}</td>
-                <td>{{ v.cidade|default:"-" }}</td>
-                <td>{{ v.endereco|default:"-" }}</td>
-                <td class="wrap-cell">
-                    {% for d in v.get_disponibilidades_display %}
-                    <span class="badge badge-disp">{{ d }}</span>
-                    {% empty %}-{% endfor %}
+            <tr {% if v.aprovacao == 'pendente' %}class="tr-pendente"{% elif v.aprovacao == 'rejeitado' %}class="tr-rejeitado"{% endif %}>
+                <td class="col-check"><input type="checkbox" class="row-check bulk-check" form="bulkForm" name="selected_ids" value="{{ v.pk }}" onchange="updateBulk()"></td>
+                <td style="min-width:150px;">{{ v.nome }}{% if v.aprovacao != 'aprovado' %}<span class="apr-badge apr-{{ v.aprovacao }}">{{ v.get_aprovacao_display }}</span>{% endif %}</td>
+                <td class="nw">{{ v.telefone|whatsapp_link }}</td>
+                <td>{{ v.cidade.nome|default:"-" }}</td>
+                <td class="nw" style="text-align:center;"><span class="badge">{{ v.regiao.sigla|default:"-" }}</span></td>
+                <td class="col-opt col-endereco">{{ v.endereco|default:"-" }}</td>
+                <td>{% for d in v.get_disponibilidades_display %}<span class="badge badge-disp">{{ d }}</span> {% empty %}-{% endfor %}</td>
+                <td style="min-width:80px;">
+                    {% if v.observacoes %}<span class="obs-link" onclick="openObs(this)" data-tipo="voluntario" data-pk="{{ v.pk }}" data-nome="{{ v.nome }}" data-obs="{{ v.observacoes }}">{{ v.observacoes|truncatechars:15 }}</span>{% else %}-{% endif %}
                 </td>
-                <td>
-                    {% if v.observacoes %}
-                    <span class="obs-link" onclick="openObs(this)" data-nome="{{ v.nome|escapejs }}" data-obs="{{ v.observacoes|escapejs }}">{{ v.observacoes|truncatechars:20 }}</span>
-                    {% else %}-{% endif %}
-                </td>
-                <td>{% if v.cadastrado_por %}{{ v.cadastrado_por.get_full_name|default:v.cadastrado_por.username }}{% else %}-{% endif %}</td>
-                <td>{{ v.created_at|date:"d/m/Y" }}</td>
-                <td>
+                <td class="col-opt col-cadpor">{% if v.cadastrado_por %}{{ v.cadastrado_por.get_full_name|default:v.cadastrado_por.username }}{% else %}-{% endif %}</td>
+                <td class="nw">{{ v.created_at|date:"d/m/Y" }}</td>
+                <td class="nw" style="min-width:120px;">
                     <div class="actions">
-                        <a href="{% url 'liderancas:mobilizacao_edit' v.pk %}" class="btn btn-primary btn-sm" onclick="return openFormModal(this.href, 'Editar Voluntário')">Editar</a>
-                        <form method="post" action="{% url 'liderancas:mobilizacao_delete' v.pk %}" onsubmit="return confirm('Remover este voluntário?')">
+                        <a href="{% url 'liderancas:mobilizacao_edit' v.pk %}" class="btn-icon" data-tip="Editar" onclick="return openFormModal(this.href, 'Editar Voluntário')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></a>
+                        {% if pode_aprovar and v.aprovacao != 'aprovado' %}
+                        <button type="button" class="btn-icon ok" data-tip="Aprovar" onclick="moderar([{{ v.pk }}], 'aprovar')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>
+                        {% endif %}
+                        {% if pode_aprovar and v.aprovacao != 'rejeitado' %}
+                        <button type="button" class="btn-icon no" data-tip="Rejeitar" onclick="moderar([{{ v.pk }}], 'rejeitar')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                        {% endif %}
+                        <form method="post" action="{% url 'liderancas:mobilizacao_delete' v.pk %}" onsubmit="return confirm('Remover este voluntário?')" style="display:inline;">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+                            <button type="submit" class="btn-icon danger" data-tip="Excluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                         </form>
                     </div>
                 </td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="10" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum voluntário cadastrado.</td>
-            </tr>
+            <tr><td colspan="11" style="text-align:center;color:#9ca3af;padding:40px;">Nenhum voluntário encontrado.</td></tr>
             {% endfor %}
         </tbody>
     </table>
-
-    {% include 'liderancas/_pagination.html' %}
 </div>
+{% include 'liderancas/_pagination.html' %}
+</div>
+
 <div class="modal-overlay" id="obsModal" onclick="if(event.target===this)closeObs()">
-    <div class="modal-box">
-        <div class="modal-header">
-            <span class="modal-title" id="obsTitle"></span>
-            <button class="modal-close" onclick="closeObs()">&times;</button>
+    <div class="modal-box" style="width:520px;"><div class="modal-header"><span class="modal-title" id="obsTitle"></span><button class="modal-close" onclick="closeObs()">&times;</button></div><div class="modal-body" id="obsBody"></div>
+        <div class="modal-body" style="padding-top:0;display:flex;align-items:center;gap:10px;">
+            <button type="button" class="ia-clean-btn" id="obsIaBtn" onclick="limparObs()" title="Corrigir e organizar o texto com IA e salvar">✨ Limpar com IA</button>
+            <span id="obsIaStatus" style="font-size:.8rem;color:#6b7280;"></span>
         </div>
-        <div class="modal-body" id="obsBody"></div>
+    </div>
+</div>
+<div class="modal-overlay" id="rejModal" onclick="if(event.target===this)closeRej()">
+    <div class="modal-box" style="width:460px;"><div class="modal-header"><span class="modal-title">Rejeitar voluntário(s)</span><button class="modal-close" onclick="closeRej()">&times;</button></div>
+        <div class="modal-body">
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Motivo (opcional)</label>
+            <textarea id="rejMotivo" class="form-input" rows="3" placeholder="Ex.: duplicado, dados inválidos…" style="width:100%;"></textarea>
+            <div style="display:flex;gap:8px;padding-top:12px;"><button type="button" class="btn btn-primary btn-sm" style="background:#b91c1c;" onclick="confirmRej()">Rejeitar</button><button type="button" class="btn btn-outline btn-sm" onclick="closeRej()">Cancelar</button></div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function openObs(el) {
-    document.getElementById('obsTitle').textContent = el.dataset.nome + ' — Observações';
-    document.getElementById('obsBody').textContent = el.dataset.obs;
-    document.getElementById('obsModal').classList.add('active');
+// Multi-select dropdowns (checkbox)
+function updateMsLabel(ms) {
+    var sel = Array.from(ms.querySelectorAll('input[type=checkbox]')).filter(function (c) { return c.checked; });
+    var lbl = ms.querySelector('.ms-label'), btn = ms.querySelector('.ms-btn');
+    if (sel.length === 0) { lbl.textContent = ms.dataset.placeholder || 'Todas'; btn.classList.remove('has-sel'); }
+    else if (sel.length === 1) { lbl.textContent = sel[0].parentNode.textContent.trim(); btn.classList.add('has-sel'); }
+    else { lbl.textContent = sel.length + ' selecionadas'; btn.classList.add('has-sel'); }
 }
-function closeObs() {
-    document.getElementById('obsModal').classList.remove('active');
+function toggleMs(btn) {
+    var ms = btn.closest('.ms'), wasOpen = ms.classList.contains('open');
+    document.querySelectorAll('.ms.open').forEach(function (m) { m.classList.remove('open'); });
+    if (!wasOpen) ms.classList.add('open');
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeObs(); });
+document.addEventListener('click', function (e) { if (!e.target.closest('.ms')) document.querySelectorAll('.ms.open').forEach(function (m) { m.classList.remove('open'); }); });
+document.querySelectorAll('.ms').forEach(function (ms) {
+    updateMsLabel(ms);
+    ms.querySelectorAll('input[type=checkbox]').forEach(function (c) { c.addEventListener('change', function () { updateMsLabel(ms); }); });
+});
 
-function onRegiaoChange() {
-    const regiaoId = document.getElementById('filtroRegiao').value;
-    const cidadeSelect = document.getElementById('filtroCidade');
-    cidadeSelect.innerHTML = '<option value="">Todas</option>';
-    if (!regiaoId) return;
-    fetch(`/liderancas/api/cidades/${regiaoId}/`)
-        .then(r => r.json())
-        .then(cidades => {
-            cidades.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.nome;
-                cidadeSelect.appendChild(opt);
-            });
-        });
+// Cidade em cascata: quando exatamente 1 região marcada
+function cidadeFromRegioes() {
+    var fc = document.getElementById('filtroCidade'); if (!fc) return;
+    var checked = Array.from(document.querySelectorAll('#msRegiao input:checked')).map(function (c) { return c.value; });
+    if (checked.length !== 1) return;
+    fetch('/liderancas/api/cidades/' + checked[0] + '/').then(function (r) { return r.json(); }).then(function (cs) {
+        fc.innerHTML = '<option value="">Todas</option>';
+        cs.forEach(function (c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.nome; fc.appendChild(o); });
+    });
 }
+document.querySelectorAll('#msRegiao input[type=checkbox]').forEach(function (c) { c.addEventListener('change', cidadeFromRegioes); });
+
+// Colunas opcionais (localStorage)
+var COL_KEY = 'mob_cols';
+function applyCols(state) {
+    document.querySelectorAll('#colMenuPop input[data-col]').forEach(function (chk) {
+        var on = !!state[chk.dataset.col]; chk.checked = on;
+        document.querySelectorAll('.col-' + chk.dataset.col).forEach(function (el) { el.style.display = on ? '' : 'none'; });
+    });
+}
+function loadCols() { try { return JSON.parse(localStorage.getItem(COL_KEY)) || {}; } catch (e) { return {}; } }
+(function () {
+    applyCols(loadCols());
+    document.querySelectorAll('#colMenuPop input[data-col]').forEach(function (chk) {
+        chk.addEventListener('change', function () { var st = loadCols(); st[chk.dataset.col] = chk.checked; localStorage.setItem(COL_KEY, JSON.stringify(st)); applyCols(st); });
+    });
+})();
+function toggleColMenu() { document.getElementById('colMenuPop').classList.toggle('open'); }
+document.addEventListener('click', function (e) { if (!e.target.closest('.col-menu')) document.getElementById('colMenuPop').classList.remove('open'); });
+
+// Densidade
+if (localStorage.getItem('mob_dense') === '1') document.getElementById('tableScroll').classList.add('dense');
+function toggleDensity() { var t = document.getElementById('tableScroll'); t.classList.toggle('dense'); localStorage.setItem('mob_dense', t.classList.contains('dense') ? '1' : '0'); }
+
+// Encaixa a planilha até o rodapé
+function fitTable() {
+    var ts = document.getElementById('tableScroll'); if (!ts) return;
+    var top = ts.getBoundingClientRect().top;
+    var pag = ts.nextElementSibling, pagH = pag ? pag.offsetHeight : 0;
+    var h = Math.floor(window.innerHeight - top - pagH - 20);
+    ts.style.maxHeight = (h > 200 ? h : 200) + 'px';
+}
+window.addEventListener('resize', fitTable);
+window.addEventListener('load', fitTable);
+fitTable();
+
+// Seleção em massa
+function toggleAll(el) { document.querySelectorAll('.bulk-check').forEach(function (c) { c.checked = el.checked; }); updateBulk(); }
+function updateBulk() { var n = document.querySelectorAll('.bulk-check:checked').length; document.getElementById('bulkCount').textContent = n; document.getElementById('bulkBar').classList.toggle('active', n > 0); }
+function applyBulk() {
+    var n = document.querySelectorAll('.bulk-check:checked').length;
+    if (!n) { alert('Selecione ao menos um voluntário.'); return; }
+    var a = document.getElementById('bulkAction').value;
+    if (!a) { alert('Escolha uma ação.'); return; }
+    if (a === 'aprovar' || a === 'rejeitar') {
+        var ids = Array.prototype.map.call(document.querySelectorAll('.bulk-check:checked'), function (c) { return c.value; });
+        moderar(ids, a); return;
+    }
+    if (a === 'delete' && !confirm('Excluir os ' + n + ' voluntário(s) selecionado(s)?')) return;
+    document.getElementById('bulkActionInput').value = a;
+    document.getElementById('bulkForm').submit();
+}
+
+// Moderação (aprovar/rejeitar) — POST próprio
+function postBulk(ids, action, motivo) {
+    var f = document.createElement('form');
+    f.method = 'post'; f.action = '{% url "liderancas:mobilizacao_bulk" %}';
+    function add(n, v) { var i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; f.appendChild(i); }
+    add('csrfmiddlewaretoken', '{{ csrf_token }}'); add('next', '{{ request.get_full_path }}'); add('bulk_action', action);
+    if (motivo !== undefined) add('motivo_rejeicao', motivo);
+    ids.forEach(function (id) { add('selected_ids', id); });
+    document.body.appendChild(f); f.submit();
+}
+var _rejIds = [];
+function moderar(ids, acao) {
+    if (!ids.length) return;
+    if (acao === 'rejeitar') { _rejIds = ids; document.getElementById('rejMotivo').value = ''; document.getElementById('rejModal').classList.add('active'); return; }
+    if (confirm('Aprovar ' + ids.length + ' voluntário(s)?')) postBulk(ids, 'aprovar');
+}
+function closeRej() { document.getElementById('rejModal').classList.remove('active'); }
+function confirmRej() { postBulk(_rejIds, 'rejeitar', document.getElementById('rejMotivo').value.trim()); }
+
+// Observações
+var _obsEl = null;
+function openObs(el) { _obsEl = el; document.getElementById('obsTitle').textContent = el.dataset.nome + ' — Observações'; document.getElementById('obsBody').textContent = el.dataset.obs; document.getElementById('obsIaStatus').textContent = ''; document.getElementById('obsModal').classList.add('active'); }
+function closeObs() { document.getElementById('obsModal').classList.remove('active'); }
+function _iaCsrf() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || ''; }
+function limparObs() {
+    if (!_obsEl) return;
+    var btn = document.getElementById('obsIaBtn'), st = document.getElementById('obsIaStatus');
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = '✨ Limpando…'; st.textContent = '';
+    fetch('/liderancas/api/limpar-salvar/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _iaCsrf() },
+        body: JSON.stringify({ tipo: _obsEl.dataset.tipo, pk: _obsEl.dataset.pk })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+            if (res.ok && res.j.text) {
+                var t = res.j.text;
+                document.getElementById('obsBody').textContent = t;
+                _obsEl.dataset.obs = t;
+                _obsEl.textContent = t.length > 15 ? t.slice(0, 15) + '…' : t;
+                st.style.color = '#047857'; st.textContent = 'Revisado e salvo ✓';
+            } else { st.style.color = '#b91c1c'; st.textContent = res.j.error || 'Não foi possível limpar.'; }
+        }).catch(function () { st.style.color = '#b91c1c'; st.textContent = 'Falha de conexão.'; })
+        .finally(function () { btn.disabled = false; btn.textContent = label; });
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeObs(); closeRej(); } });
+document.addEventListener('keydown', function (e) { if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); document.querySelector('#filtrosForm [name=busca]').focus(); } });
 </script>
 {% endblock %}

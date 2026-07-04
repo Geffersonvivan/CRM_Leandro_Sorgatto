@@ -16,87 +16,19 @@
 <div class="form-card">
     <form method="post">
         {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-modal-errors">{{ form.non_field_errors }}</div>{% endif %}
+        {# Loop único (mesma convenção do _form_fields.html) — inclui os campos da PLANILHA CENTRAL e evita drift. #}
         <div class="form-grid">
-            <div class="form-group">
-                <label for="id_nome">Nome *</label>
-                {{ form.nome }}
-                {{ form.nome.errors }}
+            {% for field in form.visible_fields %}
+            <div class="form-group{% if field.name == 'observacoes' or field.name == 'endereco' %} full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+                {{ field }}
+                {% if field.name == 'observacoes' %}
+                <button type="button" class="ia-clean-btn" data-ia-clean title="Corrigir e organizar o texto com IA">✨ Limpar com IA</button>
+                {% endif %}
+                {{ field.errors }}
             </div>
-            <div class="form-group">
-                <label for="id_telefone">Telefone</label>
-                {{ form.telefone }}
-                {{ form.telefone.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_email">Email</label>
-                {{ form.email }}
-                {{ form.email.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_regiao">Região *</label>
-                {{ form.regiao }}
-                {{ form.regiao.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_cidade">Cidade *</label>
-                {{ form.cidade }}
-                {{ form.cidade.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_tipo">Tipo de Contato *</label>
-                {{ form.tipo }}
-                {{ form.tipo.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_cargo">Cargo Político</label>
-                {{ form.cargo }}
-                {{ form.cargo.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_votos_referencia">Votos de referência</label>
-                {{ form.votos_referencia }}
-                {{ form.votos_referencia.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_meta_votos_transferir">Meta de votos a transferir</label>
-                {{ form.meta_votos_transferir }}
-                {{ form.meta_votos_transferir.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_origem_contato">Origem do Contato</label>
-                {{ form.origem_contato }}
-                {{ form.origem_contato.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_instagram">Instagram</label>
-                {{ form.instagram }}
-                {{ form.instagram.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_prioridade">Prioridade Comunicação *</label>
-                {{ form.prioridade }}
-                {{ form.prioridade.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_grau_influencia">Grau de Influência</label>
-                {{ form.grau_influencia }}
-                {{ form.grau_influencia.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_frequencia_relacionamento">Frequência de Relacionamento</label>
-                {{ form.frequencia_relacionamento }}
-                {{ form.frequencia_relacionamento.errors }}
-            </div>
-            <div class="form-group">
-                <label for="id_status">Status</label>
-                {{ form.status }}
-                {{ form.status.errors }}
-            </div>
-            <div class="form-group full">
-                <label for="id_observacoes">Observações</label>
-                {{ form.observacoes }}
-                {{ form.observacoes.errors }}
-            </div>
+            {% endfor %}
         </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Salvar{% else %}Cadastrar{% endif %}</button>
@@ -107,7 +39,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/liderancas-common.js"></script>
+<script src="/static/js/liderancas-common.js?v=2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     LiderancasCommon.initPhoneMask();
