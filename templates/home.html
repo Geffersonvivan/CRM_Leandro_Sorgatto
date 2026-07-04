@@ -6,7 +6,7 @@
     .summary-grid { grid-template-columns: repeat(3, 1fr); }
     .summary-card.hero .summary-sub { color: rgba(255,255,255,0.6); }
     .progress-bar-container { background: rgba(255,255,255,0.2); border-radius: 8px; height: 10px; margin-top: 10px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: #FFD700; border-radius: 8px; transition: width 0.6s ease; }
+    .progress-bar-fill { height: 100%; background: var(--ouro); border-radius: 8px; transition: width 0.6s ease; }
 
     .dash-section { margin-top: 24px; }
     .dash-section-title { font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
@@ -47,18 +47,18 @@
 
     .regiao-bar { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.75rem; }
     .regiao-bar .rb-label { width: 60px; font-weight: 600; color: #334155; }
-    .regiao-bar .rb-fill { height: 14px; background: #002776; border-radius: 4px; min-width: 4px; }
+    .regiao-bar .rb-fill { height: 14px; background: #FF6B00; border-radius: 4px; min-width: 4px; }
     .regiao-bar .rb-val { color: #64748b; font-size: 0.68rem; }
 
-    .dash-section-title a { color: #002776; text-decoration: none; font-weight: 700; }
-    .dash-section-title a:hover { color: #003da5; text-decoration: underline; }
-    .list-card h4 a { color: #002776 !important; }
+    .dash-section-title a { color: #FF6B00; text-decoration: none; font-weight: 700; }
+    .dash-section-title a:hover { color: #E25E00; text-decoration: underline; }
+    .list-card h4 a { color: #FF6B00 !important; }
     .list-card h4 a:hover { text-decoration: underline !important; }
     .list-item a { text-decoration: none; color: inherit; display: contents; }
     .list-item a .li-main { color: #2563eb; }
     .list-item a:hover .li-main { text-decoration: underline; }
     a.mini-card { text-decoration: none; color: inherit; transition: border-color 0.15s, box-shadow 0.15s; display: block; }
-    a.mini-card:hover { border-color: #002776; box-shadow: 0 2px 8px rgba(0,39,118,.1); }
+    a.mini-card:hover { border-color: #FF6B00; box-shadow: 0 2px 8px rgba(255, 107, 0,.1); }
 
     .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
     .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; }
@@ -68,7 +68,7 @@
 {% endblock %}
 
 {% block content %}
-<h1 class="home-title">CRM Eleitoral — Leandro Sorgatto</h1>
+<h1 class="home-title">CRM Eleitoral — {{ campanha.candidato_nome }}</h1>
 
 <div class="semana-hero">
     <span class="semana-titulo">⚡ Resumo da Semana — o placar do relacionamento</span>
@@ -81,23 +81,12 @@
         <span class="semana-num">{{ contatos_alcancados_7d }}</span>
         <span class="semana-lbl">contatos alcançados</span>
     </div>
-    <div class="semana-sep"></div>
-    <div class="semana-item">
-        <span class="semana-num semana-alerta">{{ fila_total }}</span>
-        <span class="semana-lbl">na fila de relacionamento</span>
-        <a href="{% url 'liderancas:fila_relacionamento' %}" class="semana-cta">Ver fila →</a>
-    </div>
-    <div class="semana-sep"></div>
-    <div class="semana-item">
-        <span class="semana-num">{{ dias_eleicao }}</span>
-        <span class="semana-lbl">dias para a eleição</span>
-    </div>
 </div>
 
 <!-- LINHA 1: Meta -->
 <div class="summary-grid">
     <div class="summary-card hero">
-        <div class="summary-label" data-tip="Total de votos necessários para eleger o candidato LS em 2026.">Meta</div>
+        <div class="summary-label" data-tip="Total de votos necessários para eleger a candidata Isadora em 2026.">Meta</div>
         <div class="summary-value">{{ meta_votos }}</div>
         <div class="summary-sub">votos necessários</div>
         <div class="progress-bar-container">
@@ -116,43 +105,11 @@
     </div>
 </div>
 
-<!-- LINHA 2: Resumo Financeiro -->
-<div class="dash-section">
-    <div class="dash-section-title"><a href="{% url 'doacoes:dashboard_doacoes' %}" data-tip="Visão geral das doações recebidas pela campanha. Clique para acessar o dashboard completo.">Resumo Financeiro &rarr;</a></div>
-    <div class="dash-row" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="mini-card" style="background:#002776;color:#fff;">
-            <div class="mc-label" style="color:rgba(255,255,255,.6);" data-tip="Meta total de arrecadação da campanha até as eleições 2026.">Meta Arrecadação</div>
-            <div class="mc-value" style="color:#FFD700;">R$ {{ meta_doacoes_fmt }}</div>
-            <div class="mc-sub" style="color:rgba(255,255,255,.5);">{{ percentual_meta }}% alcançado</div>
-            <div style="background:rgba(255,255,255,.2);border-radius:6px;height:6px;margin-top:6px;overflow:hidden;">
-                <div style="height:100%;background:#FFD700;border-radius:6px;width:{% if percentual_meta > 100 %}100{% else %}{{ percentual_meta }}{% endif %}%;"></div>
-            </div>
-        </div>
-        <a class="mini-card green" href="{% url 'doacoes:doacao_list' %}?status=confirmada">
-            <div class="mc-label" data-tip="Total de doações com status confirmado. Clique para ver a lista.">Arrecadado (confirmado)</div>
-            <div class="mc-value">R$ {{ total_arrecadado }}</div>
-        </a>
-        <div class="mini-card blue">
-            <div class="mc-label" data-tip="Valor que fica para a campanha após descontar todas as comissões (80% do total).">Líquido Campanha</div>
-            <div class="mc-value">R$ {{ total_liquido }}</div>
-        </div>
-        <a class="mini-card orange" href="{% url 'doacoes:doacao_list' %}?status=pendente">
-            <div class="mc-label" data-tip="Doações registradas aguardando confirmação. Clique para ver e confirmar.">Pendentes</div>
-            <div class="mc-value">{{ pendentes_qtd }}</div>
-            <div class="mc-sub">R$ {{ pendentes_valor }} aguardando</div>
-        </a>
-    </div>
-</div>
-
 <!-- GRÁFICOS -->
 <div class="charts-row" style="margin-top:16px;">
     <div class="chart-card">
         <h4>Captação de Apoiadores (últimos 7 dias)</h4>
         <canvas id="chartCaptacao"></canvas>
-    </div>
-    <div class="chart-card">
-        <h4>Arrecadação por Mês</h4>
-        <canvas id="chartArrec"></canvas>
     </div>
 </div>
 
@@ -248,23 +205,6 @@
             <div class="empty-msg">Nenhum apoiador recente.</div>
             {% endfor %}
         </div>
-        <div class="list-card">
-            <h4><a href="{% url 'doacoes:doacao_list' %}" style="text-decoration:none;color:#1e293b;" data-tip="Doações mais recentes registradas via PWA e CRM. Clique para gerenciar.">Últimas Doações &rarr;</a></h4>
-            {% for d in ultimas_doacoes %}
-            <div class="list-item">
-                <div>
-                    <div class="li-main">{{ d.doador_nome }}</div>
-                    <div class="li-sub">{{ d.cidade|default:"-" }} — {{ d.get_status_display }}</div>
-                </div>
-                <div class="li-right">
-                    <strong>R$ {{ d.valor }}</strong><br>
-                    {{ d.criado_em|date:"d/m H:i" }}
-                </div>
-            </div>
-            {% empty %}
-            <div class="empty-msg">Nenhuma doação recente.</div>
-            {% endfor %}
-        </div>
     </div>
 </div>
 
@@ -305,7 +245,7 @@ new Chart(document.getElementById('chartCaptacao'), {
         datasets: [{
             label: 'Apoiadores',
             data: {{ chart_captacao_data|safe }},
-            backgroundColor: '#002776',
+            backgroundColor: '#FF6B00',
             borderRadius: 4,
         }]
     },
@@ -313,24 +253,6 @@ new Chart(document.getElementById('chartCaptacao'), {
         responsive: true,
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-    }
-});
-
-new Chart(document.getElementById('chartArrec'), {
-    type: 'bar',
-    data: {
-        labels: {{ chart_arrec_labels|safe }},
-        datasets: [{
-            label: 'R$',
-            data: {{ chart_arrec_data|safe }},
-            backgroundColor: '#16a34a',
-            borderRadius: 4,
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
     }
 });
 </script>

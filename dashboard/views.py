@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.core.paginator import Paginator
-from django.db.models import Count, Sum, Q
-from django.db.models.functions import TruncMonth, TruncDate
+from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from datetime import timedelta
 import json
@@ -10,28 +10,19 @@ from core.models import Configuracao
 from core.services import calcular_scores_rede, score_usuario
 from usuarios.models import Usuario
 from usuarios.views import secao_required
-from liderancas.models import Apoiador, CoordenadorRegional, CaboEleitoral, Regiao, InteracaoLog
-from doacoes.models import Doacao
+from liderancas.models import Lideranca, Regiao, InteracaoLog
 from agenda.models import Compromisso, Evento
 from tarefas.models import Tarefa
 
 def home_view(request):
     config = Configuracao.get()
-    total_votos = Apoiador.objects.count()
+    total_votos = Lideranca.objects.aprovados().filter(papel='apoiador').count()
     percentual = round((total_votos / config.meta_votos) * 100, 1) if config.meta_votos > 0 else 0
     faltam = max(0, config.meta_votos - total_votos)
 
     now = timezone.now()
     hoje = now.date()
     fim_semana = hoje + timedelta(days=7)
-
-    # --- Resumo Financeiro ---
-    doacoes_confirmadas = Doacao.objects.filter(status='confirmada')
-    total_arrecadado = doacoes_confirmadas.aggregate(t=Sum('valor'))['t'] or 0
-    total_liquido = doacoes_confirmadas.aggregate(t=Sum('valor_liquido'))['t'] or 0
-    doacoes_pendentes = Doacao.objects.filter(status='pendente')
-    pendentes_qtd = doacoes_pendentes.count()
-    pendentes_valor = doacoes_pendentes.aggregate(t=Sum('valor'))['t'] or 0
 
     # --- Agenda da Semana ---
     compromissos_semana = Compromisso.objects.filter(
@@ -53,39 +44,25 @@ def home_view(request):
     ).select_related('responsavel', 'cidade').order_by('prazo', 'prioridade')[:8]
 
     # --- Atividade Recente ---
-    ultimos_apoiadores = Apoiador.objects.select_related(
+    ultimos_apoiadores = Lideranca.objects.aprovados().filter(papel='apoiador').select_related(
         'cadastrado_por', 'cidade',
     ).order_by('-created_at')[:5]
 
-    ultimas_doacoes = Doacao.objects.select_related(
-        'cidade',
-    ).order_by('-criado_em')[:5]
-
     # --- Placar da Semana (ciclo de relacionamento) ---
-    from django.db.models import Max
     from datetime import date
-    from liderancas.views import FREQ_PRAZOS
     last_7 = now - timedelta(days=7)
     interacoes_7d = InteracaoLog.objects.filter(data__gte=last_7).count()
     contatos_alcancados_7d = (
-        InteracaoLog.objects.filter(data__gte=last_7, coordenador__isnull=False).values('coordenador').distinct().count()
-        + InteracaoLog.objects.filter(data__gte=last_7, cabo__isnull=False).values('cabo').distinct().count()
-        + InteracaoLog.objects.filter(data__gte=last_7, apoiador__isnull=False).values('apoiador').distinct().count()
+        InteracaoLog.objects.filter(data__gte=last_7, lideranca__isnull=False)
+        .values('lideranca').distinct().count()
     )
-    fila_total = 0
-    for qs in (CoordenadorRegional.objects.all(), CaboEleitoral.objects.all(), Apoiador.objects.all()):
-        for c in qs.annotate(ultima=Max('interacoes__data')):
-            prazo = FREQ_PRAZOS.get(c.frequencia_relacionamento, 30)
-            dias = (now - c.ultima).days if c.ultima else None
-            if dias is None or dias > prazo:
-                fila_total += 1
     dias_eleicao = (date(2026, 10, 4) - hoje).days
 
     # --- Rede ---
-    coordenadores_ativos = CoordenadorRegional.objects.count()
-    cabos_ativos = CaboEleitoral.objects.count()
+    coordenadores_ativos = Lideranca.objects.filter(papel='coordenador').count()
+    cabos_ativos = Lideranca.objects.filter(papel='cabo').count()
     top_regioes = (
-        Apoiador.objects.filter(cidade__regiao__isnull=False)
+        Lideranca.objects.aprovados().filter(papel='apoiador', cidade__regiao__isnull=False)
         .values('cidade__regiao__sigla')
         .annotate(total=Count('id'))
         .order_by('-total')[:5]
@@ -95,7 +72,7 @@ def home_view(request):
     # Captação últimos 7 dias (uma única query agregada por dia)
     inicio_captacao = hoje - timedelta(days=6)
     captacao_por_dia = dict(
-        Apoiador.objects.filter(created_at__date__gte=inicio_captacao)
+        Lideranca.objects.aprovados().filter(papel='apoiador', created_at__date__gte=inicio_captacao)
         .annotate(dia=TruncDate('created_at'))
         .values('dia')
         .annotate(total=Count('id'))
@@ -111,32 +88,14 @@ def home_view(request):
     chart_captacao_labels = json.dumps([d['label'] for d in dias_captacao])
     chart_captacao_data = json.dumps([d['count'] for d in dias_captacao])
 
-    # Arrecadação por mês
-    arrec_mes = list(
-        doacoes_confirmadas.annotate(mes=TruncMonth('data'))
-        .values('mes')
-        .annotate(total=Sum('valor'))
-        .order_by('mes')
-    )
-    chart_arrec_labels = json.dumps([m['mes'].strftime('%b/%Y') for m in arrec_mes])
-    chart_arrec_data = json.dumps([float(m['total']) for m in arrec_mes])
-
     return render(request, 'home.html', {
         'interacoes_7d': interacoes_7d,
         'contatos_alcancados_7d': contatos_alcancados_7d,
-        'fila_total': fila_total,
         'dias_eleicao': dias_eleicao,
         'meta_votos': config.meta_votos,
         'total_votos': total_votos,
         'percentual': percentual,
         'faltam': faltam,
-        # Financeiro
-        'meta_doacoes_fmt': f'{config.meta_doacoes:,.0f}'.replace(',', '.'),
-        'percentual_meta': round(float(total_arrecadado) / config.meta_doacoes * 100, 1) if config.meta_doacoes > 0 else 0,
-        'total_arrecadado': total_arrecadado,
-        'total_liquido': total_liquido,
-        'pendentes_qtd': pendentes_qtd,
-        'pendentes_valor': pendentes_valor,
         # Agenda
         'compromissos_semana': compromissos_semana,
         'eventos_semana': eventos_semana,
@@ -146,7 +105,6 @@ def home_view(request):
         'tarefas_semana': tarefas_semana_qs,
         # Atividade
         'ultimos_apoiadores': ultimos_apoiadores,
-        'ultimas_doacoes': ultimas_doacoes,
         # Rede
         'coordenadores_ativos': coordenadores_ativos,
         'cabos_ativos': cabos_ativos,
@@ -154,8 +112,6 @@ def home_view(request):
         # Gráficos
         'chart_captacao_labels': chart_captacao_labels,
         'chart_captacao_data': chart_captacao_data,
-        'chart_arrec_labels': chart_arrec_labels,
-        'chart_arrec_data': chart_arrec_data,
     })
 
 
@@ -163,12 +119,42 @@ def home_view(request):
 
 
 
+def capa_view(request):
+    """Capa de campanha — a tela inicial ao acessar (o '22' do LS).
+    Um momento de orientação (identidade + relógio + meta + entradas),
+    não uma ferramenta. O painel operacional vive atrás do menu Dashboard.
+    Os contadores de pendentes vêm do context processor (leads_pendentes)."""
+    from datetime import date
+    config = Configuracao.get()
+    total_votos = Lideranca.objects.aprovados().filter(papel='apoiador').count()
+    meta = config.meta_votos or 0
+    faltam = max(0, meta - total_votos)
+    percentual = round((total_votos / meta) * 100, 1) if meta > 0 else 0
+    hoje = timezone.now().date()
+    dias_eleicao = max(0, (date(2026, 10, 4) - hoje).days)
+    tarefas_vencidas = Tarefa.objects.exclude(fase='concluida').filter(prazo__lt=hoje).count()
+    compromissos_hoje = (
+        Compromisso.objects.filter(data_hora_inicio__date=hoje)
+        .exclude(status='cancelado').count()
+    )
+    return render(request, 'capa.html', {
+        'meta_votos': meta,
+        'total_votos': total_votos,
+        'faltam': faltam,
+        'percentual': percentual,
+        'percentual_barra': min(percentual, 100),
+        'dias_eleicao': dias_eleicao,
+        'tarefas_vencidas': tarefas_vencidas,
+        'compromissos_hoje': compromissos_hoje,
+    })
+
+
 @secao_required('dashboard:meta_votos')
 def meta_votos(request):
     vinculo_map = dict(Usuario.VINCULO_CHOICES)
 
     config = Configuracao.get()
-    total_votos = Apoiador.objects.count()
+    total_votos = Lideranca.objects.aprovados().filter(papel='apoiador').count()
     percentual = round((total_votos / config.meta_votos) * 100, 1) if config.meta_votos > 0 else 0
 
     pwa_users = Usuario.objects.filter(

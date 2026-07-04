@@ -17,6 +17,18 @@ def api_cidades(request, regiao_id):
 
 
 @login_required
+def api_regioes_cidades(request):
+    """Mapa {regiao_id: ['Cidade A', ...]} para o tooltip de cidades por região.
+
+    Uma query só, agregada — evita 21 chamadas ao abrir um select de região.
+    Compartilhada por todos os apps (mesmo endpoint que api_cidades)."""
+    mapa = {}
+    for c in Cidade.objects.order_by('nome').values('regiao_id', 'nome'):
+        mapa.setdefault(c['regiao_id'], []).append(c['nome'])
+    return JsonResponse(mapa)
+
+
+@login_required
 def ajuda(request):
     """Página 'O Caminho do Voto' — explica o ciclo Contatos → Agenda → Roteiros."""
     return render(request, 'ajuda/caminho_do_voto.html')

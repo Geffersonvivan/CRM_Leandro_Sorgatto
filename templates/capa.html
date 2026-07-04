@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+
+{% block secao %}Início{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* A capa é o próprio estandarte — dispensa a topbar (que repetiria o relógio) */
+    .page-topbar { display: none; }
+    .main-content { padding-top: 18px; }
+
+    /* Capa é um momento: ocupa a tela inteira; o hero cresce p/ preencher
+       (estica em cima e embaixo) e centraliza o conteúdo dentro dele. */
+    .capa {
+        min-height: calc(90vh - 100px);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    /* ===== HERO / ESTANDARTE ===== */
+    .capa-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 20px;
+        flex: 1;                         /* cresce para preencher a altura disponível */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;         /* conteúdo centralizado no hero esticado */
+        padding: clamp(28px, 5vw, 56px);
+        background:
+            radial-gradient(120% 140% at 88% 0%, #1456b8 0%, transparent 55%),
+            linear-gradient(135deg, var(--navy) 0%, var(--navy-700) 100%);
+        color: #fff;
+        box-shadow: 0 18px 48px rgba(255, 107, 0, 0.30);
+    }
+    /* 22 colossal e fantasma — a marca: o número é a mensagem inteira */
+    .capa-ghost {
+        position: absolute;
+        right: -2vw;
+        top: 50%;
+        transform: translateY(-50%);
+        font-weight: 900;
+        font-size: clamp(16rem, 40vw, 38rem);
+        line-height: 0.7;
+        letter-spacing: -0.05em;
+        color: #fff;
+        opacity: 0.05;
+        pointer-events: none;
+        user-select: none;
+    }
+    /* fio dourado vertical na borda esquerda — assinatura */
+    .capa-hero::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 16%; bottom: 16%;
+        width: 4px;
+        background: var(--ouro);
+        border-radius: 0 4px 4px 0;
+    }
+
+    .capa-grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: clamp(24px, 4vw, 56px);
+        align-items: center;
+    }
+
+    /* --- Lockup (esquerda) --- */
+    .capa-eyebrow {
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: var(--ouro);
+        margin-bottom: 16px;
+    }
+    .capa-22 {
+        font-weight: 900;
+        font-size: clamp(6rem, 16vw, 15rem);
+        line-height: 0.76;
+        letter-spacing: -0.05em;
+        color: var(--ouro);
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+    .capa-nome {
+        font-weight: 800;
+        font-size: clamp(2rem, 5.2vw, 3.6rem);
+        letter-spacing: -0.02em;
+        line-height: 1.05;
+        margin-top: 10px;
+    }
+    .capa-fio {
+        width: 64px; height: 4px; border-radius: 4px;
+        background: var(--ouro);
+        margin: 18px 0 16px;
+    }
+    /* Régua viva do relógio — o coração da campanha batendo */
+    .capa-regua {
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.82);
+    }
+    .capa-regua b {
+        font-weight: 800;
+        color: var(--ouro);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* --- Painel da meta (direita) --- */
+    .capa-meta {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 16px;
+        padding: 28px 30px;
+        backdrop-filter: blur(2px);
+    }
+    .capa-meta-lbl {
+        font-size: 0.74rem; font-weight: 700; letter-spacing: 1px;
+        text-transform: uppercase; color: rgba(255, 255, 255, 0.65);
+    }
+    .capa-meta-val {
+        font-weight: 900;
+        font-size: clamp(2.8rem, 6vw, 4.4rem);
+        line-height: 1;
+        margin: 6px 0 2px;
+        font-variant-numeric: tabular-nums;
+    }
+    .capa-meta-de { font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); }
+    .capa-bar {
+        height: 10px; border-radius: 8px; margin: 14px 0 10px;
+        background: rgba(255, 255, 255, 0.18); overflow: hidden;
+    }
+    .capa-bar-fill { height: 100%; border-radius: 8px; background: var(--ouro); }
+    .capa-meta-foot {
+        font-size: 0.92rem; color: rgba(255, 255, 255, 0.85);
+        font-variant-numeric: tabular-nums;
+    }
+    .capa-meta-foot b { font-weight: 800; color: #fff; }
+
+    /* ===== ENTRADAS RÁPIDAS ===== */
+    .capa-actions {
+        display: grid;
+        grid-template-columns: 1.3fr repeat(4, 1fr);
+        gap: 12px;
+    }
+    .capa-act {
+        display: flex; align-items: center; gap: 12px;
+        padding: 16px 18px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        text-decoration: none;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+    .capa-act:hover { border-color: var(--navy); box-shadow: 0 6px 18px rgba(255, 107, 0, 0.10); transform: translateY(-1px); }
+    .capa-act svg { width: 22px; height: 22px; flex-shrink: 0; }
+    .capa-act .ca-txt { display: flex; flex-direction: column; min-width: 0; }
+    .capa-act .ca-lbl { font-size: 0.86rem; font-weight: 700; color: var(--ink); }
+    .capa-act .ca-sub { font-size: 0.72rem; color: var(--muted); }
+    /* contador de pendência/atraso */
+    .ca-count {
+        margin-left: auto; flex-shrink: 0;
+        min-width: 22px; height: 22px; padding: 0 7px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 11px; font-size: 0.72rem; font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        background: var(--danger-bg); color: var(--danger);
+    }
+    .ca-count.zero { background: var(--line-soft); color: var(--faint); }
+
+    /* Ação primária — entrar no painel operacional */
+    .capa-act.primary {
+        background: var(--navy); border-color: var(--navy); color: #fff;
+    }
+    .capa-act.primary:hover { background: var(--navy-700); border-color: var(--navy-700); }
+    .capa-act.primary .ca-lbl { color: #fff; }
+    .capa-act.primary .ca-sub { color: rgba(255, 255, 255, 0.7); }
+    .capa-act.vert-coral svg { color: var(--coral); }
+    .capa-act.vert-teal svg { color: var(--teal); }
+    .capa-act.vert-navy svg { color: var(--navy); }
+
+    @media (max-width: 900px) {
+        .capa-grid { grid-template-columns: 1fr; }
+        .capa-actions { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+        .capa-actions { grid-template-columns: 1fr; }
+    }
+
+    /* Revelação no load — um único momento orquestrado (respeita reduced-motion) */
+    @media (prefers-reduced-motion: no-preference) {
+        @keyframes capaUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        @keyframes capa22 { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+        @keyframes capaBar { from { width: 0; } }
+        .capa-eyebrow { animation: capaUp 0.5s both; }
+        .capa-22 { animation: capa22 0.6s 0.05s both; }
+        .capa-nome, .capa-fio, .capa-regua { animation: capaUp 0.55s 0.15s both; }
+        .capa-meta { animation: capaUp 0.55s 0.25s both; }
+        .capa-bar-fill { animation: capaBar 0.9s 0.4s both ease-out; }
+        .capa-act { animation: capaUp 0.5s 0.35s both; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="capa">
+<section class="capa-hero">
+    <div class="capa-ghost" aria-hidden="true">{{ campanha.partido_numero }}</div>
+    <div class="capa-grid">
+        <div class="capa-lock">
+            <div class="capa-eyebrow">{{ campanha.partido_sigla }} · {{ campanha.uf }} · 2026</div>
+            <div class="capa-22">{{ campanha.partido_numero }}</div>
+            <h1 class="capa-nome">{{ campanha.candidato_nome }}</h1>
+            <div class="capa-fio"></div>
+            <p class="capa-regua">Faltam <b>{{ dias_eleicao }}</b> dias para o 1º turno · 4 de outubro de 2026</p>
+        </div>
+        <div class="capa-meta">
+            <div class="capa-meta-lbl">Rumo à meta</div>
+            <div class="capa-meta-val">{{ total_votos }}</div>
+            <div class="capa-meta-de">de {{ meta_votos }} votos</div>
+            <div class="capa-bar"><div class="capa-bar-fill" style="width: {{ percentual_barra }}%;"></div></div>
+            <div class="capa-meta-foot">{{ percentual }}% da meta · faltam <b>{{ faltam }}</b></div>
+        </div>
+    </div>
+</section>
+
+<div class="capa-actions">
+    {% if user.perfil == 'admin' or user.is_superuser or 'dashboard' in user.secoes_permitidas or 'dashboard:meta_votos' in user.secoes_permitidas %}
+    <a class="capa-act primary" href="{% url 'dashboard:meta_votos' %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span class="ca-txt"><span class="ca-lbl">Abrir o painel</span><span class="ca-sub">meta, captação e atividade</span></span>
+    </a>
+    {% endif %}
+
+    {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:agenda' in user.secoes_permitidas %}
+    <a class="capa-act vert-navy" href="{% url 'agenda:compromisso_list' %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="ca-txt"><span class="ca-lbl">Agenda de hoje</span><span class="ca-sub">compromissos do dia</span></span>
+        <span class="ca-count{% if not compromissos_hoje %} zero{% endif %}">{{ compromissos_hoje }}</span>
+    </a>
+    {% endif %}
+
+    {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:tarefas' in user.secoes_permitidas %}
+    <a class="capa-act vert-teal" href="{% url 'tarefas:lista' %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="ca-txt"><span class="ca-lbl">Tarefas vencidas</span><span class="ca-sub">precisam de você</span></span>
+        <span class="ca-count{% if not tarefas_vencidas %} zero{% endif %}">{{ tarefas_vencidas }}</span>
+    </a>
+    {% endif %}
+
+    {% if user.perfil == 'admin' or user.is_superuser or 'liderancas' in user.secoes_permitidas %}
+    <a class="capa-act vert-navy" href="{% url 'liderancas:lideranca_list' %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span class="ca-txt"><span class="ca-lbl">Leads pendentes</span><span class="ca-sub">aguardando moderação</span></span>
+        <span class="ca-count{% if not leads_pendentes_count %} zero{% endif %}">{{ leads_pendentes_count|default:0 }}</span>
+    </a>
+    {% endif %}
+
+    {% if user.perfil == 'admin' or user.is_superuser or 'mapa' in user.secoes_permitidas or 'demandas' in user.secoes_permitidas %}
+    <a class="capa-act vert-coral" href="{% url 'mapa:index' %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        <span class="ca-txt"><span class="ca-lbl">Mapa territorial</span><span class="ca-sub">onde investir o tempo</span></span>
+    </a>
+    {% endif %}
+</div>
+</div>
+{% endblock %}
