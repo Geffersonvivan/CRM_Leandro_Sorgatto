@@ -5,9 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2B2B2B">
-    <title>CRM Eleitoral — Isadora Piana</title>
+    <title>CRM Eleitoral — {{ campanha.candidato_nome }}</title>
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
     <link rel="stylesheet" href="{% static 'css/global.css' %}">
+    {# Cores da marca vindas da config (configs/<marca>.py); global.css é o fallback. #}
+    <style>:root { {% for var, cor in campanha.cores.items %}{{ var }}: {{ cor }}; {% endfor %} }</style>
     {% block extra_css %}{% endblock %}
     {% block extra_head %}{% endblock %}
     <script>

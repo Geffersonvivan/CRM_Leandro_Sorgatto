@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+from importlib import import_module
 from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
@@ -184,19 +185,11 @@ WHISPER_BASE_URL = os.environ.get('WHISPER_BASE_URL', 'https://api.openai.com/v1
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 IA_LIMPEZA_MODEL = os.environ.get('IA_LIMPEZA_MODEL', 'claude-haiku-4-5')
 
-# ---- Identidade da campanha (fonte única de branding) ----
-# Toda referência a candidato/partido/número/cargo deve vir daqui (via o context
-# processor `core.context_processors.campanha` nos templates, ou settings.CAMPANHA
-# no código). Não hardcodar nome/partido/número espalhado pelo projeto.
-CAMPANHA = {
-    'CANDIDATO_NOME': os.environ.get('CAMPANHA_CANDIDATO_NOME', 'Isadora Piana'),
-    'CANDIDATO_PRIMEIRO_NOME': os.environ.get('CAMPANHA_CANDIDATO_PRIMEIRO_NOME', 'Isadora'),
-    'PARTIDO_SIGLA': os.environ.get('CAMPANHA_PARTIDO_SIGLA', 'NOVO'),
-    'PARTIDO_NUMERO': os.environ.get('CAMPANHA_PARTIDO_NUMERO', '30'),
-    'CARGO_2026': os.environ.get('CAMPANHA_CARGO_2026', 'Deputada Estadual'),
-    'UF': os.environ.get('CAMPANHA_UF', 'Santa Catarina'),
-    # Base eleitoral de referência no mapa (votação do candidato em eleição anterior)
-    'TSE_TERMO_BUSCA': os.environ.get('CAMPANHA_TSE_TERMO_BUSCA', 'ISADORA'),
-    'TSE_CARGO_BASE': os.environ.get('CAMPANHA_TSE_CARGO_BASE', 'deputado_estadual'),
-    'TSE_ANO_BASE': int(os.environ.get('CAMPANHA_TSE_ANO_BASE', '2022')),
-}
+# ---- Identidade da campanha (config de marca versionada — D10) ----
+# MARCA=<slug> (env) seleciona configs/<slug>.py; config de marca é código
+# versionado, não env — o env carrega só o seletor e os segredos. Toda referência
+# a candidato/partido/número/cargo deve vir de settings.CAMPANHA (via o context
+# processor `core.context_processors.campanha` nos templates). Não hardcodar
+# marca no código.
+MARCA = os.getenv('MARCA', 'isadora')
+CAMPANHA = import_module(f'configs.{MARCA}').CAMPANHA

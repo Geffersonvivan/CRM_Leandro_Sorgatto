@@ -13,6 +13,8 @@ def campanha(request):
             'partido_sigla': c['PARTIDO_SIGLA'],
             'partido_numero': c['PARTIDO_NUMERO'],
             'cargo_2026': c['CARGO_2026'],
+            'tse_cargo_2026': c['TSE_CARGO_2026'],
             'uf': c['UF'],
+            'cores': c['CORES'],
         }
     }

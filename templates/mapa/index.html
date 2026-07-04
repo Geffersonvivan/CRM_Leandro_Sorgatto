@@ -724,6 +724,10 @@
     map.init();
     window.mapApp = map;
 
+    // Cargo em disputa (valor de máquina do TSE) — vem da config de marca, não
+    // hardcodado: o mesmo mapa serve estadual (Isadora) ou federal (outra marca).
+    const TSE_CARGO_2026 = '{{ campanha.tse_cargo_2026 }}';
+
     let initialMode = '{{ mapa_param|default:"eleicoes_2022" }}';
     // Modo "Demandas" desativado: URL antiga (?mapa=demandas) cai no padrão.
     if (initialMode === 'demandas') initialMode = 'eleicoes_2022';
@@ -1027,7 +1031,7 @@
             }
             if (mode === 'concorrencia' && typeof compCandidatesList !== 'undefined' && compCandidatesList.length) {
                 const est = compCandidatesList
-                    .filter(c => c.cargo === 'deputado_estadual' && c.overlap_pct != null)
+                    .filter(c => c.cargo === TSE_CARGO_2026 && c.overlap_pct != null)
                     .sort((a, b) => (a.threat_rank || 999) - (b.threat_rank || 999));
                 if (est.length) {
                     const top = est[0];
@@ -3027,7 +3031,7 @@ case 'transferencia': {
         if (!box) return;
         const selected = new Set((map._concCandidates || []).map(c => c.key));
         const est = compCandidatesList
-            .filter(c => c.cargo === 'deputado_estadual' && c.overlap_pct != null)
+            .filter(c => c.cargo === TSE_CARGO_2026 && c.overlap_pct != null)
             .sort((a, b) => (a.threat_rank || 999) - (b.threat_rank || 999))
             .slice(0, 8);
         if (!est.length) { box.innerHTML = ''; return; }
