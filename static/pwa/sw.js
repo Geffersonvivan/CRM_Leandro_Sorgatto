@@ -1,7 +1,7 @@
 /* Service Worker — app-shell cacheado p/ funcionar offline.
    Estratégia: navegação/estáticos = cache-first com revalidação em background;
    POST e APIs = sempre rede (a fila offline é tratada no app.js via IndexedDB). */
-const CACHE = 'isadora-pwa-v11';
+const CACHE = 'crm-pwa-v12';
 const SHELL = [
     '/app/',
     '/app/apoiador/novo/',

@@ -1,4 +1,6 @@
 // Mapa SVG de Santa Catarina com D3.js
+// Identidade da campanha injetada pelo template (window.CAMPANHA ← config de marca).
+const BRAND = window.CAMPANHA || { nome: 'Candidato', tratNome: 'o candidato', deNome: 'do candidato', anoBase: '2022' };
 class SCMap {
     constructor(containerId) {
         this.containerId = containerId;
@@ -251,7 +253,7 @@ class SCMap {
         const map = {
             palanque_conjunto: '#7c3aed',   // 2+ aliados fortes — palanque conjunto
             reduto_aliado: '#f59e0b',       // 1 aliado forte
-            polo_ls: '#15803d',             // Isadora já forte
+            polo_ls: '#15803d',             // candidato já forte
             sem_carona: '#d1d5db',
         };
         return map[opp_class] || '#d1d5db';
@@ -261,7 +263,7 @@ class SCMap {
         const map = {
             palanque_conjunto: '🎤 Palanque conjunto',
             reduto_aliado: '🤝 Reduto de aliado',
-            polo_ls: '🏠 Polo da Isadora',
+            polo_ls: `🏠 Polo ${BRAND.deNome}`,
             sem_carona: '⚪ Sem carona',
         };
         return map[opp_class] || opp_class;
@@ -283,7 +285,7 @@ class SCMap {
             ponte_forte: 'Ponte Forte',
             base_conjunta: 'Base Conjunta',
             territorio_dep: 'Território Dep.',
-            territorio_ls: 'Território Isadora',
+            territorio_ls: `Território ${BRAND.nome}`,
             sem_presenca: 'Sem Presença',
         };
         return map[cls] || cls;
@@ -589,7 +591,7 @@ class SCMap {
             // No modo roteiros, mostrar apenas nome da regiao com info minima
             return `<div class="tooltip-title">${p.name}</div><div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para ver cidades</span></div>`;
         }
-        let html = `<div class="tooltip-title">${p.name}</div><div class="tooltip-row"><span class="tooltip-label">Região:</span> <span class="tooltip-value">${p.full_name || p.name}</span></div><div class="tooltip-row"><span class="tooltip-label">População:</span> <span class="tooltip-value">${fmt.number(p.population)}</span></div><div class="tooltip-row"><span class="tooltip-label">Apoiadores:</span> <span class="tooltip-value">${p.total_apoiadores || 0}</span></div><div class="tooltip-row"><span class="tooltip-label">Votos Isadora 2022:</span> <span class="tooltip-value">${fmt.number(p.total_votes_2022)}</span></div>`;
+        let html = `<div class="tooltip-title">${p.name}</div><div class="tooltip-row"><span class="tooltip-label">Região:</span> <span class="tooltip-value">${p.full_name || p.name}</span></div><div class="tooltip-row"><span class="tooltip-label">População:</span> <span class="tooltip-value">${fmt.number(p.population)}</span></div><div class="tooltip-row"><span class="tooltip-label">Apoiadores:</span> <span class="tooltip-value">${p.total_apoiadores || 0}</span></div><div class="tooltip-row"><span class="tooltip-label">Votos ${BRAND.nome} ${BRAND.anoBase}:</span> <span class="tooltip-value">${fmt.number(p.total_votes_2022)}</span></div>`;
         if (this.heatmapEnabled) {
             const pct = this._penetracao(p.total_votes_2022, p.registered_voters);
             html += `<div class="tooltip-row"><span class="tooltip-label">Penetração:</span> <span class="tooltip-value" style="color:${this._heatScale()(pct)};font-weight:700">${pct.toFixed(2)}%</span></div>`;
@@ -631,7 +633,7 @@ class SCMap {
     }
 
     _cityTipHtml(p) {
-        let html = `<div class="tooltip-title">${p.name}</div><div class="tooltip-row"><span class="tooltip-label">População:</span> <span class="tooltip-value">${fmt.number(p.population)}</span></div><div class="tooltip-row"><span class="tooltip-label">Votos Isadora 2022:</span> <span class="tooltip-value">${fmt.number(p.votes_2022)}</span></div><div class="tooltip-row"><span class="tooltip-label">Apoiadores:</span> <span class="tooltip-value">${p.total_apoiadores || 0}</span></div>`;
+        let html = `<div class="tooltip-title">${p.name}</div><div class="tooltip-row"><span class="tooltip-label">População:</span> <span class="tooltip-value">${fmt.number(p.population)}</span></div><div class="tooltip-row"><span class="tooltip-label">Votos ${BRAND.nome} ${BRAND.anoBase}:</span> <span class="tooltip-value">${fmt.number(p.votes_2022)}</span></div><div class="tooltip-row"><span class="tooltip-label">Apoiadores:</span> <span class="tooltip-value">${p.total_apoiadores || 0}</span></div>`;
         if (this.heatmapEnabled) {
             const pct = this._penetracao(p.votes_2022, p.registered_voters);
             html += `<div class="tooltip-row"><span class="tooltip-label">Penetração:</span> <span class="tooltip-value" style="color:${this._heatScale()(pct)};font-weight:700">${pct.toFixed(2)}%</span></div>`;
@@ -1233,7 +1235,7 @@ class SCMap {
             if (!city) return `<div class="tooltip-title">${name}</div><div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Sem dados</span></div>`;
             let html = `<div class="tooltip-title">${name}</div>`;
             html += `<div class="tooltip-row"><span class="tooltip-label">Classificação</span> <span class="tooltip-value" style="color:${self._transferOppColor(city.opp_class)};font-weight:bold">${self._transferOppLabel(city.opp_class)}</span></div>`;
-            html += `<div class="tooltip-row"><span class="tooltip-label">Isadora Penetração</span> <span class="tooltip-value" style="color:#15803d;font-weight:bold">${city.penetration}% (${(city.votes||0).toLocaleString('pt-BR')})</span></div>`;
+            html += `<div class="tooltip-row"><span class="tooltip-label">${BRAND.nome} Penetração</span> <span class="tooltip-value" style="color:#15803d;font-weight:bold">${city.penetration}% (${(city.votes||0).toLocaleString('pt-BR')})</span></div>`;
             for (const a of (city.aliados || [])) {
                 const forte = (city.aliados_fortes || []).includes(a.nome);
                 html += `<div class="tooltip-row"><span class="tooltip-label">${a.nome}</span> <span class="tooltip-value" style="color:${a.cor};font-weight:${forte?'700':'400'}">${(a.votes||0).toLocaleString('pt-BR')} (${a.pct||0}%)${forte?' ★':''}</span></div>`;
@@ -1902,8 +1904,8 @@ class SCMap {
         const color = this._zonePerformanceColor(czm.performance);
         let html = `<div class="tooltip-title">${p.name}</div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Zona</span> <span class="tooltip-value">${czm.zone_number}</span></div>`;
-        html += `<div class="tooltip-row"><span class="tooltip-label">Posição Isadora</span> <span class="tooltip-value" style="color:${color};font-weight:bold">${this._zonePerformanceLabel(czm.performance)} (${czm.ls_position}º)</span></div>`;
-        html += `<div class="tooltip-row"><span class="tooltip-label">Votos Isadora</span> <span class="tooltip-value">${czm.ls_votes.toLocaleString('pt-BR')}</span></div>`;
+        html += `<div class="tooltip-row"><span class="tooltip-label">Posição ${BRAND.nome}</span> <span class="tooltip-value" style="color:${color};font-weight:bold">${this._zonePerformanceLabel(czm.performance)} (${czm.ls_position}º)</span></div>`;
+        html += `<div class="tooltip-row"><span class="tooltip-label">Votos ${BRAND.nome}</span> <span class="tooltip-value">${czm.ls_votes.toLocaleString('pt-BR')}</span></div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Penetração</span> <span class="tooltip-value">${czm.ls_percentage}%</span></div>`;
         return html;
     }
@@ -2103,7 +2105,7 @@ class SCMap {
                 }
                 let html = `<div class="tooltip-title">${f.properties.name}</div>`;
                 html += `<div class="tooltip-row"><span class="tooltip-label">Cidades:</span> <span class="tooltip-value">${cities.length}</span></div>`;
-                html += `<div class="tooltip-row"><span class="tooltip-label">Votos Isadora:</span> <span class="tooltip-value">${fmt.number(totalVotes)}</span></div>`;
+                html += `<div class="tooltip-row"><span class="tooltip-label">Votos ${BRAND.nome}:</span> <span class="tooltip-value">${fmt.number(totalVotes)}</span></div>`;
                 html += `<div class="tooltip-row"><span class="tooltip-label">Posição (mediana):</span> <span class="tooltip-value">${medPos}º</span></div>`;
                 tipHtmls.set(f.properties.slug, html);
             } else if (self.zoneRankingEnabled) {
@@ -2140,7 +2142,7 @@ class SCMap {
             html += `<div class="tooltip-row"><span class="tooltip-label">Cabos engajados</span> <span class="tooltip-value" style="color:${po.cabos ? '#15803d' : '#dc2626'};font-weight:700">${po.cabos}${po.cabos ? '' : ' — dormindo!'}</span></div>`;
             if (po.meta_transferir) html += `<div class="tooltip-row"><span class="tooltip-label">Meta transferência</span> <span class="tooltip-value">${po.meta_transferir.toLocaleString('pt-BR')} votos</span></div>`;
         }
-        html += `<div class="tooltip-row"><span class="tooltip-label">Votos Isadora 2022</span> <span class="tooltip-value">${(city.votes_2022 || 0).toLocaleString('pt-BR')} (${city.penetration.toFixed(2)}%)</span></div>`;
+        html += `<div class="tooltip-row"><span class="tooltip-label">Votos ${BRAND.nome} ${BRAND.anoBase}</span> <span class="tooltip-value">${(city.votes_2022 || 0).toLocaleString('pt-BR')} (${city.penetration.toFixed(2)}%)</span></div>`;
         if (city.gap) html += `<div class="tooltip-row"><span class="tooltip-label">Votos disponíveis</span> <span class="tooltip-value">+${city.gap.toLocaleString('pt-BR')}</span></div>`;
         if (city.adversario_nome) html += `<div class="tooltip-row"><span class="tooltip-label">Adversário</span> <span class="tooltip-value" style="color:#dc2626">${city.adversario_nome} (${city.adversario_partido})</span></div>`;
         html += '<div class="tooltip-row"><span class="tooltip-label" style="color:#9ca3af">Clique para marcar o controle</span></div>';
@@ -2214,7 +2216,7 @@ class SCMap {
                 if (city) {
                     let html = `<div class="tooltip-title">${f.properties.name}</div>`;
                     html += `<div class="tooltip-row"><span class="tooltip-label">Classificação</span> <span class="tooltip-value" style="color:${self._transferOppColor(city.opp_class)};font-weight:bold">${self._transferOppLabel(city.opp_class)}</span></div>`;
-                    html += `<div class="tooltip-row"><span class="tooltip-label">Isadora Penetração</span> <span class="tooltip-value" style="color:#15803d">${city.penetration}%</span></div>`;
+                    html += `<div class="tooltip-row"><span class="tooltip-label">${BRAND.nome} Penetração</span> <span class="tooltip-value" style="color:#15803d">${city.penetration}%</span></div>`;
                     for (const a of (city.aliados || [])) {
                         const forte = (city.aliados_fortes || []).includes(a.nome);
                         html += `<div class="tooltip-row"><span class="tooltip-label">${a.nome}</span> <span class="tooltip-value" style="color:${a.cor};font-weight:${forte?'700':'400'}">${(a.votes||0).toLocaleString('pt-BR')} (${a.pct||0}%)${forte?' ★':''}</span></div>`;
@@ -2231,7 +2233,7 @@ class SCMap {
                 if (city) {
                     let html = `<div class="tooltip-title">${f.properties.name}</div>`;
                     html += `<div class="tooltip-row"><span class="tooltip-label">Classificação</span> <span class="tooltip-value" style="color:${self._deputyClassColor(city.classification)};font-weight:bold">${self._deputyClassLabel(city.classification)}</span></div>`;
-                    html += `<div class="tooltip-row"><span class="tooltip-label">Isadora</span> <span class="tooltip-value" style="color:#15803d">${city.ls_votes.toLocaleString('pt-BR')} (${city.ls_pct}%)</span></div>`;
+                    html += `<div class="tooltip-row"><span class="tooltip-label">${BRAND.nome}</span> <span class="tooltip-value" style="color:#15803d">${city.ls_votes.toLocaleString('pt-BR')} (${city.ls_pct}%)</span></div>`;
                     if (city.best_dep_name) {
                         html += `<div class="tooltip-row"><span class="tooltip-label">Dep. mais votado</span> <span class="tooltip-value" style="color:#2563eb">${city.best_dep_name} (${city.best_dep_pct}%)</span></div>`;
                     }

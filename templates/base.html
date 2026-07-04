@@ -23,7 +23,7 @@
     <div class="sidebar-top-row">
         <a href="{% url 'home' %}" class="sidebar-logo" style="text-decoration:none;">
             <span class="logo-icon"><b>CRM</b></span>
-            <span class="logo-text">Eleitoral Isadora</span>
+            <span class="logo-text">Eleitoral {{ campanha.candidato_primeiro_nome }}</span>
         </a>
         {% if user.is_authenticated %}
         <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()" title="Notificações">

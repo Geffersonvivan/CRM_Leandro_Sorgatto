@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Mapa Político — CRM Isadora Piana{% endblock %}
+{% block title %}Mapa Político — CRM {{ campanha.candidato_nome }}{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
@@ -717,7 +717,16 @@
 </div>
 
 <script src="{% static 'js/map/api.js' %}?v=36"></script>
-<script src="{% static 'js/map/sc-map.js' %}?v=36"></script>
+<script>
+// Identidade da campanha para os JS estáticos (sc-map.js) — vem da config de marca.
+window.CAMPANHA = {
+    nome: '{{ campanha.candidato_primeiro_nome|escapejs }}',
+    tratNome: '{{ campanha.trat_nome|escapejs }}',
+    deNome: '{{ campanha.de_nome|escapejs }}',
+    anoBase: '{{ campanha.ano_base }}',
+};
+</script>
+<script src="{% static 'js/map/sc-map.js' %}?v=37"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -725,7 +734,7 @@
     window.mapApp = map;
 
     // Cargo em disputa (valor de máquina do TSE) — vem da config de marca, não
-    // hardcodado: o mesmo mapa serve estadual (Isadora) ou federal (outra marca).
+    // hardcodado: o mesmo mapa serve o cargo em disputa de qualquer marca.
     const TSE_CARGO_2026 = '{{ campanha.tse_cargo_2026 }}';
 
     let initialMode = '{{ mapa_param|default:"eleicoes_2022" }}';
@@ -757,26 +766,26 @@
     // ── Help panel ──────────────────────────────────────────────
     const helpData = {
         eleicoes_2022: {
-            what: 'Mostra o <strong>desempenho da Isadora nas eleições de 2022 (dep. federal)</strong> em cada cidade de SC. O mapa revela onde a Isadora foi competitiva e onde precisa crescer, exibindo:<br><br>' +
+            what: 'Mostra o <strong>desempenho {{ campanha.de_nome }} nas eleições de {{ campanha.ano_base }} ({{ campanha.cargo_base_label }})</strong> em cada cidade de SC. O mapa revela onde {{ campanha.trat_nome }} foi competitiva e onde precisa crescer, exibindo:<br><br>' +
                 '<table style="width:100%;font-size:.78rem;border-collapse:collapse;margin-bottom:4px">' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Posição no ranking</strong></td><td style="padding-left:8px;color:#64748b">Em que lugar a Isadora ficou entre todos os candidatos a dep. federal naquela cidade</td></tr>' +
+                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Posição no ranking</strong></td><td style="padding-left:8px;color:#64748b">Em que lugar {{ campanha.trat_nome }} ficou entre todos os candidatos a {{ campanha.cargo_base_label }} naquela cidade</td></tr>' +
                 '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Total de votos</strong></td><td style="padding-left:8px;color:#64748b">Quantidade absoluta de votos recebidos na cidade</td></tr>' +
-                '<tr><td style="padding:3px 0"><strong>% dos votos válidos</strong></td><td style="padding-left:8px;color:#64748b">Participação da Isadora no total de votos válidos para dep. federal</td></tr>' +
+                '<tr><td style="padding:3px 0"><strong>% dos votos válidos</strong></td><td style="padding-left:8px;color:#64748b">Participação {{ campanha.de_nome }} no total de votos válidos para {{ campanha.cargo_base_label }}</td></tr>' +
                 '</table>',
-            how: 'Cada cidade recebe uma <strong>cor baseada na posição da Isadora no ranking</strong> de candidatos a deputado federal daquela cidade:<br><br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#15803d;vertical-align:middle;margin-right:4px"></span> <strong style="color:#15803d">Verde escuro</strong> — <strong>1º lugar</strong>: a Isadora foi a mais votada na cidade.<br>' +
+            how: 'Cada cidade recebe uma <strong>cor baseada na posição {{ campanha.de_nome }} no ranking</strong> de candidatos a deputado federal daquela cidade:<br><br>' +
+                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#15803d;vertical-align:middle;margin-right:4px"></span> <strong style="color:#15803d">Verde escuro</strong> — <strong>1º lugar</strong>: {{ campanha.trat_nome }} foi a mais votada na cidade.<br>' +
                 '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#22c55e;vertical-align:middle;margin-right:4px"></span> <strong style="color:#22c55e">Verde</strong> — <strong>Top 3</strong>: ficou entre os 3 mais votados. Base eleitoral significativa.<br>' +
                 '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#eab308;vertical-align:middle;margin-right:4px"></span> <strong style="color:#eab308">Amarelo</strong> — <strong>Top 5</strong>: presença intermediária, espaço para crescer.<br>' +
                 '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#f97316;vertical-align:middle;margin-right:4px"></span> <strong style="color:#f97316">Laranja</strong> — <strong>Top 10</strong>: presença fraca, precisa de trabalho de base.<br>' +
                 '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#ef4444;vertical-align:middle;margin-right:4px"></span> <strong style="color:#ef4444">Vermelho</strong> — <strong>11º ou pior</strong>: território adversário, pouca penetração.<br><br>' +
                 'Na visão do estado, a região é colorida pela <strong>posição mediana</strong> das cidades dela. Passe o <strong>mouse</strong> para ver votos e posição; o detalhe <strong>cidade a cidade</strong> está na tabela abaixo do mapa.',
-            example: '<strong>Leitura rápida:</strong> Blocos verdes são a base consolidada da Isadora — prioridade é manter. Blocos amarelos/laranjas são oportunidades de crescimento para 2026. Blocos vermelhos exigem estratégia de longo prazo.<br>' +
+            example: '<strong>Leitura rápida:</strong> Blocos verdes são a base consolidada {{ campanha.de_nome }} — prioridade é manter. Blocos amarelos/laranjas são oportunidades de crescimento para 2026. Blocos vermelhos exigem estratégia de longo prazo.<br>' +
                 '<strong>Exemplo:</strong> Se Lages aparece em verde escuro (1º lugar, 8.200 votos, 12% dos válidos), é reduto forte. Já Florianópolis em vermelho (15º lugar, 900 votos, 0.3%) indica que a capital precisa de investimento pesado em visibilidade.',
             estrategia: 'Onde fui forte em 2022 ≠ onde devo focar em 2026. Cruze:<br>&bull; <strong>Vitória 2026</strong> — um reduto verde aqui pode já estar saturado (pouco a ganhar); o ouro está nos amarelos/vermelhos que viraram 💰 Mina de ouro.<br>&bull; <strong>Estratégico</strong> — onde fui fraco mas tenho aliado político, é construção barata.<br>&bull; <strong>Concorrência</strong> — vermelho aqui + rival forte lá = não insista; vermelho com rival fraco = terreno livre.',
         },
         regioes: {
             what: 'Apresenta a <strong>divisão do estado em 21 associações de municípios</strong> (AMAs), que são a unidade geográfica base de toda a operação política. Cada associação agrupa cidades vizinhas com características e desafios em comum.<br><br>' +
-                'Ao passar o mouse, você vê o <strong>resumo consolidado da região</strong>: população total, número de eleitores, quantidade de apoiadores cadastrados e a votação da Isadora em 2022.',
+                'Ao passar o mouse, você vê o <strong>resumo consolidado da região</strong>: população total, número de eleitores, quantidade de apoiadores cadastrados e a votação {{ campanha.de_nome }} em 2022.',
             how: 'Cada região possui uma <strong>cor fixa distinta</strong> para facilitar a identificação visual no mapa. As cores não indicam performance — servem apenas para diferenciar os limites entre regiões.<br><br>' +
                 '<strong>Interações disponíveis:</strong><br>' +
                 '&bull; <strong>Hover</strong> (passar o mouse) — exibe popup com dados consolidados da região<br>' +
@@ -804,7 +813,7 @@
                 'Exceções com escala própria: <strong>Lacuna</strong> (verde claro → vermelho = mais oportunidade), <strong>Votos absolutos</strong> (azul), <strong>Fronteira</strong> (roxo) e <strong>2022 × Estrutura</strong> (vermelho ⇄ azul, divergente).<br><br>' +
                 '<strong>Granularidade:</strong> visão por <strong>região</strong> (21 associações) para panorama rápido; clique numa região para ver as <strong>cidades</strong>.',
             example: '<strong>Cruzamento mais poderoso — camada "2022 × Estrutura hoje":</strong><br>' +
-                '&bull; <strong>Vermelho</strong> — a cidade votou bem em 2022 mas não tem estrutura agora: base que votou na Isadora e não entrou no CRM. <em>Ação: priorizar cadastro e contato antes que esfrie.</em><br>' +
+                '&bull; <strong>Vermelho</strong> — a cidade votou bem em 2022 mas não tem estrutura agora: base que votou {{ campanha.em_nome }} e não entrou no CRM. <em>Ação: priorizar cadastro e contato antes que esfrie.</em><br>' +
                 '&bull; <strong>Azul</strong> — estrutura crescendo onde éramos fracos: construção recente. <em>Sinal positivo, acompanhe a conversão.</em><br><br>' +
                 '<strong>Lacuna de votos:</strong> use com o <strong>Vitória 2026</strong> — lacuna alta + poucos apoiadores (camada Densidade) = voto sem dono, prioridade de expansão.',
             estrategia: 'O calor mostra concentração; sozinho não decide. Cruze:<br>&bull; Vazio de apoiadores + <strong>Vitória 2026</strong> mostrando 💰 Mina de ouro = prioridade de expansão (voto sem dono).<br>&bull; Vazio numa cidade saturada = ignore (não há voto a colher).<br>&bull; Use a camada <strong>Gap</strong> junto do <strong>Estratégico</strong> para achar onde tem voto e falta cabo.',
@@ -863,18 +872,18 @@
             estrategia: 'Aqui está a articulação viva. A jogada nº1 — aliado dormindo — vale ouro quando cruzada:<br>&bull; 🤝 Aliado a ativar numa 💰 Mina de ouro (<strong>Vitória</strong>) = alavanca mais barata da campanha: ligue os cabos.<br>&bull; 🏗️ Construir + <strong>Transferência</strong> com aliado forte = entre pela carona e monte estrutura depois.<br>&bull; ⚔️ Em disputa + <strong>Concorrência</strong> para medir se dá pra virar.',
         },
         transferencia: {
-            what: 'O <strong>planejador de palanque de chapa</strong>. Os candidatos não competem com a Isadora — são a <strong>chapa dela</strong> em cargos diferentes (Jorginho governador, Carol senadora, Daniela federal, Isadora estadual). Os votos não competem, se <strong>somam</strong>. O mapa mostra os <strong>redutos de cada aliado</strong> para a Isadora pegar carona na força e na agenda deles.',
+            what: 'O <strong>planejador de palanque de chapa</strong>. Os candidatos não competem com {{ campanha.trat_nome }} — são a <strong>chapa dela</strong> em cargos diferentes (Jorginho governador, Carol senadora, Daniela federal, {{ campanha.candidato_primeiro_nome }} {{ campanha.cargo_2026|lower }}). Os votos não competem, se <strong>somam</strong>. O mapa mostra os <strong>redutos de cada aliado</strong> para {{ campanha.trat_nome }} pegar carona na força e na agenda deles.',
             how: 'Cada cidade é classificada pela <strong>carona disponível</strong> (quantos aliados de chapa são fortes ali):<br><br>' +
                 '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#7c3aed;vertical-align:middle;margin-right:4px"></span> <strong style="color:#7c3aed">🎤 Palanque conjunto</strong> — 2+ aliados fortes. Evento conjunto, multidão emprestada. <strong>Maior oportunidade!</strong><br>' +
                 '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#f59e0b;vertical-align:middle;margin-right:4px"></span> <strong style="color:#b45309">🤝 Reduto de aliado</strong> — 1 aliado forte. Pegar carona na agenda dele.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#15803d;vertical-align:middle;margin-right:4px"></span> <strong style="color:#15803d">🏠 Polo da Isadora</strong> — a Isadora já é forte aqui.<br>' +
-                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#d1d5db;vertical-align:middle;margin-right:4px"></span> <strong style="color:#64748b">⚪ Sem carona</strong> — sem aliado forte e Isadora fraca.<br><br>' +
-                'No topo, ligue/desligue os aliados. Clique numa cidade para ver os votos de cada um e <strong>agendar a Isadora junto</strong>.',
+                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#15803d;vertical-align:middle;margin-right:4px"></span> <strong style="color:#15803d">🏠 Polo {{ campanha.de_nome }}</strong> — {{ campanha.trat_nome }} já é forte aqui.<br>' +
+                '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#d1d5db;vertical-align:middle;margin-right:4px"></span> <strong style="color:#64748b">⚪ Sem carona</strong> — sem aliado forte e {{ campanha.candidato_primeiro_nome }} fraca.<br><br>' +
+                'No topo, ligue/desligue os aliados. Clique numa cidade para ver os votos de cada um e <strong>agendar {{ campanha.trat_nome }} junto</strong>.',
             example: '<strong>A jogada de campanha:</strong><br><br>' +
                 '<strong>1. Marque a visita do aliado:</strong> ao saber que a Carol fará um comício em Chapecó, registre como <strong>Evento</strong> e marque a Carol. O mapa cruza com o reduto dela e acende o alerta de <strong>palanque pronto</strong>.<br><br>' +
-                '<strong>2. Coloque a Isadora junto:</strong> clique na cidade → "+ Compromisso" cria a agenda da Isadora na mesma data, com os cabos locais. A Isadora sobe no palanque com a Carol, com público e estrutura emprestados.<br><br>' +
+                '<strong>2. Coloque {{ campanha.trat_nome }} junto:</strong> clique na cidade → "+ Compromisso" cria a agenda {{ campanha.de_nome }} na mesma data, com os cabos locais. {{ campanha.trat_nome|capfirst }} sobe no palanque com a Carol, com público e estrutura emprestados.<br><br>' +
                 '<strong>3. Priorize os palanques conjuntos:</strong> cidades roxas (2+ aliados fortes) são os eventos de maior retorno — vários pesos-pesados e multidão de uma vez.',
-            estrategia: 'Votos de aliado somam com os seus. Para converter:<br>&bull; Reduto de aliado (laranja) + <strong>Vitória 2026</strong> com lacuna = leve a Isadora junto e colha voto novo.<br>&bull; Palanque conjunto + <strong>Roteiros</strong> = agende a Isadora no evento do aliado.<br>&bull; Reduto de aliado + <strong>Concorrência</strong> com rival forte = a carona é seu jeito de entrar sem brigar de frente.<br>&bull; Feche sempre com <strong>+ Compromisso</strong>.',
+            estrategia: 'Votos de aliado somam com os seus. Para converter:<br>&bull; Reduto de aliado (laranja) + <strong>Vitória 2026</strong> com lacuna = leve {{ campanha.trat_nome }} junto e colha voto novo.<br>&bull; Palanque conjunto + <strong>Roteiros</strong> = agende {{ campanha.trat_nome }} no evento do aliado.<br>&bull; Reduto de aliado + <strong>Concorrência</strong> com rival forte = a carona é seu jeito de entrar sem brigar de frente.<br>&bull; Feche sempre com <strong>+ Compromisso</strong>.',
         },
         perfil_ideologico: {
             what: 'Ferramenta de <strong>inteligência territorial</strong> que cruza <strong>5 camadas de dados</strong> para revelar o perfil ideológico, a classificação estratégica e a força da rede PL de cada cidade simultaneamente.<br><br>' +
@@ -909,30 +918,30 @@
                 '&bull; Cidade com perfil ideológico conservador + classificação "Neutro" + Rede NOVO ausente = <strong>alvo prioritário de expansão</strong><br>' +
                 '&bull; Cidade com perfil conservador + classificação "Território Hostil" = <strong>o adversário está conquistando eleitorado conservador</strong> — exige investigação local<br>' +
                 '&bull; Cidade com perfil moderado + Rede NOVO forte + poucos apoiadores = <strong>a máquina existe mas não está ativada</strong>',
-            estrategia: 'Este mapa não escolhe a cidade — calibra a <strong>mensagem</strong> nela. Use junto de todos:<br>&bull; Antes de cada <strong>+ Compromisso</strong>, veja o perfil e ajuste o discurso.<br>&bull; Cidade conservadora + 💰 Mina de ouro (<strong>Vitória</strong>) = terreno fértil para o discurso da Isadora, priorize.<br>&bull; Cidade menos conservadora = entre por demanda concreta (<strong>Demandas</strong>), não por ideologia.',
+            estrategia: 'Este mapa não escolhe a cidade — calibra a <strong>mensagem</strong> nela. Use junto de todos:<br>&bull; Antes de cada <strong>+ Compromisso</strong>, veja o perfil e ajuste o discurso.<br>&bull; Cidade conservadora + 💰 Mina de ouro (<strong>Vitória</strong>) = terreno fértil para o discurso {{ campanha.de_nome }}, priorize.<br>&bull; Cidade menos conservadora = entre por demanda concreta (<strong>Demandas</strong>), não por ideologia.',
         },
         concorrencia: {
-            what: 'Ferramenta de <strong>análise competitiva</strong> com <strong>ranking de ameaça</strong> e <strong>comparação direta com a Isadora</strong>. Permite visualizar até 8 candidatos simultaneamente e entender quem disputa os mesmos eleitores.<br><br>' +
+            what: 'Ferramenta de <strong>análise competitiva</strong> com <strong>ranking de ameaça</strong> e <strong>comparação direta com {{ campanha.trat_nome }}</strong>. Permite visualizar até 8 candidatos simultaneamente e entender quem disputa os mesmos eleitores.<br><br>' +
                 '<table style="width:100%;font-size:.78rem;border-collapse:collapse;margin-bottom:4px">' +
                 '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0;width:35%"><strong>Visualização multi-candidato</strong></td><td style="padding-left:8px;color:#64748b">Até 8 candidatos com paletas de cores distintas — sobreposição territorial em tempo real</td></tr>' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Ranking de ameaça</strong></td><td style="padding-left:8px;color:#64748b">Lista de deputados federais ordenada por sobreposição geográfica com a Isadora — quem disputa as mesmas cidades</td></tr>' +
-                '<tr><td style="padding:3px 0"><strong>Comparação direta</strong></td><td style="padding-left:8px;color:#64748b">Ao selecionar um candidato, cada cidade mostra votos da Isadora vs. adversário com diferença absoluta e percentual</td></tr>' +
+                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Ranking de ameaça</strong></td><td style="padding-left:8px;color:#64748b">Lista de deputados federais ordenada por sobreposição geográfica com {{ campanha.trat_nome }} — quem disputa as mesmas cidades</td></tr>' +
+                '<tr><td style="padding:3px 0"><strong>Comparação direta</strong></td><td style="padding-left:8px;color:#64748b">Ao selecionar um candidato, cada cidade mostra votos {{ campanha.de_nome }} vs. adversário com diferença absoluta e percentual</td></tr>' +
                 '</table><br>' +
                 '<strong>Como usar:</strong> Clique em "+ Adicionar candidato" no painel à esquerda. Use o <strong>ranking de ameaça</strong> para identificar quais adversários priorizar na análise.',
             how: 'Cada candidato selecionado recebe uma <strong>paleta de cores própria</strong>. A cidade é pintada com a cor do <strong>candidato dominante</strong> (mais votos). A intensidade indica força relativa.<br><br>' +
                 '<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#e2e8f0;vertical-align:middle;margin-right:4px"></span> <strong style="color:#9ca3af">Cinza</strong> — Nenhum dos selecionados recebeu votos nesta cidade.<br><br>' +
                 '<strong>Ranking de ameaça (deputados federais):</strong><br>' +
-                'A lista de candidatos agora inclui 3 métricas de sobreposição com a Isadora:<br>' +
+                'A lista de candidatos agora inclui 3 métricas de sobreposição com {{ campanha.trat_nome }}:<br>' +
                 '<table style="width:100%;font-size:.78rem;border-collapse:collapse;margin-top:4px">' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Overlap %</strong></td><td style="padding-left:8px;color:#64748b">Percentual de sobreposição — quanto do eleitorado da Isadora é disputado por este candidato</td></tr>' +
-                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Overlap votos</strong></td><td style="padding-left:8px;color:#64748b">Volume absoluto de votos em disputa (mínimo entre Isadora e adversário em cada cidade)</td></tr>' +
+                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Overlap %</strong></td><td style="padding-left:8px;color:#64748b">Percentual de sobreposição — quanto do eleitorado {{ campanha.de_nome }} é disputado por este candidato</td></tr>' +
+                '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:3px 0"><strong>Overlap votos</strong></td><td style="padding-left:8px;color:#64748b">Volume absoluto de votos em disputa (mínimo entre {{ campanha.candidato_primeiro_nome }} e adversário em cada cidade)</td></tr>' +
                 '<tr><td style="padding:3px 0"><strong>Cidades compartilhadas</strong></td><td style="padding-left:8px;color:#64748b">Em quantas cidades ambos receberam votos — indica dispersão da competição</td></tr>' +
                 '</table><br>' +
-                '<strong>Tooltip por cidade:</strong> Ao selecionar um candidato, o tooltip mostra votos e % de ambos + diferença (Isadora ganha ou perde).',
+                '<strong>Tooltip por cidade:</strong> Ao selecionar um candidato, o tooltip mostra votos e % de ambos + diferença ({{ campanha.candidato_primeiro_nome }} ganha ou perde).',
             example: '<strong>Como usar o ranking de ameaça:</strong><br><br>' +
                 '<strong>1. Identificar adversários diretos:</strong> Um deputado federal com overlap de 35% e 180 cidades compartilhadas é um concorrente direto — atua nas mesmas regiões. Já um com overlap de 5% e 20 cidades é irrelevante para a estratégia.<br><br>' +
                 '<strong>2. Analisar cidade a cidade:</strong> Selecione o adversário de maior overlap. No tooltip, cidades onde a diferença é negativa (adversário à frente) são campos de batalha. Cidades com diferença positiva grande são base segura.<br><br>' +
-                '<strong>3. Resumo da disputa:</strong> O painel mostra quantas cidades a Isadora ganha vs. quantas o adversário ganha. Se o adversário ganha em mais cidades mas com margens pequenas, a disputa é disputável. Se ganha com margens grandes, são territórios perdidos.',
+                '<strong>3. Resumo da disputa:</strong> O painel mostra quantas cidades {{ campanha.trat_nome }} ganha vs. quantas o adversário ganha. Se o adversário ganha em mais cidades mas com margens pequenas, a disputa é disputável. Se ganha com margens grandes, são territórios perdidos.',
             estrategia: 'Saber onde o rival é forte evita desperdício. Cruze:<br>&bull; Reduto do rival + <strong>Estratégico</strong> sem aliado seu = não gaste energia.<br>&bull; Reduto do rival + <strong>Transferência</strong> com aliado de chapa forte = dispute pela carona.<br>&bull; Cidade em aberto (rival fraco) + 💰 Mina de ouro (<strong>Vitória</strong>) = ataque imediato, terreno livre.',
         },
     };
@@ -961,10 +970,10 @@
             rec('Carona', 'Eleições 2022 (vermelho) + Transferência (reduto de aliado)', 'onde fui fraco mas o palanque é forte: construção de voto barata.', 'real'),
         vitoria:
             rec('Expandir', 'Mina de ouro + Calor (poucos apoiadores / sem cabo)', 'voto sem dono — a prioridade nº 1 da campanha. ' + W('mina órfã sem eleitorado livre = Ignorar.'), 'real') +
-            rec('Carona', 'Mina de ouro + Transferência (aliado forte)', 'leve a Isadora na carona da agenda e da multidão do aliado.', 'real') +
+            rec('Carona', 'Mina de ouro + Transferência (aliado forte)', 'leve {{ campanha.trat_nome }} na carona da agenda e da multidão do aliado.', 'real') +
             rec('Expandir', 'Mina de ouro + Perfil ideológico', 'calibre a pauta antes de marcar o compromisso (qual discurso, não só onde).', 'misto'),
         calor:
-            rec('Expandir', 'Calor "Gap" alto (votou e não cadastrou) + Vitória (mina de ouro)', 'base que votou na Isadora e não entrou no CRM: cadastrar e contatar.', 'real') +
+            rec('Expandir', 'Calor "Gap" alto (votou e não cadastrou) + Vitória (mina de ouro)', 'base que votou {{ campanha.em_nome }} e não entrou no CRM: cadastrar e contatar.', 'real') +
             rec('Expandir', 'Calor (demandas vencidas) + importância eleitoral (mina de ouro / muito eleitor)', 'atraso em cidade-chave: cobrança imediata. ' + W('atraso em cidade irrelevante = Ignorar.'), 'real') +
             rec('Ignorar', 'Calor (vazio de apoiadores) + cidade saturada ou de eleitorado pequeno', 'não há voto a colher — não desperdice estrutura.', 'real'),
         estrategico:
@@ -973,7 +982,7 @@
             rec('Carona', '🏗️ Construir + Transferência (aliado de chapa forte)', 'entre pela carona do aliado e monte a estrutura local depois.', 'real'),
         transferencia:
             rec('Carona', 'Reduto de aliado + Eleições 2022 (eu fraco)', 'voto barato na estrutura do aliado; feche com "+ Compromisso" na data dele.', 'real') +
-            rec('Carona', 'Palanque conjunto (2+ aliados) + Roteiros', 'maior retorno: agende a Isadora no evento conjunto — multidão e palanque emprestados.', 'real') +
+            rec('Carona', 'Palanque conjunto (2+ aliados) + Roteiros', 'maior retorno: agende {{ campanha.trat_nome }} no evento conjunto — multidão e palanque emprestados.', 'real') +
             rec('Carona', 'Reduto de aliado + Concorrência (rival forte)', 'a carona é o jeito de entrar sem brigar de frente com o rival.', 'real'),
         concorrencia:
             rec('Ignorar', 'Reduto do rival + Estratégico (sem aliado seu)', 'território perdido: não gaste energia do candidato ali.', 'real') +
@@ -1035,7 +1044,7 @@
                     .sort((a, b) => (a.threat_rank || 999) - (b.threat_rank || 999));
                 if (est.length) {
                     const top = est[0];
-                    return `maior ameaça: <strong>${top.nome}</strong> (${top.partido}) disputa <strong>${top.overlap_pct}%</strong> da sua base em ${n(top.shared_cities)} cidades · ${n(est.length)} rivais a estadual mapeados.`;
+                    return `maior ameaça: <strong>${top.nome}</strong> (${top.partido}) disputa <strong>${top.overlap_pct}%</strong> da sua base em ${n(top.shared_cities)} cidades · ${n(est.length)} rivais ao cargo em disputa mapeados.`;
                 }
             }
             if (mode === 'perfil_ideologico' && typeof _perfilData !== 'undefined' && _perfilData && _perfilData.cidades) {
@@ -1044,7 +1053,7 @@
                     const sorted = [...vals].sort((a, b) => a - b);
                     const med = sorted[Math.floor(sorted.length / 2)];
                     const conserv = vals.filter(v => v >= med).length;
-                    return `${n(vals.length)} cidades analisadas · ${n(conserv)} no perfil mais conservador (terreno do discurso da Isadora).`;
+                    return `${n(vals.length)} cidades analisadas · ${n(conserv)} no perfil mais conservador (terreno do discurso {{ campanha.de_nome }}).`;
                 }
             }
         } catch (e) { /* dados ainda não carregados → estático */ }
@@ -1131,7 +1140,7 @@
         transferencia: [
             {color: '#7c3aed', label: '🎤 Palanque conjunto', h: 'leg:tr:palanque'},
             {color: '#f59e0b', label: '🤝 Reduto de aliado', h: 'leg:tr:reduto'},
-            {color: '#15803d', label: '🏠 Polo da Isadora', h: 'leg:tr:polo'},
+            {color: '#15803d', label: '🏠 Polo {{ campanha.de_nome }}', h: 'leg:tr:polo'},
             {color: '#d1d5db', label: '⚪ Sem carona', h: 'leg:tr:sem'},
         ],
         perfil_ideologico: [
@@ -1310,7 +1319,7 @@ case 'transferencia': {
 
         // Summary line
         html += '<div class="dash-summary">';
-        html += '<span class="dash-summary-title">Posição da Isadora &mdash; eleição de 2022</span>';
+        html += '<span class="dash-summary-title">Posição {{ campanha.de_nome }} &mdash; eleição de 2022</span>';
         // Mini legend
         html += '<span class="map-legend" style="padding:0;gap:8px;">';
         for (const [key, label] of Object.entries(perfLabels)) {
@@ -1321,9 +1330,9 @@ case 'transferencia': {
 
         // Stats line
         html += '<div class="dash-summary-stats" style="margin-bottom:4px">';
-        html += `<span style="color:#FF6B00;font-weight:600">Total votos Isadora: ${fmt.number(s.total_ls_votes)}</span>`;
+        html += `<span style="color:#FF6B00;font-weight:600">Total votos {{ campanha.candidato_primeiro_nome }}: ${fmt.number(s.total_ls_votes)}</span>`;
         const ord = (x) => String(x).replace('.', ',') + 'º';
-        html += `<span title="Mediana das posições da Isadora nas ${s.total_cities} cidades — metade fica acima, metade abaixo. Robusta a outliers.">Posição (mediana): ${ord(s.median_position)} <span class="vtag conta">CONTA</span></span>`;
+        html += `<span title="Mediana das posições {{ campanha.de_nome }} nas ${s.total_cities} cidades — metade fica acima, metade abaixo. Robusta a outliers.">Posição (mediana): ${ord(s.median_position)} <span class="vtag conta">CONTA</span></span>`;
         html += `<span title="Σ(posição × eleitores da cidade) ÷ Σ(eleitores). Pondera pelo porte: onde há mais eleitores pesa mais.">Posição (ponderada p/ eleitorado): ${ord(s.weighted_position)} <span class="vtag conta">CONTA</span></span>`;
         html += `<span>${s.total_cities} cidades</span>`;
         html += `<span>${s.total_zones} zonas eleitorais</span>`;
@@ -1342,12 +1351,12 @@ case 'transferencia': {
         // Table
         html += '<div class="dash-table-wrap">';
         html += '<div class="dash-table-header">';
-        html += '<h3>Posicà Isadora por Cidade &mdash; Dep. Federal 2022</h3>';
+        html += '<h3>Posição {{ campanha.candidato_primeiro_nome }} por Cidade &mdash; {{ campanha.cargo_base_label }} {{ campanha.ano_base }}</h3>';
         html += `<span>${cities.length} cidades</span>`;
         html += '</div>';
         html += '<table class="dash-table"><thead><tr>';
-        html += '<th>Pos.</th><th title="Posição da Isadora sobre o total de candidatos da cidade — comparável entre cidades de portes diferentes. CONTA.">Percentil</th><th>Cidade</th><th>Regiao</th>';
-        html += '<th class="text-right">Votos Isadora</th><th class="text-right" title="% dos votos válidos da cidade (exclui brancos/nulos)">% válidos</th>';
+        html += '<th>Pos.</th><th title="Posição {{ campanha.de_nome }} sobre o total de candidatos da cidade — comparável entre cidades de portes diferentes. CONTA.">Percentil</th><th>Cidade</th><th>Regiao</th>';
+        html += '<th class="text-right">Votos {{ campanha.candidato_primeiro_nome }}</th><th class="text-right" title="% dos votos válidos da cidade (exclui brancos/nulos)">% válidos</th>';
         html += '<th>Performance</th><th>1o Lugar</th><th class="text-right">Votos 1o</th>';
         html += '</tr></thead><tbody>';
 
@@ -1404,7 +1413,7 @@ case 'transferencia': {
         html += '<div class="dash-table-wrap"><div class="dash-table-header">';
         html += `<h3>Regiões (${regions.length} Associações de Municípios)</h3>`;
         html += '</div><table class="dash-table"><thead><tr>';
-        html += '<th>Região</th><th>Macro Região</th><th class="text-right">Votos Isadora 2022</th>';
+        html += '<th>Região</th><th>Macro Região</th><th class="text-right">Votos {{ campanha.candidato_primeiro_nome }} 2022</th>';
         html += '<th class="text-right">População</th><th class="text-right">Contatos</th>';
         html += '<th class="text-right">Meta Votos</th>';
         html += '</tr></thead><tbody>';
@@ -1818,8 +1827,8 @@ case 'transferencia': {
                     const bate = lsBase && r.cidade.votos > lsBase;
                     html += `<div style="display:flex;justify-content:space-between;font-size:.76rem;color:#475569;"><span>${r.nome} <span style="color:#94a3b8;">${r.partido}</span></span><span style="font-weight:${bate ? '700' : '400'};color:${bate ? '#dc2626' : '#475569'};">${r.cidade.votos.toLocaleString('pt-BR')} (${r.cidade.pct || 0}%)</span></div>`;
                 }
-                html += `<div style="display:flex;justify-content:space-between;font-size:.76rem;border-top:1px solid #fecaca;margin-top:4px;padding-top:4px;"><span style="color:#1e293b;font-weight:600;">Isadora (base federal 2022)</span><span style="font-weight:700;color:#15803d;">${lsBase.toLocaleString('pt-BR')}</span></div>`;
-                html += '<div style="font-size:.68rem;color:#92400e;margin-top:4px;">Rival acima da base da Isadora = risco. Cruze com o Estratégico (tenho aliado pra revidar?) e use + Compromisso.</div>';
+                html += `<div style="display:flex;justify-content:space-between;font-size:.76rem;border-top:1px solid #fecaca;margin-top:4px;padding-top:4px;"><span style="color:#1e293b;font-weight:600;">{{ campanha.candidato_primeiro_nome }} (base federal 2022)</span><span style="font-weight:700;color:#15803d;">${lsBase.toLocaleString('pt-BR')}</span></div>`;
+                html += '<div style="font-size:.68rem;color:#92400e;margin-top:4px;">Rival acima da base {{ campanha.de_nome }} = risco. Cruze com o Estratégico (tenho aliado pra revidar?) e use + Compromisso.</div>';
             } else {
                 html += '<div style="font-size:.74rem;color:#94a3b8;">Os rivais selecionados não têm votos relevantes nesta cidade.</div>';
             }
@@ -1839,7 +1848,7 @@ case 'transferencia': {
             if ((tc.agenda_aliados || []).length) {
                 html += '<div style="margin-top:6px;font-size:.72rem;color:#dc2626;font-weight:700;">📅 Visita marcada de aliado:</div>';
                 for (const ev of tc.agenda_aliados) html += `<div style="font-size:.72rem;color:#374151;">• ${ev.aliado} — ${ev.data}${ev.titulo ? ' (' + ev.titulo + ')' : ''}</div>`;
-                html += '<div style="margin-top:4px;font-size:.7rem;color:#92400e;">Programe a Isadora junto: use "+ Compromisso" abaixo.</div>';
+                html += '<div style="margin-top:4px;font-size:.7rem;color:#92400e;">Programe {{ campanha.trat_nome }} junto: use "+ Compromisso" abaixo.</div>';
             }
             html += '</div>';
         }
@@ -1972,7 +1981,7 @@ case 'transferencia': {
     // divergência entre escala daqui e cor do mapa é bug (CLAUDE.md §5.3).
     const MODO_EXPLICA = {
         eleicoes_2022: {
-            frase: 'Mostra em que <b>lugar a Isadora ficou em cada cidade na eleição de 2022</b>, entre todos os candidatos. Verde = ficou no topo; vermelho = ficou para trás. Na visão do estado, a cor da região usa a <b>posição mediana</b> das cidades dela.',
+            frase: 'Mostra em que <b>lugar {{ campanha.trat_nome }} ficou em cada cidade na eleição de 2022</b>, entre todos os candidatos. Verde = ficou no topo; vermelho = ficou para trás. Na visão do estado, a cor da região usa a <b>posição mediana</b> das cidades dela.',
             escala: [
                 { cor: '#15803d', label: '1º lugar' },
                 { cor: '#22c55e', label: 'Top 3' },
@@ -1982,7 +1991,7 @@ case 'transferencia': {
                 { cor: '#e2e8f0', label: 'Sem registro' },
             ],
             calc: [
-                { v: 'Posição', desc: 'lugar da Isadora no ranking de votos da cidade (2022)', tipo: 'fato' },
+                { v: 'Posição', desc: 'lugar {{ campanha.de_nome }} no ranking de votos da cidade (2022)', tipo: 'fato' },
                 { v: '% votos', desc: 'participação dela nos votos válidos da cidade', tipo: 'fato' },
             ],
             nota: 'É o <b>passado real</b> (TSE). Compare com o “Vitória 2026” para ver onde ainda há voto a ganhar.',
@@ -1992,7 +2001,7 @@ case 'transferencia': {
             calc: [
                 { v: 'População', desc: 'população da região (IBGE)', tipo: 'fato' },
                 { v: 'Apoiadores', desc: 'contatos cadastrados e aprovados no CRM', tipo: 'fato' },
-                { v: 'Votos 2022', desc: 'votos da Isadora na região (TSE)', tipo: 'fato' },
+                { v: 'Votos 2022', desc: 'votos {{ campanha.de_nome }} na região (TSE)', tipo: 'fato' },
             ],
             nota: 'Clique numa região para abrir as cidades dela.',
         },
@@ -2006,7 +2015,7 @@ case 'transferencia': {
                 { cor: '#eceef2', label: 'Saturada' },
             ],
             calc: [
-                { v: 'Votos 2022', desc: 'votos da Isadora na cidade (TSE)', tipo: 'fato' },
+                { v: 'Votos 2022', desc: 'votos {{ campanha.de_nome }} na cidade (TSE)', tipo: 'fato' },
                 { v: 'Meta da cidade', desc: 'maior entre crescer % sobre 2022 e % dos eleitores', tipo: 'meta' },
                 { v: 'Votos disponíveis', desc: 'meta − votos 2022 (é o que pinta a cor)', tipo: 'conta' },
             ],
@@ -2034,7 +2043,7 @@ case 'transferencia': {
             nota: 'Use o seletor <b>Status × Esforço×Oportunidade</b> abaixo para trocar a leitura. Entregar demanda atrasada vira voto — priorize-as.',
         },
         roteiros: {
-            frase: 'Mostra os <b>roteiros, compromissos e eventos</b> da Isadora no mapa — por onde ela vai e por onde passou. A linha liga as paradas na ordem (losango = saída, círculos numerados = paradas); eventos são <b>quadrados roxos com estrela (★)</b>.',
+            frase: 'Mostra os <b>roteiros, compromissos e eventos</b> {{ campanha.de_nome }} no mapa — por onde ela vai e por onde passou. A linha liga as paradas na ordem (losango = saída, círculos numerados = paradas); eventos são <b>quadrados roxos com estrela (★)</b>.',
             interpreta: [
                 '<b>Onde vou</b> = o que ainda vai acontecer · <b>Onde passei</b> = concluídos · <b>Todos</b>.',
                 '<b>Por roteiro</b> = cada agenda separada · <b>Por dia</b> = tudo do dia em ordem de horário.',
@@ -2067,11 +2076,11 @@ case 'transferencia': {
             ],
         },
         transferencia: {
-            frase: 'Mostra onde a Isadora pode <b>pegar carona no palanque de um aliado de chapa</b> — cidades onde um aliado é forte e os votos dele somam com os dela.',
+            frase: 'Mostra onde {{ campanha.trat_nome }} pode <b>pegar carona no palanque de um aliado de chapa</b> — cidades onde um aliado é forte e os votos dele somam com os dela.',
             escala: [
                 { cor: '#7c3aed', label: '🎤 Palanque conjunto — 2+ aliados fortes' },
                 { cor: '#f59e0b', label: '🤝 Reduto de aliado — 1 aliado forte' },
-                { cor: '#15803d', label: '🏠 Polo da Isadora — você já é forte' },
+                { cor: '#15803d', label: '🏠 Polo {{ campanha.de_nome }} — você já é forte' },
                 { cor: '#d1d5db', label: '⚪ Sem carona — ninguém forte aqui' },
             ],
             calc: [
@@ -2080,16 +2089,16 @@ case 'transferencia': {
                 { v: 'Votos de carona', desc: 'votos que o aliado fez ali e que você pode herdar', tipo: 'conta' },
             ],
             interpreta: [
-                '<b>Roxo/laranja</b> e você fraca → leve a Isadora junto: herda parte do eleitorado do aliado.',
+                '<b>Roxo/laranja</b> e você fraca → leve {{ campanha.trat_nome }} junto: herda parte do eleitorado do aliado.',
                 '<b>Verde</b> (você já é polo) → não precisa de carona, é base própria.',
                 '<b>Cinza</b> → sem aliado forte: trabalho só seu.',
             ],
         },
         concorrencia: {
-            frase: 'Mostra <b>quem disputa os mesmos eleitores que a Isadora</b>. Cada candidato adicionado no painel do mapa ganha uma <b>cor própria</b>; a cidade é pintada com a cor de quem teve <b>mais votos ali em 2022</b>, e quanto mais escura, mais forte ele é. Cinza = nenhum selecionado tem voto na cidade.',
+            frase: 'Mostra <b>quem disputa os mesmos eleitores que {{ campanha.trat_nome }}</b>. Cada candidato adicionado no painel do mapa ganha uma <b>cor própria</b>; a cidade é pintada com a cor de quem teve <b>mais votos ali em 2022</b>, e quanto mais escura, mais forte ele é. Cinza = nenhum selecionado tem voto na cidade.',
             calc: [
                 { v: 'Votos por cidade', desc: 'votação oficial de 2022 de cada candidato (TSE)', tipo: 'fato' },
-                { v: '% de ameaça', desc: 'quanto da base da Isadora o rival disputa onde os dois competem', tipo: 'conta' },
+                { v: '% de ameaça', desc: 'quanto da base {{ campanha.de_nome }} o rival disputa onde os dois competem', tipo: 'conta' },
             ],
             interpreta: [
                 'Use o <b>ranking de ameaça</b> (painel sobre o mapa) para escolher quais rivais analisar primeiro.',
@@ -2130,7 +2139,7 @@ case 'transferencia': {
 
         // ── Hero: potencial total (sempre visível) ──
         html += '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;border:1px solid #f1d9b8;background:linear-gradient(180deg,#fff,#fffaf2);border-radius:14px;padding:14px 18px;margin:8px 0 10px;">';
-        html += `<div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:2.2rem;font-weight:800;color:#FF6B00;line-height:1;">${fmt(t.potencial)}</span><span style="font-size:.86rem;font-weight:600;color:#1e293b;line-height:1.25;">votos de potencial<br><span style="font-weight:500;color:#64748b;font-size:.76rem;">somando as ${fmt(t.cidades)} cidades onde a Isadora fez votos em 2022</span></span></div>`;
+        html += `<div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:2.2rem;font-weight:800;color:#FF6B00;line-height:1;">${fmt(t.potencial)}</span><span style="font-size:.86rem;font-weight:600;color:#1e293b;line-height:1.25;">votos de potencial<br><span style="font-weight:500;color:#64748b;font-size:.76rem;">somando as ${fmt(t.cidades)} cidades onde {{ campanha.trat_nome }} fez votos em 2022</span></span></div>`;
         html += '<div style="display:flex;align-items:center;gap:12px;margin-left:auto;">';
         html += `<div style="text-align:right;"><div style="font-weight:800;">${fmt(t.votos_2022)}</div><div style="font-size:.72rem;color:#64748b;">votos hoje (2022)</div></div>`;
         html += '<span style="color:#cbd5e1;font-size:1.1rem;">→</span>';
@@ -2151,8 +2160,8 @@ case 'transferencia': {
             // 2 · De onde vêm os números (exemplo real, aberto)
             if (ex) {
                 html += `<div class="vleg-h">2 · De onde vêm os números — exemplo: ${ex.name}</div>`;
-                html += `<div style="font-size:.9rem;color:#2a3242;background:#fbfcfe;border:1px solid #e7eaf0;border-left:3px solid #FF6B00;border-radius:10px;padding:12px 14px;">Em <b>${ex.name}</b>, a Isadora teve <b>${fmt(ex.votos_2022)}</b> votos em 2022. A cidade tem <b>${fmt(ex.eleitores)}</b> eleitores. Nossa meta é conquistar <b>${pr.penetracao_pct}% deles = ${fmt(ex.meta)} votos</b>. Como já tem ${fmt(ex.votos_2022)}, ainda <b>faltam <span style="color:#e25e00;">+${fmt(ex.gap)} votos</span></b>.</div>`;
-                const rows = [[fmt(ex.votos_2022), 'votos da Isadora em 2022', 'fato', 'Fato'], [fmt(ex.eleitores), 'eleitores da cidade', 'fato', 'Fato'], [pr.penetracao_pct + '%', 'meta: % do eleitorado da cidade', 'meta', 'Meta'], ['+' + pr.crescimento_pct + '%', 'crescimento mínimo sobre 2022', 'meta', 'Meta'], [fmt(ex.meta), 'meta de votos da cidade', 'conta', 'Conta'], ['+' + fmt(ex.gap), 'o que falta — é o que pinta a cor', 'conta', 'Conta']];
+                html += `<div style="font-size:.9rem;color:#2a3242;background:#fbfcfe;border:1px solid #e7eaf0;border-left:3px solid #FF6B00;border-radius:10px;padding:12px 14px;">Em <b>${ex.name}</b>, {{ campanha.trat_nome }} teve <b>${fmt(ex.votos_2022)}</b> votos em 2022. A cidade tem <b>${fmt(ex.eleitores)}</b> eleitores. Nossa meta é conquistar <b>${pr.penetracao_pct}% deles = ${fmt(ex.meta)} votos</b>. Como já tem ${fmt(ex.votos_2022)}, ainda <b>faltam <span style="color:#e25e00;">+${fmt(ex.gap)} votos</span></b>.</div>`;
+                const rows = [[fmt(ex.votos_2022), 'votos {{ campanha.de_nome }} em 2022', 'fato', 'Fato'], [fmt(ex.eleitores), 'eleitores da cidade', 'fato', 'Fato'], [pr.penetracao_pct + '%', 'meta: % do eleitorado da cidade', 'meta', 'Meta'], ['+' + pr.crescimento_pct + '%', 'crescimento mínimo sobre 2022', 'meta', 'Meta'], [fmt(ex.meta), 'meta de votos da cidade', 'conta', 'Conta'], ['+' + fmt(ex.gap), 'o que falta — é o que pinta a cor', 'conta', 'Conta']];
                 html += '<table class="vtable"><tbody>';
                 for (const r of rows) html += `<tr><td class="v">${r[0]}</td><td style="color:#475569;">${r[1]}</td><td style="text-align:right;"><span class="vtag ${r[2]}">${r[3]}</span></td></tr>`;
                 html += '</tbody></table>';
@@ -2165,10 +2174,10 @@ case 'transferencia': {
             const _penPct = String(pr.penetracao_pct).replace('.', ',');
             const _penMil = Math.round(pr.penetracao_pct * 10);   // 1,2% → 12 a cada 1.000
             const prem = [
-                [pr.penetracao_pct + '%', 'Nossa fatia de votos', `É a porcentagem <b>dos eleitores da cidade</b> (as pessoas que podem votar ali) que queremos conquistar: <b>${_penPct}%</b>. Em números fáceis, <b>de cada 1.000 que votam, ${_penMil} na Isadora</b>. Não é crescer sobre 2022 — isso é o card ao lado.`],
+                [pr.penetracao_pct + '%', 'Nossa fatia de votos', `É a porcentagem <b>dos eleitores da cidade</b> (as pessoas que podem votar ali) que queremos conquistar: <b>${_penPct}%</b>. Em números fáceis, <b>de cada 1.000 que votam, ${_penMil} {{ campanha.em_nome }}</b>. Não é crescer sobre 2022 — isso é o card ao lado.`],
                 ['+' + pr.crescimento_pct + '%', 'Crescimento mínimo', `A outra régua: crescer pelo menos <b>${pr.crescimento_pct}% sobre os votos de 2022</b> (pesa mais em cidade pequena). Vale a que der o maior número.`],
                 [fmt(pr.porte_grande), '“Cidade grande”', `A partir de ${fmt(pr.porte_grande)} eleitores, a cidade pesa muito no total.`],
-                [pr.forte_pct + '%', '“Já somos fortes”', `Se a Isadora tem ${pr.forte_pct}% ou mais dos eleitores, é base forte.`],
+                [pr.forte_pct + '%', '“Já somos fortes”', `Se {{ campanha.trat_nome }} tem ${pr.forte_pct}% ou mais dos eleitores, é base forte.`],
             ];
             for (const p of prem) html += `<div class="vpcard"><div class="pv">${p[0]}</div><div class="pt">${p[1]}</div><div class="pd">${p[2]}</div></div>`;
             html += '</div><div style="font-size:.8rem;color:#64748b;margin-top:8px;">São <b>decisões da campanha</b>, não verdades fixas — a equipe ajusta e o mapa recalcula tudo.</div>';
@@ -2180,7 +2189,7 @@ case 'transferencia': {
             html += '<div class="colh ca">Cidade grande<small>muitos eleitores</small></div>';
             html += '<div class="colh cb">Cidade pequena<small>poucos eleitores</small></div>';
             html += '<div class="rowh rf">Somos<br>fracos</div>';
-            html += '<div class="cell c-ouro mina"><div class="t">💰 Mina de ouro <span class="act">atacar</span></div><div class="d">Muito eleitor e a Isadora ainda é fraca. Maior chance de crescer.</div></div>';
+            html += '<div class="cell c-ouro mina"><div class="t">💰 Mina de ouro <span class="act">atacar</span></div><div class="d">Muito eleitor e {{ campanha.trat_nome }} ainda é fraca. Maior chance de crescer.</div></div>';
             html += '<div class="cell c-marg marg"><div class="t">⚪ Marginal <span class="act">deixar</span></div><div class="d">Pouco eleitor e somos fracos. Pouco voto a ganhar.</div></div>';
             html += '<div class="rowh rs">Somos<br>fortes</div>';
             html += '<div class="cell c-cel cel"><div class="t">🌾 Celeiro <span class="act">defender</span></div><div class="d">Grande e já forte. É aqui que se ganha em volume.</div></div>';
@@ -2451,7 +2460,7 @@ case 'transferencia': {
 
         // Legend
         let html = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
-        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Zonas Eleitorais &mdash; Posicà Isadora 2022</span>';
+        html += '<span style="font-size:.88rem;font-weight:700;color:#1e293b;">Zonas Eleitorais &mdash; Posição {{ campanha.candidato_primeiro_nome }} {{ campanha.ano_base }}</span>';
         for (const [key, label] of Object.entries(zoneLabels)) {
             html += `<span class="legend-item"><span class="legend-dot" style="background:${zoneColors[key]}"></span>${label}</span>`;
         }
@@ -2486,8 +2495,8 @@ case 'transferencia': {
         html += '<div class="dash-table-wrap"><div class="dash-table-header">';
         html += `<h3>Ranking de Zonas Eleitorais</h3><span>${zones.length} zonas</span>`;
         html += '</div><table class="dash-table"><thead><tr>';
-        html += '<th>#</th><th>Zona</th><th>Posicà Isadora</th><th>Performance</th>';
-        html += '<th class="text-right">Votos Isadora</th><th class="text-right">% Isadora</th>';
+        html += '<th>#</th><th>Zona</th><th>Posição {{ campanha.candidato_primeiro_nome }}</th><th>Performance</th>';
+        html += '<th class="text-right">Votos {{ campanha.candidato_primeiro_nome }}</th><th class="text-right">% {{ campanha.candidato_primeiro_nome }}</th>';
         html += '<th class="text-right">Apoiadores</th><th class="text-right">Cabos</th>';
         html += '<th title="Coordenador regional">Coord.</th><th title="Diretorio NOVO">Dir.</th>';
         html += '<th class="text-right" title="Votos por apoiador">Eficiencia</th>';
@@ -2527,13 +2536,13 @@ case 'transferencia': {
     };
     const transferLabels = {
         palanque_conjunto: '🎤 Palanque conjunto', reduto_aliado: '🤝 Reduto de aliado',
-        polo_ls: '🏠 Polo da Isadora', sem_carona: '⚪ Sem carona',
+        polo_ls: '🏠 Polo {{ campanha.de_nome }}', sem_carona: '⚪ Sem carona',
     };
     const transferDesc = {
         palanque_conjunto: '2+ aliados fortes — evento conjunto, multidão emprestada',
         reduto_aliado: '1 aliado forte — pegar carona na agenda dele',
-        polo_ls: 'Isadora já forte aqui',
-        sem_carona: 'Sem aliado forte e Isadora fraca',
+        polo_ls: '{{ campanha.candidato_primeiro_nome }} já forte aqui',
+        sem_carona: 'Sem aliado forte e {{ campanha.candidato_primeiro_nome }} fraca',
     };
 
     window.toggleAliado = function (id) {
@@ -2772,7 +2781,7 @@ case 'transferencia': {
         html += '</div>';
 
         if (sum.palanques_prontos) {
-            html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:.78rem;color:#92400e;">📅 <strong>${sum.palanques_prontos} cidades têm aliado forte COM visita já marcada.</strong> Programe a Isadora junto — palanque pronto.</div>`;
+            html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:.78rem;color:#92400e;">📅 <strong>${sum.palanques_prontos} cidades têm aliado forte COM visita já marcada.</strong> Programe {{ campanha.trat_nome }} junto — palanque pronto.</div>`;
         }
 
         // tabela: maiores caronas (filtrável)
@@ -2780,7 +2789,7 @@ case 'transferencia': {
         lista = [...lista].sort((a, b) => (b.votos_carona||0) - (a.votos_carona||0));
         const titulo = _transferFiltro ? transferLabels[_transferFiltro] : 'Maiores caronas (palanque + reduto)';
         html += `<div class="dash-table-wrap"><div class="dash-table-header"><h3>${titulo}</h3><span>${lista.length} cidades · clique para agendar</span></div>`;
-        html += '<table class="dash-table"><thead><tr><th>Cidade</th><th>Região</th><th>Aliados fortes</th><th class="text-right">Votos carona</th><th class="text-right">Isadora hoje</th><th>Agenda</th></tr></thead><tbody>';
+        html += '<table class="dash-table"><thead><tr><th>Cidade</th><th>Região</th><th>Aliados fortes</th><th class="text-right">Votos carona</th><th class="text-right">{{ campanha.candidato_primeiro_nome }} hoje</th><th>Agenda</th></tr></thead><tbody>';
         for (const c of lista.slice(0, 50)) {
             const ag = (c.agenda_aliados||[]).length ? '<span style="color:#dc2626;font-weight:700;">📅 marcada</span>' : '';
             html += `<tr style="cursor:pointer;" onclick="openCityActionPanel('${c.slug}')">`;
@@ -2808,7 +2817,7 @@ case 'transferencia': {
     };
     const depLabels = {
         ponte_forte: 'Ponte Forte', base_conjunta: 'Base Conjunta',
-        territorio_dep: 'Territorio Dep.', territorio_ls: 'Territoria Isadora', sem_presenca: 'Sem Presenca',
+        territorio_dep: 'Territorio Dep.', territorio_ls: 'Território {{ campanha.candidato_primeiro_nome }}', sem_presenca: 'Sem Presença',
     };
 
     function renderDeputadosDashboard(data) {
@@ -2838,7 +2847,7 @@ case 'transferencia': {
         html += '<div class="dash-table-wrap"><div class="dash-table-header">';
         html += `<h3>Analise por Cidade</h3><span>${cities.length} cidades</span>`;
         html += '</div><table class="dash-table"><thead><tr>';
-        html += '<th>Class.</th><th>Cidade</th><th class="text-right">Isadora %</th>';
+        html += '<th>Class.</th><th>Cidade</th><th class="text-right">{{ campanha.candidato_primeiro_nome }} %</th>';
         html += '<th>Dep. Mais Votado</th><th class="text-right">Dep. %</th>';
         html += '<th>Outros Dep. PL</th>';
         html += '</tr></thead><tbody>';
@@ -3025,7 +3034,7 @@ case 'transferencia': {
     }
     window.pickThreat = function (key) { addConcCandidateByKey(key); };
 
-    // Painel "Ranking de ameaça à Isadora" — rivais a estadual por sobreposição de base
+    // Painel "Ranking de ameaça" — rivais ao cargo em disputa por sobreposição de base
     function renderThreatRanking() {
         const box = document.getElementById('threatRanking');
         if (!box) return;
@@ -3035,7 +3044,7 @@ case 'transferencia': {
             .sort((a, b) => (a.threat_rank || 999) - (b.threat_rank || 999))
             .slice(0, 8);
         if (!est.length) { box.innerHTML = ''; return; }
-        let h = '<div style="font-size:.66rem;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;" data-help="conc:ameaca">🎯 Ranking de ameaça à Isadora</div>';
+        let h = '<div style="font-size:.66rem;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;" data-help="conc:ameaca">🎯 Ranking de ameaça {{ campanha.a_nome }}</div>';
         for (const c of est) {
             const on = selected.has(c.key);
             const bg = on ? '#fee2e2' : 'transparent';
@@ -3045,7 +3054,7 @@ case 'transferencia': {
             h += `<span style="color:#dc2626;font-weight:700;">${c.overlap_pct}%</span>`;
             h += '</div>';
         }
-        h += '<div style="font-size:.63rem;color:#94a3b8;margin-top:3px;line-height:1.3;">% da base da Isadora que o rival disputa. Clique para ver onde ele é forte.</div>';
+        h += '<div style="font-size:.63rem;color:#94a3b8;margin-top:3px;line-height:1.3;">% da base {{ campanha.de_nome }} que o rival disputa. Clique para ver onde ele é forte.</div>';
         box.innerHTML = h;
     }
 
@@ -3162,7 +3171,7 @@ case 'transferencia': {
             document.getElementById('threatRanking').innerHTML = '<div style="font-size:.72rem;color:#94a3b8;">Carregando ranking de ameaça…</div>';
             ensureCompCandidates().then(() => {
                 renderThreatRanking();
-                // Default = a própria candidata (Isadora), não a maior ameaça.
+                // Default = a própria candidatura, não a maior ameaça.
                 const candidata = compCandidatesList.find(c => c.is_candidato);
                 if (candidata && !(map._concCandidates || []).length) addConcCandidateByKey(candidata.key);
             });
@@ -3712,23 +3721,23 @@ case 'transferencia':
         // ── Glossário de decisão (legenda das receitas) ─────────
         'dec:expandir': {t:'EXPANDIR', o:'Há voto disponível e você ainda não tem estrutura para colher ali. Investir/crescer.', j:'Ex.: cidade "mina de ouro" sem cabo nem apoiadores.'},
         'dec:blindar': {t:'BLINDAR', o:'Você é forte aqui e há rival crescendo. Defender o que já é seu.', j:'Ex.: 1º lugar em 2022 com concorrente subindo na Concorrência.'},
-        'dec:carona': {t:'CARONA', o:'Você é fraco, mas um aliado de chapa é forte na cidade. Entrar pela estrutura dele.', j:'Ex.: reduto da Carol/Jorginho/Daniela onde a Isadora vai mal — agende junto.'},
+        'dec:carona': {t:'CARONA', o:'Você é fraco, mas um aliado de chapa é forte na cidade. Entrar pela estrutura dele.', j:'Ex.: reduto da Carol/Jorginho/Daniela onde {{ campanha.trat_nome }} vai mal — agende junto.'},
         'dec:ignorar': {t:'IGNORAR', o:'Não há voto a colher — mercado saturado, eleitorado pequeno ou território perdido. Não desperdiçar tempo do candidato.', j:'Ex.: capital adversária ou cidade já saturada de apoiadores.'},
         'src:real': {t:'Dado real', o:'Vem de fonte oficial verificável: resultados eleitorais (TSE) e a rede cadastrada no CRM.', j:'Pode decidir com confiança.'},
         'src:proxy': {t:'Dado estimado', o:'Perfil socioeconômico derivado do PIB (renda, % urbana, Bolsa Família…) — não medido diretamente.', j:'Use como indício para calibrar discurso, não como prova.'},
         'src:misto': {t:'Dado misto', o:'Combina parte real (eleitoral TSE / rede CRM) com parte estimada (perfil socioeconômico).', j:'A leitura é sólida no eleitoral; trate a parte socioeconômica como indício.'},
         // ── Modos ───────────────────────────────────────────────
-        'mode:eleicoes_2022': {t:'Eleições 2022', o:'Onde a Isadora ficou em cada cidade na última eleição (ranking entre os candidatos).', j:'Veja onde já é forte (defender) e onde ficou para trás (atacar).'},
+        'mode:eleicoes_2022': {t:'Eleições 2022', o:'Onde {{ campanha.trat_nome }} ficou em cada cidade na última eleição (ranking entre os candidatos).', j:'Veja onde já é forte (defender) e onde ficou para trás (atacar).'},
         'mode:vitoria': {t:'Vitória 2026', o:'Cruza seus votos de 2022 com a meta possível e revela a lacuna de votos a conquistar.', j:'Priorize cidades com muito voto disponível e pouca estrutura sua — cada visita rende mais.'},
         'mode:calor': {t:'Mapa de Calor', o:'Intensidade da sua presença/força por camada (votos, estrutura, força política).', j:'Enxergue concentração e vazios: reforce os polos e ocupe os buracos.'},
         'mode:demandas': {t:'Demandas', o:'Onde há demandas/tarefas registradas e se estão em dia ou atrasadas.', j:'Entregar demanda vira voto. Resolva as atrasadas antes que virem desgaste.'},
         'mode:roteiros': {t:'Roteiros', o:'Trajetos de visita planejados, em andamento e concluídos.', j:'Transforme as cidades-alvo em roteiro otimizado: menos estrada, mais contato.'},
         'mode:estrategico': {t:'Estratégico', o:'Classifica cada cidade pela força política viva do cadastro (prefeitos, vereadores, cabos).', j:'Ative aliados adormecidos e construa nos vazios — é o tabuleiro da articulação.'},
-        'mode:transferencia': {t:'Transferência — Carona de chapa', o:'Redutos dos seus aliados de chapa (governador, senador, federal), cujos votos somam com os seus.', j:'Leve a Isadora junto onde o aliado é forte: você herda parte daquele eleitorado.'},
+        'mode:transferencia': {t:'Transferência — Carona de chapa', o:'Redutos dos seus aliados de chapa (governador, senador, federal), cujos votos somam com os seus.', j:'Leve {{ campanha.trat_nome }} junto onde o aliado é forte: você herda parte daquele eleitorado.'},
         'mode:concorrencia': {t:'Concorrência', o:'Força dos concorrentes diretos ao mesmo cargo por cidade.', j:'Não gaste energia em reduto consolidado do rival; dispute o que está em aberto.'},
         'mode:perfil_ideologico': {t:'Perfil Ideológico', o:'Inclinação ideológica do eleitorado de cada cidade (de menos a ultra conservador).', j:'Calibre o discurso por região — fale a língua de cada eleitorado.'},
         // ── Legenda: Eleições 2022 ──────────────────────────────
-        'leg:el:1': {t:'1º Lugar', o:'A Isadora foi o mais votado da cidade.', j:'Reduto consolidado: blindar e usar como vitrine.'},
+        'leg:el:1': {t:'1º Lugar', o:'{{ campanha.trat_nome|capfirst }} foi o mais votado da cidade.', j:'Reduto consolidado: blindar e usar como vitrine.'},
         'leg:el:3': {t:'Top 3', o:'Ficou entre os 3 mais votados.', j:'Base forte: pequeno empurrão garante a liderança.'},
         'leg:el:5': {t:'Top 5', o:'Entre os 5 primeiros.', j:'Boa presença; cresce com estrutura.'},
         'leg:el:10': {t:'Top 10', o:'Entre os 10 primeiros.', j:'Presença média: avaliar se vale investir.'},
@@ -3754,15 +3763,15 @@ case 'transferencia':
         'leg:est:hostil': {t:'Território Hostil', o:'Domínio adversário consolidado.', j:'Só dispute pontos reais de virada.'},
         'leg:est:neutro': {t:'Neutro', o:'Sem definição clara de força.', j:'Sonde e teste antes de investir pesado.'},
         // ── Legenda: Transferência ──────────────────────────────
-        'leg:tr:palanque': {t:'Palanque conjunto', o:'2 ou mais aliados fortes na mesma cidade.', j:'Palco perfeito: leve a Isadora num evento com eles.'},
-        'leg:tr:reduto': {t:'Reduto de aliado', o:'Um aliado é forte e a Isadora ainda é fraca.', j:'Maior oportunidade de transferência — colher voto novo.'},
-        'leg:tr:polo': {t:'Polo da Isadora', o:'A Isadora já é forte aqui.', j:'Defender e usar como base de irradiação.'},
-        'leg:tr:sem': {t:'Sem carona', o:'Nem aliado forte nem Isadora forte.', j:'Baixa prioridade na lógica de chapa.'},
+        'leg:tr:palanque': {t:'Palanque conjunto', o:'2 ou mais aliados fortes na mesma cidade.', j:'Palco perfeito: leve {{ campanha.trat_nome }} num evento com eles.'},
+        'leg:tr:reduto': {t:'Reduto de aliado', o:'Um aliado é forte e {{ campanha.trat_nome }} ainda é fraca.', j:'Maior oportunidade de transferência — colher voto novo.'},
+        'leg:tr:polo': {t:'Polo {{ campanha.de_nome }}', o:'{{ campanha.trat_nome|capfirst }} já é forte aqui.', j:'Defender e usar como base de irradiação.'},
+        'leg:tr:sem': {t:'Sem carona', o:'Nem aliado forte nem {{ campanha.candidato_primeiro_nome }} forte.', j:'Baixa prioridade na lógica de chapa.'},
         // ── Legenda: Perfil Ideológico ──────────────────────────
         'leg:perf:menos': {t:'Menos conservador', o:'Eleitorado mais progressista.', j:'Ajuste o tom; foque pautas que dialoguem aqui.'},
         'leg:perf:moderado': {t:'Moderado', o:'Eleitorado de centro.', j:'Discurso equilibrado conquista o indeciso.'},
         'leg:perf:conserv': {t:'Conservador', o:'Inclinação conservadora.', j:'Pautas de ordem, família e segurança rendem.'},
-        'leg:perf:muito': {t:'Muito conservador', o:'Forte perfil conservador.', j:'Terreno fértil para o discurso da Isadora.'},
+        'leg:perf:muito': {t:'Muito conservador', o:'Forte perfil conservador.', j:'Terreno fértil para o discurso {{ campanha.de_nome }}.'},
         'leg:perf:ultra': {t:'Ultra conservador', o:'Conservador ao extremo.', j:'Reduto ideológico: mobilize a base.'},
         // ── Legenda: Oportunidade (modo gap) ────────────────────
         'leg:opp:metric': {t:'Perfil ⇄ Oportunidade', o:'Perfil pinta o quão conservadora é a cidade. Oportunidade pinta onde vale investir = conservadorismo × tamanho do eleitorado × déficit de presença (penetração 2022 + apoiadores baixos).', j:'Use Perfil para calibrar a mensagem; Oportunidade para escolher onde atacar.'},
@@ -3802,30 +3811,30 @@ case 'transferencia':
         'leg:conc:fraco': {t:'Rival fraco', o:'Rival com pouca presença.', j:'Espaço livre para crescer.'},
         'leg:conc:sem': {t:'Rival sem votos', o:'Concorrente sem força aqui.', j:'Terreno seu a ocupar primeiro.'},
         // ── Termos do painel da cidade ──────────────────────────
-        'carona': {t:'Carona de chapa', o:'Votos dos seus aliados de chapa nesta cidade — somam com os seus, não competem.', j:'Use os redutos deles para apresentar a Isadora a um eleitorado já alinhado.'},
+        'carona': {t:'Carona de chapa', o:'Votos dos seus aliados de chapa nesta cidade — somam com os seus, não competem.', j:'Use os redutos deles para apresentar {{ campanha.trat_nome }} a um eleitorado já alinhado.'},
         'estrela_forte': {t:'★ Aliado forte aqui', o:'O aliado fez mais voto que a média dele neste município — é reduto real dele.', j:'Cidade onde a carona vale mais: priorize agenda conjunta.'},
-        'votos_carona': {t:'Votos de carona', o:'Soma dos votos dos aliados fortes nesta cidade.', j:'Tamanho do eleitorado que você pode herdar levando a Isadora junto.'},
-        'votos_2022': {t:'Votos 2022', o:'Quanto a Isadora fez aqui na última eleição.', j:'Ponto de partida para medir crescimento.'},
+        'votos_carona': {t:'Votos de carona', o:'Soma dos votos dos aliados fortes nesta cidade.', j:'Tamanho do eleitorado que você pode herdar levando {{ campanha.trat_nome }} junto.'},
+        'votos_2022': {t:'Votos 2022', o:'Quanto {{ campanha.trat_nome }} fez aqui na última eleição.', j:'Ponto de partida para medir crescimento.'},
         'potencial': {t:'Potencial', o:'Meta de votos estimada para a cidade.', j:'Teto realista a perseguir com estrutura.'},
         'votos_disponiveis': {t:'Votos disponíveis', o:'Diferença entre o potencial e o que você já tem.', j:'Voto novo ao seu alcance — foco aqui rende mais.'},
         'vencidos': {t:'Contatos vencidos', o:'Lideranças sem interação há muito tempo.', j:'Base esfriando: reaqueça antes de perder.'},
         'nunca': {t:'Nunca contatados', o:'Cadastrados que ainda não receberam nenhuma interação.', j:'Primeiro toque pendente — abra relacionamento.'},
         'alta': {t:'Prioridade alta', o:'Contatos marcados como prioridade alta.', j:'Não deixe esfriar: visite primeiro.'},
-        'ultima_visita': {t:'Última visita do candidato', o:'Há quanto tempo a Isadora esteve nesta cidade.', j:'Muito tempo sem ir? Hora de reaparecer.'},
+        'ultima_visita': {t:'Última visita do candidato', o:'Há quanto tempo {{ campanha.trat_nome }} esteve nesta cidade.', j:'Muito tempo sem ir? Hora de reaparecer.'},
         'proximo_compromisso': {t:'Próximo compromisso', o:'Próxima agenda marcada aqui.', j:'Cidade-alvo sem nada marcado? Agende.'},
         'quem_visitar': {t:'Quem visitar primeiro', o:'Contatos com relacionamento mais vencido — fila de prioridade.', j:'Comece por eles na próxima passagem pela cidade.'},
         // ── Botões de ação do painel ────────────────────────────
-        'acao:compromisso': {t:'Marque presença com propósito', o:'Seja estratégico: agende a Isadora para quando um aliado forte desta cidade tiver evento (palanque conjunto) e puxe junto os contatos “vencidos / nunca” listados acima.', j:'Ativa a base local, gera interação automática no cadastro e converte reduto de aliado em voto seu.'},
+        'acao:compromisso': {t:'Marque presença com propósito', o:'Seja estratégico: agende {{ campanha.trat_nome }} para quando um aliado forte desta cidade tiver evento (palanque conjunto) e puxe junto os contatos “vencidos / nunca” listados acima.', j:'Ativa a base local, gera interação automática no cadastro e converte reduto de aliado em voto seu.'},
         'acao:roteiro': {t:'Transforme a cidade em rota de colheita', o:'Seja estratégico: encadeie esta cidade com alvos próximos num único dia de estrada e comece pelos relacionamentos mais frios.', j:'Menos quilômetro rodado, mais contatos por viagem e cobertura das oportunidades órfãs antes do adversário.'},
         // ── Vitória 2026: métricas, quadrantes e alertas ────────
-        'vit:base2022': {t:'Base 2022', o:'Total de votos que a Isadora fez no estado na última eleição.', j:'Seu piso. Toda a estratégia parte daqui para crescer.'},
+        'vit:base2022': {t:'Base 2022', o:'Total de votos que {{ campanha.trat_nome }} fez no estado na última eleição.', j:'Seu piso. Toda a estratégia parte daqui para crescer.'},
         'vit:meta': {t:'Meta da campanha', o:'Quantidade de votos definida como alvo para 2026.', j:'Norte de toda a operação — distribua-a por cidade.'},
         'vit:falta': {t:'Faltam p/ a meta', o:'Quantos votos ainda separam você do alvo.', j:'Esse é o tamanho real do desafio: cubra-o nas mina de ouro.'},
         'vit:potencial': {t:'Potencial mapeado', o:'Soma dos votos alcançáveis em todas as cidades.', j:'Teto teórico; mostra se a meta cabe no território.'},
-        'quad:mina_ouro': {t:'💰 Mina de ouro', o:'Cidade grande onde a Isadora é fraca.', j:'Maior retorno por esforço — ataque prioritário.'},
-        'quad:celeiro': {t:'🛡️ Celeiro', o:'Cidade grande onde a Isadora já é forte.', j:'Defenda a base: aqui se ganha em volume.'},
-        'quad:fortaleza': {t:'✅ Fortaleza', o:'Cidade pequena onde a Isadora é forte.', j:'Manutenção barata — só não deixe esfriar.'},
-        'quad:marginal': {t:'⚪ Marginal', o:'Cidade pequena onde a Isadora é fraca.', j:'Baixa prioridade — pouco voto a colher.'},
+        'quad:mina_ouro': {t:'💰 Mina de ouro', o:'Cidade grande onde {{ campanha.trat_nome }} é fraca.', j:'Maior retorno por esforço — ataque prioritário.'},
+        'quad:celeiro': {t:'🛡️ Celeiro', o:'Cidade grande onde {{ campanha.trat_nome }} já é forte.', j:'Defenda a base: aqui se ganha em volume.'},
+        'quad:fortaleza': {t:'✅ Fortaleza', o:'Cidade pequena onde {{ campanha.trat_nome }} é forte.', j:'Manutenção barata — só não deixe esfriar.'},
+        'quad:marginal': {t:'⚪ Marginal', o:'Cidade pequena onde {{ campanha.trat_nome }} é fraca.', j:'Baixa prioridade — pouco voto a colher.'},
         'vit:orfas': {t:'🚨 Oportunidades órfãs', o:'Cidades com muito voto disponível e nenhuma estrutura sua.', j:'Plante estrutura aqui antes do adversário — terreno vazio e rico.'},
         'vit:esfriando': {t:'⚠️ Bases esfriando', o:'Cidades onde você é forte mas o relacionamento está vencido.', j:'Reaqueça antes de perder o que já é seu.'},
         // ── Estratégico: classes e destaque ─────────────────────
@@ -3836,7 +3845,7 @@ case 'transferencia':
         'est:hostil': {t:'🚫 Hostil', o:'Reduto adversário consolidado.', j:'Baixo retorno — não desperdice energia.'},
         'est:neutro': {t:'⚪ Neutro', o:'Sem aliados e pouca oportunidade.', j:'Sonde antes de investir.'},
         'est:dormindo': {t:'Aliados dormindo', o:'Cidades com aliado político mas nenhum cabo engajado.', j:'Cada uma é uma máquina de voto esperando ser ligada — ative os cabos primeiro.'},
-        'conc:ameaca': {t:'🎯 Ranking de ameaça à Isadora', o:'Rivais a deputado estadual de 2022 ordenados pela sobreposição geográfica com a base da Isadora — quem mais disputa as mesmas cidades.', j:'Concentre defesa onde o topo do ranking é forte; cruze com o Estratégico (tenho aliado pra revidar?) e a Vitória (é mina de ouro?).'},
+        'conc:ameaca': {t:'🎯 Ranking de ameaça {{ campanha.a_nome }}', o:'Rivais ao cargo em disputa (eleição de 2022) ordenados pela sobreposição geográfica com a base {{ campanha.de_nome }} — quem mais disputa as mesmas cidades.', j:'Concentre defesa onde o topo do ranking é forte; cruze com o Estratégico (tenho aliado pra revidar?) e a Vitória (é mina de ouro?).'},
     };
 
     let pop = null;

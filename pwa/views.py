@@ -271,8 +271,24 @@ def api_transcrever(request):
 
 
 def manifest_json(request):
+    """Manifest do PWA com a marca injetada da config (o JSON estático é a base
+    neutra). Nome/descrição/cores mudam por marca sem tocar no arquivo."""
     path = os.path.join(django_settings.BASE_DIR, 'static', 'pwa', 'manifest.json')
-    return FileResponse(open(path, 'rb'), content_type='application/manifest+json')
+    with open(path, encoding='utf-8') as f:
+        manifest = json.load(f)
+    c = django_settings.CAMPANHA
+    curto = f"{c['CANDIDATO_PRIMEIRO_NOME']} {c['PARTIDO_NUMERO']}"
+    manifest['name'] = f"{curto} — Operação de Campo"
+    manifest['short_name'] = curto
+    manifest['description'] = (
+        f"Cadastro de apoiadores e voluntários — Campanha {c['CANDIDATO_NOME']}, "
+        f"{c['PARTIDO_SIGLA']} {c['PARTIDO_NUMERO']}, {c['UF']}"
+    )
+    grafite = c['CORES'].get('--navy-900')
+    if grafite:
+        manifest['background_color'] = grafite
+        manifest['theme_color'] = grafite
+    return JsonResponse(manifest, content_type='application/manifest+json')
 
 
 def service_worker(request):

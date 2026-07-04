@@ -8,6 +8,9 @@ nome, número ou cargo pode ficar hardcodado fora deste arquivo.
 CAMPANHA = {
     'CANDIDATO_NOME': 'Isadora Piana',
     'CANDIDATO_PRIMEIRO_NOME': 'Isadora',
+    # Artigo definido do candidato ('a'|'o') — o context processor deriva as
+    # formas prontas para texto corrido: "a Isadora", "da Isadora", "à Isadora".
+    'CANDIDATO_ARTIGO': 'a',
     'PARTIDO_SIGLA': 'NOVO',
     'PARTIDO_NUMERO': '30',
     'UF': 'Santa Catarina',
@@ -21,6 +24,7 @@ CAMPANHA = {
     # anterior). Pode divergir do cargo em disputa (ex.: federal→estadual).
     'TSE_TERMO_BUSCA': 'ISADORA',
     'TSE_CARGO_BASE': 'deputado_estadual',
+    'TSE_CARGO_BASE_LABEL': 'Dep. Estadual',   # rótulo humano da base (§5.3: rótulo = conteúdo)
     'TSE_ANO_BASE': 2022,
 
     # Cores da marca — valores das variáveis CSS históricas (--navy/--ouro/

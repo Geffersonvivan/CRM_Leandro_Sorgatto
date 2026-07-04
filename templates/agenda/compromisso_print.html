@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda de Compromissos — Isadora</title>
+    <title>Agenda de Compromissos — {{ campanha.candidato_primeiro_nome }}</title>
     <style>
         @page { size: A4; margin: 15mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -77,7 +77,7 @@
     </table>
 
     <div class="footer">
-        Impresso em {% now "d/m/Y H:i" %} — CRM Eleitoral Isadora
+        Impresso em {% now "d/m/Y H:i" %} — CRM Eleitoral {{ campanha.candidato_primeiro_nome }}
     </div>
 </body>
 </html>

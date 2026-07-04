@@ -173,7 +173,7 @@ class Cidade(models.Model):
                 import urllib.request, json, urllib.parse
                 cidade_encoded = urllib.parse.quote(f"{self.nome}, Santa Catarina, Brasil")
                 url = f"https://nominatim.openstreetmap.org/search?q={cidade_encoded}&format=json&limit=1"
-                req = urllib.request.Request(url, headers={'User-Agent': 'CRM-Isadora-App'})
+                req = urllib.request.Request(url, headers={'User-Agent': 'CRM-Base-Eleitoral'})
                 with urllib.request.urlopen(req, timeout=5) as response:
                     data = json.loads(response.read().decode())
                     if data:

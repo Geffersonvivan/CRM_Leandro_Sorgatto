@@ -1,7 +1,7 @@
 {
-    "name": "Isadora 30 — Operação de Campo",
-    "short_name": "Isadora 30",
-    "description": "Cadastro de apoiadores e voluntários — Campanha Isadora Piana, NOVO 30, Santa Catarina",
+    "name": "CRM Eleitoral — Operação de Campo",
+    "short_name": "Campo",
+    "description": "Cadastro de apoiadores e voluntários da campanha",
     "id": "/app/",
     "start_url": "/app/",
     "scope": "/app/",

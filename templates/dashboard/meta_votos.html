@@ -54,13 +54,13 @@
 
 {% block content %}
 <div class="page-header">
-    <h1 class="page-title" data-tip="Painel de acompanhamento da meta de 45 mil votos para eleição da Isadora em 2026.">Meta de Votos</h1>
+    <h1 class="page-title" data-tip="Painel de acompanhamento da meta de votos para a eleição de 2026.">Meta de Votos</h1>
 </div>
 
 <!-- Resumo -->
 <div class="summary-grid">
     <div class="summary-card hero">
-        <div class="summary-label" data-tip="Total de votos necessários para eleger a candidata Isadora em 2026.">Meta</div>
+        <div class="summary-label" data-tip="Total de votos necessários para eleger {{ campanha.trat_nome }} em 2026.">Meta</div>
         <div class="summary-value">{{ meta_votos|floatformat:0 }}</div>
         <div class="summary-sub">votos necessários</div>
         <div class="progress-bar-container">
