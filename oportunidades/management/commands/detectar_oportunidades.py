@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand
 from django.db import models
 from django.utils import timezone
 
-from liderancas.models import Cidade, Apoiador
+from liderancas.models import Cidade, Lideranca
 from agenda.models import Compromisso, Evento
 from oportunidades.models import Oportunidade
 
@@ -40,7 +40,7 @@ class Command(BaseCommand):
 
         cidades = list(Cidade.objects.select_related('regiao').all())
         ap = {r['cidade_id']: r['n'] for r in
-              Apoiador.objects.filter(status='ativo').values('cidade_id').annotate(n=models.Count('id'))}
+              Lideranca.objects.filter(papel='apoiador', status='ativo', aprovacao='aprovado').values('cidade_id').annotate(n=models.Count('id'))}
 
         comp_fut = set()
         for c in Compromisso.objects.exclude(status='cancelado').only('cidade_id', 'data_hora_inicio'):
@@ -50,16 +50,16 @@ class Command(BaseCommand):
             if e.cidade_id and e.data >= hoje:
                 comp_fut.add(e.cidade_id)
 
-        pens = [c.votos_sorgatto_2022 / c.eleitores for c in cidades if c.eleitores]
+        pens = [c.votos_referencia_2022 / c.eleitores for c in cidades if c.eleitores]
         maxpen = max(pens) if pens else 1
-        tot_v = sum(c.votos_sorgatto_2022 for c in cidades)
+        tot_v = sum(c.votos_referencia_2022 for c in cidades)
         tot_e = sum(c.eleitores for c in cidades) or 1
         avg_pen = tot_v / tot_e
         max_ap = max(ap.values(), default=1) or 1
 
         rows, maxopp = [], 0.0
         for c in cidades:
-            pen = (c.votos_sorgatto_2022 / c.eleitores) if c.eleitores else 0
+            pen = (c.votos_referencia_2022 / c.eleitores) if c.eleitores else 0
             deficit = max(0.0, 1 - (pen / maxpen if maxpen else 0))
             opp = deficit * math.log10((c.eleitores or 0) + 10)  # log: cidade média sobe
             maxopp = max(maxopp, opp)

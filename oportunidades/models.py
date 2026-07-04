@@ -16,7 +16,7 @@ class Oportunidade(models.Model):
         ('relacionamento', 'Relacionamento'),  # base forte/contatos sem visita marcada
         ('concorrencia', 'Concorrência'),      # rival comendo voto conservador (futuro)
         ('agenda', 'Agenda'),                  # dia livre, palanque conjunto (futuro)
-        ('demanda', 'Demanda'),                # promessa/demanda atrasada (futuro)
+        ('demanda', 'Demanda'),                # demanda/tarefa atrasada (futuro)
     ]
     STATUS = [
         ('nova', 'Nova'),
