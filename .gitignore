@@ -9,12 +9,18 @@ venv/
 
 # Django
 db.sqlite3
+db.sqlite3.bak*
 *.log
 media/
 staticfiles/
 
+# Backups locais com PII (nunca versionar — repo público, CLAUDE.md §9)
+_backup_campanha_anterior/
+
 # Environment
 .env
+.env.*
+*.env
 
 # Old project
 Antigo/
@@ -32,4 +38,11 @@ Thumbs.db
 
 # Dados pessoais (NUNCA commitar — repositório é público)
 Planilha/
+Planilha_Lideran*/
 import_pendencias.csv
+
+# Artefatos de sessão (patch local de trabalho)
+SESSAO_CRM_ISADORA.patch
+
+# Auditoria interna (detalhes de vulnerabilidades — NUNCA commitar)
+Auditoria_CRM/
