@@ -216,19 +216,20 @@ do mesmo repo. Detalhado na Seção 7.
 não fork. Depois desta fase, não sobra motivo para tocar em código por causa de marca.
 
 **Passos:**
-1. **Colunas de Lideranças por config.** Definir `COLUNAS_LIDERANCA` na config de marca
-   (lista ordenada de campos exibidos). O model `Lideranca` guarda o superset dos
-   campos (já tem os 16 da planilha); o *template* e a lista renderizam só as colunas da
-   config. Isadora mostra todas; Sorgatto mostra o subconjunto dele. Comportamento
-   (ordenar/paginar/filtrar) é o mesmo código. → resolve o pedido "cada usuário mantém
-   seu número de colunas, mesmo comportamento".
+1. ✅ **Colunas de Lideranças por config** (05/07/2026). `COLUNAS_LIDERANCA` na config
+   de marca (lista ordenada); thead/tbody da lista unificada iteram a config
+   preservando o markup de cada célula. Isadora mostra o superset (31 colunas);
+   a config demo exibe o recorte curto. CSV de export mantém formato curado próprio.
+   Testes cobrem as duas configs.
 2. **Fechar o delta de features** entre as marcas de uma vez (já auditado nesta sessão:
    Isadora era quase superset; o gap real era o EventoAnexo, já portado). Reconvergir
-   qualquer coisa que ainda esteja só numa pasta.
-3. **Cargos 2022×2026 por marca** confirmados end-to-end: base histórica
-   (`TSE_CARGO_BASE`/`TSE_ANO_BASE`) pode divergir do cargo em disputa
-   (`TSE_CARGO_2026`). `import_tse` já importa todos os cargos; validar que ranking de
-   ameaça e concorrência lidam com cargo cruzado (federal→estadual) para o Sorgatto.
+   qualquer coisa que ainda esteja só numa pasta. *(Depende de acesso às pastas das
+   outras marcas — fora deste repo.)*
+3. ✅ **Cargos 2022×2026 por marca** (05/07/2026): `CompeticaoMapAPI` deixou de fixar
+   'deputado_estadual' — o overlap ponderado (ranking de ameaça) segue `TSE_CARGO_2026`
+   e o outro cargo de deputado recebe o overlap simples de contexto; a base já vinha de
+   `TSE_CARGO_BASE`. Testado com dados sintéticos nos casos estadual→estadual e
+   federal→federal (o cruzado federal→estadual usa os mesmos caminhos).
 
 **Como:** cada diferença encontrada faz a pergunta do §2.4 — "isso é *como funciona* ou
 *o que mostra*?". Se for "o que mostra", vira chave de config; se for "como funciona",
