@@ -32,9 +32,10 @@ CAMPANHA = {
         '--teal': '#0d9488',
     },
 
+    # Subconjunto curto de propósito — demonstra a lista enxuta de outra marca.
     'COLUNAS_LIDERANCA': [
-        'nome', 'cidade', 'telefone', 'email', 'instagram',
-        'coordenador_responsavel', 'tipo', 'intencao_voto',
-        'frequencia_relacionamento', 'votos_referencia', 'cadastrado_por',
+        'nome', 'papel', 'telefone', 'cidade', 'regiao',
+        'coordenador_responsavel', 'intencao_voto', 'ultima_interacao',
+        'cadastrado_por', 'observacoes',
     ],
 }

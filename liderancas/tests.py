@@ -108,6 +108,41 @@ class ModeracaoTests(TestCase):
 
 
 @override_settings(ALLOWED_HOSTS=['testserver'], STORAGES=STORAGES_TESTE)
+class ColunasPorMarcaTests(TestCase):
+    """Fase 2: a lista unificada renderiza só as colunas de COLUNAS_LIDERANCA
+    da config — cada marca com seu conjunto, mesmo comportamento."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.cidade = criar_cidade()
+        cls.user = Usuario.objects.create_user(
+            username='colunas', password='x', secoes_permitidas=['liderancas'])
+        criar_apoiador(cls.cidade, 'Alice Colunas', facebook='alice.fb',
+                       telefone='(48) 91234-0000')
+
+    def _html(self):
+        self.client.force_login(self.user)
+        return self.client.get(reverse('liderancas:lideranca_list')).content.decode()
+
+    def test_isadora_mostra_o_superset(self):
+        html = self._html()
+        for header in ('Facebook', 'Vaquinha', 'Telefone', 'Segmentos'):
+            self.assertIn(header, html)
+        self.assertIn('alice.fb', html)
+
+    def test_outra_marca_mostra_so_as_colunas_dela(self):
+        from core.tests import MARCA_TESTE
+        with override_settings(CAMPANHA=MARCA_TESTE):
+            html = self._html()
+        # MARCA_TESTE lista só nome/cidade/telefone
+        self.assertIn('Telefone', html)
+        self.assertIn('Alice Colunas', html)
+        self.assertNotIn('Facebook', html)
+        self.assertNotIn('Vaquinha', html)
+        self.assertNotIn('alice.fb', html)
+
+
+@override_settings(ALLOWED_HOSTS=['testserver'], STORAGES=STORAGES_TESTE)
 class SoftDeleteTests(TestCase):
     """§3.6: entidades de negócio usam soft_delete(); nunca DELETE físico."""
 

@@ -288,40 +288,45 @@
     <table>
         <thead>
             <tr>
+                {# Colunas dirigidas pela config de marca (COLUNAS_LIDERANCA — Fase 2). #}
+                {# Seleção e Ações são estruturais; o resto segue a ordem da config. #}
                 <th class="col-check"><input type="checkbox" id="checkAll" class="row-check" onchange="toggleAll(this)"></th>
-                {% sortable_th "nome" "Nome" "" %}
-                {% sortable_th "papel" "Papel" "" %}
-                <th>Telefone</th>
-                <th class="col-email">E-mail</th>
-                <th class="col-insta">Instagram</th>
-                {% sortable_th "cidade__nome" "Cidade" "" %}
-                {% sortable_th "regiao__sigla" "Região" "" %}
-                <th>Coord. Resp.</th>
-                <th>Categoria / Cargo</th>
-                {% sortable_th "prioridade" "Prior." "" %}
-                <th>Voto</th>
-                <th class="col-freq">Freq.</th>
-                <th class="col-votos">
-                    <a href="?{{ qs_sort_base }}&sort=votos_referencia&dir={% if current_sort == 'votos_referencia' and current_dir == 'asc' %}desc{% else %}asc{% endif %}" style="color:inherit;text-decoration:none;">Votos{% if current_sort == 'votos_referencia' %}{% if current_dir == 'asc' %} &uarr;{% else %} &darr;{% endif %}{% endif %}</a>
-                </th>
-                {% sortable_th "ultima_interacao" "Contato" "" %}
-                <th class="col-cadpor">Cadastrado por</th>
-                <th class="col-uf">UF</th>
-                <th class="col-nivel">Nível</th>
-                <th class="col-atendente">Atendente</th>
-                <th class="col-contatofeito">Contato feito</th>
-                <th class="col-datacontato">Data contato</th>
-                <th class="col-canal">Canal</th>
-                <th class="col-quemeleitor">Quem é o eleitor</th>
-                <th class="col-filiado">Filiado partido</th>
-                <th class="col-segmentos">Segmentos</th>
-                <th class="col-idade">Idade</th>
-                <th class="col-vaquinha">Vaquinha</th>
-                <th class="col-doou">Doou</th>
-                <th class="col-material">Material</th>
-                <th class="col-facebook">Facebook</th>
-                <th class="col-endereco">Endereço</th>
-                <th>Obs.</th>
+                {% for c in colunas %}
+                    {% if c == 'nome' %}{% sortable_th "nome" "Nome" "" %}
+                    {% elif c == 'papel' %}{% sortable_th "papel" "Papel" "" %}
+                    {% elif c == 'telefone' %}<th>Telefone</th>
+                    {% elif c == 'email' %}<th class="col-email">E-mail</th>
+                    {% elif c == 'instagram' %}<th class="col-insta">Instagram</th>
+                    {% elif c == 'cidade' %}{% sortable_th "cidade__nome" "Cidade" "" %}
+                    {% elif c == 'regiao' %}{% sortable_th "regiao__sigla" "Região" "" %}
+                    {% elif c == 'coordenador_responsavel' %}<th>Coord. Resp.</th>
+                    {% elif c == 'tipo' %}<th>Categoria / Cargo</th>
+                    {% elif c == 'prioridade' %}{% sortable_th "prioridade" "Prior." "" %}
+                    {% elif c == 'intencao_voto' %}<th>Voto</th>
+                    {% elif c == 'frequencia_relacionamento' %}<th class="col-freq">Freq.</th>
+                    {% elif c == 'votos_referencia' %}<th class="col-votos">
+                        <a href="?{{ qs_sort_base }}&sort=votos_referencia&dir={% if current_sort == 'votos_referencia' and current_dir == 'asc' %}desc{% else %}asc{% endif %}" style="color:inherit;text-decoration:none;">Votos{% if current_sort == 'votos_referencia' %}{% if current_dir == 'asc' %} &uarr;{% else %} &darr;{% endif %}{% endif %}</a>
+                    </th>
+                    {% elif c == 'ultima_interacao' %}{% sortable_th "ultima_interacao" "Contato" "" %}
+                    {% elif c == 'cadastrado_por' %}<th class="col-cadpor">Cadastrado por</th>
+                    {% elif c == 'uf' %}<th class="col-uf">UF</th>
+                    {% elif c == 'nivel' %}<th class="col-nivel">Nível</th>
+                    {% elif c == 'atendente' %}<th class="col-atendente">Atendente</th>
+                    {% elif c == 'contato_feito' %}<th class="col-contatofeito">Contato feito</th>
+                    {% elif c == 'data_contato' %}<th class="col-datacontato">Data contato</th>
+                    {% elif c == 'canal_atendimento' %}<th class="col-canal">Canal</th>
+                    {% elif c == 'quem_e_eleitor' %}<th class="col-quemeleitor">Quem é o eleitor</th>
+                    {% elif c == 'filiado_partido' %}<th class="col-filiado">Filiado partido</th>
+                    {% elif c == 'segmentos' %}<th class="col-segmentos">Segmentos</th>
+                    {% elif c == 'idade' %}<th class="col-idade">Idade</th>
+                    {% elif c == 'vaquinha_enviada' %}<th class="col-vaquinha">Vaquinha</th>
+                    {% elif c == 'doou' %}<th class="col-doou">Doou</th>
+                    {% elif c == 'material_entregue' %}<th class="col-material">Material</th>
+                    {% elif c == 'facebook' %}<th class="col-facebook">Facebook</th>
+                    {% elif c == 'endereco' %}<th class="col-endereco">Endereço</th>
+                    {% elif c == 'observacoes' %}<th>Obs.</th>
+                    {% endif %}
+                {% endfor %}
                 <th>Ações</th>
             </tr>
         </thead>
@@ -329,39 +334,42 @@
             {% for o in page_obj %}
             <tr {% if o.aprovacao == 'pendente' %}class="tr-pendente"{% elif o.aprovacao == 'rejeitado' %}class="tr-rejeitado"{% endif %}>
                 <td class="col-check"><input type="checkbox" class="row-check bulk-check" form="bulkForm" name="selected_ids" value="{{ o.pk }}" onchange="updateBulk()"></td>
-                <td style="min-width:150px;">{{ o.nome }}{% if o.aprovacao != 'aprovado' %}<span class="apr-badge apr-{{ o.aprovacao }}">{{ o.get_aprovacao_display }}</span>{% endif %}</td>
-                <td class="nw"><span class="papel-badge papel-{{ o.papel }}">{{ o.get_papel_display }}</span></td>
-                <td class="nw">{{ o.telefone|whatsapp_link }}</td>
-                <td class="col-email">{{ o.email|default:"-" }}</td>
-                <td class="col-insta">{{ o.instagram|instagram_link }}</td>
-                <td>{{ o.cidade.nome|default:"-" }}</td>
-                <td class="nw" style="text-align:center;"><span class="badge">{{ o.cidade.regiao.sigla|default:"-" }}</span></td>
-                <td>{% if o.papel == 'cabo' %}{{ o.coordenador_responsavel.nome|default:"-" }}{% else %}-{% endif %}</td>
-                <td>{% if o.papel == 'apoiador' %}{{ o.get_tipo_display }}{% if o.cargo %} · {{ o.get_cargo_display }}{% endif %}{% else %}-{% endif %}</td>
-                <td class="nw" style="text-align:center;">{{ o.get_prioridade_display }}</td>
-                <td class="nw" style="text-align:center;">{% if o.intencao_voto %}<span class="voto-badge voto-{{ o.intencao_voto }}">{{ o.get_intencao_voto_display }}</span>{% else %}-{% endif %}</td>
-                <td class="col-freq nw" style="text-align:center;">{{ o.get_frequencia_relacionamento_display }}</td>
-                <td class="col-votos nw" style="text-align:right;">{% if o.papel == 'apoiador' %}{{ o.votos_referencia }}{% else %}-{% endif %}</td>
-                <td class="nw" style="text-align:center;">{{ o.ultima_interacao|contact_badge }}</td>
-                <td class="col-cadpor">{% if o.cadastrado_por %}{{ o.cadastrado_por.get_full_name|default:o.cadastrado_por.username }}{% else %}-{% endif %}</td>
-                <td class="col-uf nw" style="text-align:center;">{{ o.uf|default:"-" }}</td>
-                <td class="col-nivel nw">{{ o.get_nivel_display|default:"-" }}</td>
-                <td class="col-atendente">{{ o.atendente|default:"-" }}</td>
-                <td class="col-contatofeito nw" style="text-align:center;">{% if o.contato_feito %}✓{% else %}–{% endif %}</td>
-                <td class="col-datacontato nw" style="text-align:center;">{{ o.data_contato|date:"d/m/Y"|default:"-" }}</td>
-                <td class="col-canal nw">{{ o.get_canal_atendimento_display|default:"-" }}</td>
-                <td class="col-quemeleitor">{{ o.quem_e_eleitor|default:"-" }}</td>
-                <td class="col-filiado">{{ o.filiado_partido|default:"-" }}</td>
-                <td class="col-segmentos">{{ o.segmentos|default:"-" }}</td>
-                <td class="col-idade nw" style="text-align:center;">{{ o.idade|default:"-" }}</td>
-                <td class="col-vaquinha nw" style="text-align:center;">{% if o.vaquinha_enviada %}✓{% else %}–{% endif %}</td>
-                <td class="col-doou nw" style="text-align:center;">{% if o.doou %}✓{% else %}–{% endif %}</td>
-                <td class="col-material nw" style="text-align:center;">{% if o.material_entregue %}✓{% else %}–{% endif %}</td>
-                <td class="col-facebook">{{ o.facebook|default:"-" }}</td>
-                <td class="col-endereco">{{ o.endereco|default:"-" }}</td>
-                <td style="min-width:80px;">
-                    {% if o.observacoes %}<span class="obs-link" onclick="openObs(this)" data-tipo="lideranca" data-pk="{{ o.pk }}" data-nome="{{ o.nome }}" data-obs="{{ o.observacoes }}">{{ o.observacoes|truncatechars:15 }}</span>{% else %}-{% endif %}
-                </td>
+                {% for c in colunas %}
+                    {% if c == 'nome' %}<td style="min-width:150px;">{{ o.nome }}{% if o.aprovacao != 'aprovado' %}<span class="apr-badge apr-{{ o.aprovacao }}">{{ o.get_aprovacao_display }}</span>{% endif %}</td>
+                    {% elif c == 'papel' %}<td class="nw"><span class="papel-badge papel-{{ o.papel }}">{{ o.get_papel_display }}</span></td>
+                    {% elif c == 'telefone' %}<td class="nw">{{ o.telefone|whatsapp_link }}</td>
+                    {% elif c == 'email' %}<td class="col-email">{{ o.email|default:"-" }}</td>
+                    {% elif c == 'instagram' %}<td class="col-insta">{{ o.instagram|instagram_link }}</td>
+                    {% elif c == 'cidade' %}<td>{{ o.cidade.nome|default:"-" }}</td>
+                    {% elif c == 'regiao' %}<td class="nw" style="text-align:center;"><span class="badge">{{ o.cidade.regiao.sigla|default:"-" }}</span></td>
+                    {% elif c == 'coordenador_responsavel' %}<td>{% if o.papel == 'cabo' %}{{ o.coordenador_responsavel.nome|default:"-" }}{% else %}-{% endif %}</td>
+                    {% elif c == 'tipo' %}<td>{% if o.papel == 'apoiador' %}{{ o.get_tipo_display }}{% if o.cargo %} · {{ o.get_cargo_display }}{% endif %}{% else %}-{% endif %}</td>
+                    {% elif c == 'prioridade' %}<td class="nw" style="text-align:center;">{{ o.get_prioridade_display }}</td>
+                    {% elif c == 'intencao_voto' %}<td class="nw" style="text-align:center;">{% if o.intencao_voto %}<span class="voto-badge voto-{{ o.intencao_voto }}">{{ o.get_intencao_voto_display }}</span>{% else %}-{% endif %}</td>
+                    {% elif c == 'frequencia_relacionamento' %}<td class="col-freq nw" style="text-align:center;">{{ o.get_frequencia_relacionamento_display }}</td>
+                    {% elif c == 'votos_referencia' %}<td class="col-votos nw" style="text-align:right;">{% if o.papel == 'apoiador' %}{{ o.votos_referencia }}{% else %}-{% endif %}</td>
+                    {% elif c == 'ultima_interacao' %}<td class="nw" style="text-align:center;">{{ o.ultima_interacao|contact_badge }}</td>
+                    {% elif c == 'cadastrado_por' %}<td class="col-cadpor">{% if o.cadastrado_por %}{{ o.cadastrado_por.get_full_name|default:o.cadastrado_por.username }}{% else %}-{% endif %}</td>
+                    {% elif c == 'uf' %}<td class="col-uf nw" style="text-align:center;">{{ o.uf|default:"-" }}</td>
+                    {% elif c == 'nivel' %}<td class="col-nivel nw">{{ o.get_nivel_display|default:"-" }}</td>
+                    {% elif c == 'atendente' %}<td class="col-atendente">{{ o.atendente|default:"-" }}</td>
+                    {% elif c == 'contato_feito' %}<td class="col-contatofeito nw" style="text-align:center;">{% if o.contato_feito %}✓{% else %}–{% endif %}</td>
+                    {% elif c == 'data_contato' %}<td class="col-datacontato nw" style="text-align:center;">{{ o.data_contato|date:"d/m/Y"|default:"-" }}</td>
+                    {% elif c == 'canal_atendimento' %}<td class="col-canal nw">{{ o.get_canal_atendimento_display|default:"-" }}</td>
+                    {% elif c == 'quem_e_eleitor' %}<td class="col-quemeleitor">{{ o.quem_e_eleitor|default:"-" }}</td>
+                    {% elif c == 'filiado_partido' %}<td class="col-filiado">{{ o.filiado_partido|default:"-" }}</td>
+                    {% elif c == 'segmentos' %}<td class="col-segmentos">{{ o.segmentos|default:"-" }}</td>
+                    {% elif c == 'idade' %}<td class="col-idade nw" style="text-align:center;">{{ o.idade|default:"-" }}</td>
+                    {% elif c == 'vaquinha_enviada' %}<td class="col-vaquinha nw" style="text-align:center;">{% if o.vaquinha_enviada %}✓{% else %}–{% endif %}</td>
+                    {% elif c == 'doou' %}<td class="col-doou nw" style="text-align:center;">{% if o.doou %}✓{% else %}–{% endif %}</td>
+                    {% elif c == 'material_entregue' %}<td class="col-material nw" style="text-align:center;">{% if o.material_entregue %}✓{% else %}–{% endif %}</td>
+                    {% elif c == 'facebook' %}<td class="col-facebook">{{ o.facebook|default:"-" }}</td>
+                    {% elif c == 'endereco' %}<td class="col-endereco">{{ o.endereco|default:"-" }}</td>
+                    {% elif c == 'observacoes' %}<td style="min-width:80px;">
+                        {% if o.observacoes %}<span class="obs-link" onclick="openObs(this)" data-tipo="lideranca" data-pk="{{ o.pk }}" data-nome="{{ o.nome }}" data-obs="{{ o.observacoes }}">{{ o.observacoes|truncatechars:15 }}</span>{% else %}-{% endif %}
+                    </td>
+                    {% endif %}
+                {% endfor %}
                 <td class="nw" style="min-width:120px;">
                     <div class="actions">
                         {% if o.papel == 'coordenador' %}<a href="{% url 'liderancas:coordenador_edit' o.pk %}" class="btn-icon" data-tip="Editar" onclick="return openFormModal(this.href, 'Editar Coordenador')">
@@ -380,7 +388,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="33" style="text-align:center;color:#9ca3af;padding:40px;">Nenhuma liderança encontrada.</td></tr>
+            <tr><td colspan="{{ colunas|length|add:'2' }}" style="text-align:center;color:#9ca3af;padding:40px;">Nenhuma liderança encontrada.</td></tr>
             {% endfor %}
         </tbody>
     </table>

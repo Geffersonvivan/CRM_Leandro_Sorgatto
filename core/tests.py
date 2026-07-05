@@ -58,9 +58,10 @@ class ConfigIsadoraTests(SimpleTestCase):
                         obrigatorias - set(settings.CAMPANHA.keys()))
 
     def test_colunas_lideranca_sao_campos_reais_do_model(self):
-        # a lista da config referencia campos existentes (contrato p/ Fase 2)
+        # a lista da config referencia campos existentes (Fase 2); a única
+        # chave virtual permitida é a annotation ultima_interacao da view
         from liderancas.models import Lideranca
-        campos = {f.name for f in Lideranca._meta.get_fields()}
+        campos = {f.name for f in Lideranca._meta.get_fields()} | {'ultima_interacao'}
         sobras = set(settings.CAMPANHA['COLUNAS_LIDERANCA']) - campos
         self.assertEqual(sobras, set())
 

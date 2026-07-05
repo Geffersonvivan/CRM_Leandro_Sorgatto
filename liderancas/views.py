@@ -1,6 +1,7 @@
 import csv
 import io
 from datetime import timedelta
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -255,6 +256,9 @@ def lideranca_list(request):
 
     return render(request, 'liderancas/lideranca_list.html', {
         'page_obj': page_obj,
+        # Colunas exibidas vêm da config de marca (Fase 2): mesma tabela,
+        # cada marca com seu conjunto/ordem de colunas.
+        'colunas': settings.CAMPANHA['COLUNAS_LIDERANCA'],
         'total': paginator.count,
         'total_geral': Lideranca.objects.count(),
         'qs_sort_base': sort_base.urlencode(),

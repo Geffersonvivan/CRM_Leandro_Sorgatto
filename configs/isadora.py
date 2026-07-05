@@ -40,15 +40,17 @@ CAMPANHA = {
         '--teal': '#0d9488',        # vertical Tarefas
     },
 
-    # Colunas da lista de Lideranças, na ordem de exibição. O model guarda o
-    # superset; cada marca lista aqui o que mostra (wiring do template na
-    # Fase 2 — por ora documenta o contrato da Isadora, que exibe tudo).
+    # Colunas da lista de Lideranças, na ordem de exibição (Fase 2). O model
+    # guarda o superset; cada marca lista aqui o que mostra. A Isadora exibe
+    # tudo. Chaves = campos do model (+ 'ultima_interacao', annotation da view);
+    # seleção e ações são estruturais e ficam fora da lista.
     'COLUNAS_LIDERANCA': [
-        'nome', 'cidade', 'telefone', 'email', 'instagram',
-        'coordenador_responsavel', 'tipo', 'intencao_voto',
-        'frequencia_relacionamento', 'votos_referencia', 'cadastrado_por',
-        'uf', 'nivel', 'atendente', 'contato_feito', 'data_contato',
-        'canal_atendimento', 'quem_e_eleitor', 'filiado_partido', 'segmentos',
-        'idade', 'vaquinha_enviada', 'doou', 'material_entregue', 'facebook',
+        'nome', 'papel', 'telefone', 'email', 'instagram', 'cidade', 'regiao',
+        'coordenador_responsavel', 'tipo', 'prioridade', 'intencao_voto',
+        'frequencia_relacionamento', 'votos_referencia', 'ultima_interacao',
+        'cadastrado_por', 'uf', 'nivel', 'atendente', 'contato_feito',
+        'data_contato', 'canal_atendimento', 'quem_e_eleitor',
+        'filiado_partido', 'segmentos', 'idade', 'vaquinha_enviada', 'doou',
+        'material_entregue', 'facebook', 'endereco', 'observacoes',
     ],
 }
