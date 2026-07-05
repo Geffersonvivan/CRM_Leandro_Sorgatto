@@ -10,6 +10,7 @@ venv/
 # Django
 db.sqlite3
 db.sqlite3.bak*
+db_*.sqlite3*
 *.log
 media/
 staticfiles/
