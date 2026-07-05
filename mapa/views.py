@@ -2118,16 +2118,24 @@ class CompeticaoMapAPI(APIView):
             ls_by_city[r['cidade__slug']] = r['votos'] or 0
             ls_total += r['votos'] or 0
 
-        # Calculate overlap for dep. federal candidates (same cargo)
-        dep_fed_overlap = {}
-        dep_fed_results = (
+        # Cargo em disputa em 2026 (config) e o "outro" cargo de deputado —
+        # generaliza o caso cruzado: base histórica pode ser federal e a disputa
+        # estadual (ou vice-versa) sem tocar em código (Fase 2 passo 3).
+        cargo_2026 = settings.CAMPANHA['TSE_CARGO_2026']
+        cargo_alt = ('deputado_estadual' if cargo_2026 == 'deputado_federal'
+                     else 'deputado_federal')
+
+        # Overlap simples para o cargo de deputado que NÃO está em disputa
+        # (contexto de comparação, não ameaça direta)
+        alt_overlap = {}
+        alt_results = (
             ResultadoCandidato.objects
-            .filter(eleicao__ano=2022, eleicao__turno=1, eleicao__tipo='deputado_federal')
+            .filter(eleicao__ano=2022, eleicao__turno=1, eleicao__tipo=cargo_alt)
             .exclude(is_candidato=True)
             .values('candidato_nome', 'cidade__slug', 'votos')
         )
         cand_cities = defaultdict(dict)
-        for r in dep_fed_results:
+        for r in alt_results:
             cand_cities[r['candidato_nome']][r['cidade__slug']] = r['votos'] or 0
 
         for cand_name, cities_votes in cand_cities.items():
@@ -2139,15 +2147,15 @@ class CompeticaoMapAPI(APIView):
                 if ls_v > 0 and cand_v > 0:
                     overlap += min(ls_v, cand_v)
                     shared_cities += 1
-            dep_fed_overlap[cand_name] = {
+            alt_overlap[cand_name] = {
                 'overlap_votes': overlap,
                 'overlap_pct': round(overlap / max(ls_total, 1) * 100, 1),
                 'shared_cities': shared_cities,
             }
 
-        # Overlap dos candidatos a ESTADUAL (rivais reais de 2026) vs base do LS
-        # (votos federais 2022), PONDERADO pelos redutos do LS: cada cidade pesa
-        # pelos votos do LS ali, então onde o LS é forte conta muito mais.
+        # Overlap dos candidatos ao CARGO EM DISPUTA (rivais reais de 2026) vs
+        # base do candidato (TSE_CARGO_BASE), PONDERADO pelos redutos: cada
+        # cidade pesa pelos votos do candidato ali — onde ele é forte conta mais.
         #   ameaca = Σ[ votos_LS · min(votos_LS, votos_rival) ] / Σ[ votos_LS² ]
         # Usa min() em votos absolutos → candidato pequeno não infla; normalizado
         # para LS-vs-LS = 100% e naturalmente limitado a 0–100%.
@@ -2156,7 +2164,7 @@ class CompeticaoMapAPI(APIView):
             ls_sq = sum(v * v for v in ls_by_city.values()) or 1  # Σ votos_LS²
             est_results = (
                 ResultadoCandidato.objects
-                .filter(eleicao__ano=2022, eleicao__turno=1, eleicao__tipo='deputado_estadual')
+                .filter(eleicao__ano=2022, eleicao__turno=1, eleicao__tipo=cargo_2026)
                 .exclude(is_candidato=True)
                 .values('candidato_nome', 'cidade__slug', 'votos')
             )
@@ -2187,21 +2195,21 @@ class CompeticaoMapAPI(APIView):
                 'total_votos': r['total'] or 0,
                 'is_candidato': settings.CAMPANHA['TSE_TERMO_BUSCA'] in (r['candidato_nome'] or '').upper(),
             }
-            if r['eleicao__tipo'] == 'deputado_federal':
-                ov = dep_fed_overlap.get(r['candidato_nome'])
-                if ov:
-                    entry['overlap_votes'] = ov['overlap_votes']
-                    entry['overlap_pct'] = ov['overlap_pct']
-                    entry['shared_cities'] = ov['shared_cities']
-            elif r['eleicao__tipo'] == 'deputado_estadual':
+            if r['eleicao__tipo'] == cargo_2026:
                 ov = est_overlap.get(r['candidato_nome'])
                 if ov:
+                    entry['overlap_pct'] = ov['overlap_pct']
+                    entry['shared_cities'] = ov['shared_cities']
+            elif r['eleicao__tipo'] == cargo_alt:
+                ov = alt_overlap.get(r['candidato_nome'])
+                if ov:
+                    entry['overlap_votes'] = ov['overlap_votes']
                     entry['overlap_pct'] = ov['overlap_pct']
                     entry['shared_cities'] = ov['shared_cities']
             candidatos.append(entry)
 
         # Ranking de ameaça por cargo (overlap_pct desc)
-        for cargo in ('deputado_federal', 'deputado_estadual'):
+        for cargo in (cargo_alt, cargo_2026):
             ranked = [c for c in candidatos if c['cargo'] == cargo and 'overlap_pct' in c]
             ranked.sort(key=lambda c: c['overlap_pct'], reverse=True)
             for i, c in enumerate(ranked, 1):

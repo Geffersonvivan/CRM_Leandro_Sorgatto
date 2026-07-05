@@ -1,4 +1,5 @@
-"""Integridade dos indicadores do mapa (CLAUDE.md §5 e §13.4):
+"""Integridade dos indicadores do mapa (CLAUDE.md §5 e §13.4) e concorrência
+por cargo em disputa (Fase 2 passo 3 — cargo cruzado):
 - rótulo bate com valor/unidade (pib_per_capita em R$ por habitante);
 - sem dado → sem dado, excluído do cálculo (nunca preenchido por proxy);
 - sanidade dos dados base (população > 0) é erro crítico;
@@ -6,11 +7,14 @@
 import json
 from io import StringIO
 
+from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.urls import reverse
 
 from liderancas.models import Cidade, Regiao
-from mapa.models import IndicadorMunicipal
+from mapa.models import Eleicao, IndicadorMunicipal, ResultadoCandidato
+from usuarios.models import Usuario
 
 
 def criar_cidade(nome, populacao=1000, eleitores=800):
@@ -89,3 +93,71 @@ class AuditoriaIndicadoresTests(TestCase):
         report, codigo = self._rodar()
         self.assertEqual(codigo, 0)
         self.assertEqual(report['criticos'], [])
+
+
+class ConcorrenciaCargoCruzadoTests(TestCase):
+    """Fase 2 passo 3: CandidatosAPI segue TSE_CARGO_2026 da config."""
+
+    def test_cargo_em_disputa_vem_da_config(self):
+        """Fase 2 passo 3: o ranking de ameaça (overlap ponderado) segue
+        TSE_CARGO_2026 — inclusive quando a marca disputa outro cargo."""
+        a = criar_cidade('Alfa')
+        b = criar_cidade('Beta')
+        el_est = Eleicao.objects.create(ano=2022, tipo='deputado_estadual', turno=1)
+        el_fed = Eleicao.objects.create(ano=2022, tipo='deputado_federal', turno=1)
+
+        # Base da candidata (cargo-base estadual): 100 em Alfa, 50 em Beta
+        for cidade, votos in ((a, 100), (b, 50)):
+            ResultadoCandidato.objects.create(
+                eleicao=el_est, cidade=cidade, candidato_nome='NOSSA CANDIDATA',
+                partido='NOVO', votos=votos, is_candidato=True)
+        # Rival no cargo em disputa (estadual): 80 votos em Alfa
+        ResultadoCandidato.objects.create(
+            eleicao=el_est, cidade=a, candidato_nome='RIVAL ESTADUAL',
+            partido='PL', votos=80)
+        # Candidato de outro cargo (federal): 70 em Alfa
+        ResultadoCandidato.objects.create(
+            eleicao=el_fed, cidade=a, candidato_nome='NOME FEDERAL',
+            partido='PP', votos=70)
+
+        user = Usuario.objects.create_user(username='mapa', password='x')
+        self.client.force_login(user)
+        url = reverse('mapa:api_competicao')
+
+        with override_settings(ALLOWED_HOSTS=['testserver']):
+            cache.clear()   # o endpoint tem cache_page de 24h
+            por_nome = {c['nome']: c for c in self.client.get(url).json()['candidatos']}
+
+        rival = por_nome['RIVAL ESTADUAL']
+        # ponderado: 100·min(100,80) / (100²+50²) = 8000/12500 = 64%
+        self.assertEqual(rival['overlap_pct'], 64.0)
+        self.assertEqual(rival['threat_rank'], 1)
+        self.assertEqual(rival['shared_cities'], 1)
+        # o federal recebe overlap simples (contexto), não o ponderado
+        fed = por_nome['NOME FEDERAL']
+        self.assertEqual(fed['overlap_votes'], 70)   # min(100, 70) em Alfa
+
+    def test_cargo_cruzado_outra_marca(self):
+        """Marca com base E disputa federais: o ponderado migra para federal."""
+        from core.tests import MARCA_TESTE
+        a = criar_cidade('Gama')
+        el_fed = Eleicao.objects.create(ano=2022, tipo='deputado_federal', turno=1)
+        ResultadoCandidato.objects.create(
+            eleicao=el_fed, cidade=a, candidato_nome='JOAO TESTE',
+            partido='NOVO', votos=100, is_candidato=True)
+        ResultadoCandidato.objects.create(
+            eleicao=el_fed, cidade=a, candidato_nome='RIVAL FEDERAL',
+            partido='PL', votos=90)
+
+        user = Usuario.objects.create_user(username='mapa2', password='x')
+        self.client.force_login(user)
+        url = reverse('mapa:api_competicao')
+
+        with override_settings(ALLOWED_HOSTS=['testserver'], CAMPANHA=MARCA_TESTE):
+            cache.clear()
+            por_nome = {c['nome']: c for c in self.client.get(url).json()['candidatos']}
+
+        rival = por_nome['RIVAL FEDERAL']
+        # ponderado: 100·min(100,90) / 100² = 90%
+        self.assertEqual(rival['overlap_pct'], 90.0)
+        self.assertEqual(rival['threat_rank'], 1)
