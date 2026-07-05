@@ -87,6 +87,33 @@ class ConfigsDeMarcaTests(SimpleTestCase):
             self.assertEqual(sobras, set(), f'configs/{slug}.py: colunas inexistentes')
 
 
+class SemHexDeMarcaTests(SimpleTestCase):
+    """Cores de marca nos templates só via var(--*) ou {{ campanha.cor_* }} —
+    hex avulso de marca quebra a troca de paleta entre marcas (CLAUDE.md §2)."""
+
+    # Só as cores de MARCA (mudam entre candidatos). --coral/--teal são
+    # verticais do produto e a paleta do mapa é de visualização (precisa
+    # casar com as camadas fixas do sc-map.js) — ficam fora do guarda.
+    CORES_DE_MARCA = ('--navy', '--navy-700', '--navy-900', '--ouro', '--ouro-strong')
+
+    def test_templates_sem_hex_de_marca_fora_de_definicao(self):
+        import pathlib
+        import re
+        hexes = '|'.join(settings.CAMPANHA['CORES'][k].lstrip('#')
+                         for k in self.CORES_DE_MARCA)
+        hex_re = re.compile(r'#(' + hexes + r')\b', re.IGNORECASE)
+        def_re = re.compile(r'--[\w-]+\s*:\s*#')      # fallback de :root pode
+        ramp_ok = ('ff8f3c',)                          # rampa de calor (escala, não marca)
+        problemas = []
+        for p in pathlib.Path(settings.BASE_DIR, 'templates').rglob('*.html'):
+            for i, ln in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+                if def_re.search(ln) or any(r in ln.lower() for r in ramp_ok):
+                    continue
+                if hex_re.search(ln):
+                    problemas.append(f'{p.name}:{i}')
+        self.assertEqual(problemas, [])
+
+
 class ContextProcessorGramaticaTests(SimpleTestCase):
     """As formas com artigo mantêm a gramática ao trocar o gênero da marca."""
 

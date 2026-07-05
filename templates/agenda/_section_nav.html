@@ -5,9 +5,9 @@
         border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: #475569;
         font-size: .85rem; font-weight: 700; text-decoration: none; transition: all .12s; }
     .agenda-secnav a svg { width: 15px; height: 15px; }
-    .agenda-secnav a:hover { border-color: #FF6B00; color: #FF6B00; }
-    .agenda-secnav a.active { background: #FF6B00; color: #fff; border-color: #FF6B00; }
-    .agenda-secnav a.active svg { color: #C44B00; }
+    .agenda-secnav a:hover { border-color: var(--navy); color: var(--navy); }
+    .agenda-secnav a.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .agenda-secnav a.active svg { color: var(--ouro); }
 </style>
 <nav class="agenda-secnav" aria-label="Seções da Agenda">
     {% if user.perfil == 'admin' or user.is_superuser or 'demandas' in user.secoes_permitidas or 'demandas:agenda' in user.secoes_permitidas %}

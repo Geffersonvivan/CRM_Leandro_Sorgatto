@@ -47,18 +47,18 @@
 
     .regiao-bar { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.75rem; }
     .regiao-bar .rb-label { width: 60px; font-weight: 600; color: #334155; }
-    .regiao-bar .rb-fill { height: 14px; background: #FF6B00; border-radius: 4px; min-width: 4px; }
+    .regiao-bar .rb-fill { height: 14px; background: var(--navy); border-radius: 4px; min-width: 4px; }
     .regiao-bar .rb-val { color: #64748b; font-size: 0.68rem; }
 
-    .dash-section-title a { color: #FF6B00; text-decoration: none; font-weight: 700; }
-    .dash-section-title a:hover { color: #E25E00; text-decoration: underline; }
-    .list-card h4 a { color: #FF6B00 !important; }
+    .dash-section-title a { color: var(--navy); text-decoration: none; font-weight: 700; }
+    .dash-section-title a:hover { color: var(--navy-700); text-decoration: underline; }
+    .list-card h4 a { color: var(--navy) !important; }
     .list-card h4 a:hover { text-decoration: underline !important; }
     .list-item a { text-decoration: none; color: inherit; display: contents; }
     .list-item a .li-main { color: #2563eb; }
     .list-item a:hover .li-main { text-decoration: underline; }
     a.mini-card { text-decoration: none; color: inherit; transition: border-color 0.15s, box-shadow 0.15s; display: block; }
-    a.mini-card:hover { border-color: #FF6B00; box-shadow: 0 2px 8px rgba(255, 107, 0,.1); }
+    a.mini-card:hover { border-color: var(--navy); box-shadow: 0 2px 8px rgba(255, 107, 0,.1); }
 
     .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
     .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; }
@@ -245,7 +245,7 @@ new Chart(document.getElementById('chartCaptacao'), {
         datasets: [{
             label: 'Apoiadores',
             data: {{ chart_captacao_data|safe }},
-            backgroundColor: '#FF6B00',
+            backgroundColor: '{{ campanha.cor_marca }}',
             borderRadius: 4,
         }]
     },

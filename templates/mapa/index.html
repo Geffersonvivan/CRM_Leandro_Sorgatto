@@ -52,7 +52,7 @@
         transition: all .15s;
     }
     .mode-btn:hover { background: #f1f5f9; }
-    .mode-btn.active { background: #FF6B00; color: #fff; }
+    .mode-btn.active { background: var(--navy); color: #fff; }
 
     /* Help button */
     .btn-help {
@@ -61,9 +61,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #FF6B00;
+        background: var(--navy);
         color: #fff;
-        border: 1px solid #FF6B00;
+        border: 1px solid var(--navy);
         border-left: none;
         border-radius: 0 8px 8px 0;
         cursor: pointer;
@@ -194,7 +194,7 @@
         padding: 6px 16px;
         font-size: .82rem;
         font-weight: 600;
-        background: #FF6B00;
+        background: var(--navy);
         color: #fff;
         border: none;
         border-radius: 8px;
@@ -340,12 +340,12 @@
     #map-container svg path.region:hover,
     #map-container svg path.city:hover {
         fill-opacity: 1 !important;
-        stroke: #FF6B00;
+        stroke: var(--navy);
         stroke-width: 2.5;
     }
     #map-container svg path.transfer-city:hover {
         fill-opacity: 1 !important;
-        stroke: #FF6B00;
+        stroke: var(--navy);
         stroke-width: 1.5;
     }
 
@@ -724,9 +724,11 @@ window.CAMPANHA = {
     tratNome: '{{ campanha.trat_nome|escapejs }}',
     deNome: '{{ campanha.de_nome|escapejs }}',
     anoBase: '{{ campanha.ano_base }}',
+    corMarca: '{{ campanha.cor_marca }}',
+    corMarcaEscura: '{{ campanha.cor_marca_escura }}',
 };
 </script>
-<script src="{% static 'js/map/sc-map.js' %}?v=37"></script>
+<script src="{% static 'js/map/sc-map.js' %}?v=38"></script>
 <script>
 (function() {
     const map = new SCMap('map-container');
@@ -1111,7 +1113,7 @@ window.CAMPANHA = {
         regioes: [],
         vitoria: [
             // Mesma rampa neutra→laranja do mapa (sc-map._victoryColor)
-            {color: '#e25e00', label: 'Muita lacuna', h: 'leg:vit:muita'},
+            {color: '{{ campanha.cor_marca_escura }}', label: 'Muita lacuna', h: 'leg:vit:muita'},
             {color: '#ff8f3c', label: 'Alta', h: 'leg:vit:alta'},
             {color: '#ffc187', label: 'Média', h: 'leg:vit:media'},
             {color: '#ffe4c4', label: 'Baixa', h: 'leg:vit:baixa'},
@@ -1330,7 +1332,7 @@ case 'transferencia': {
 
         // Stats line
         html += '<div class="dash-summary-stats" style="margin-bottom:4px">';
-        html += `<span style="color:#FF6B00;font-weight:600">Total votos {{ campanha.candidato_primeiro_nome }}: ${fmt.number(s.total_ls_votes)}</span>`;
+        html += `<span style="color:var(--navy);font-weight:600">Total votos {{ campanha.candidato_primeiro_nome }}: ${fmt.number(s.total_ls_votes)}</span>`;
         const ord = (x) => String(x).replace('.', ',') + 'º';
         html += `<span title="Mediana das posições {{ campanha.de_nome }} nas ${s.total_cities} cidades — metade fica acima, metade abaixo. Robusta a outliers.">Posição (mediana): ${ord(s.median_position)} <span class="vtag conta">CONTA</span></span>`;
         html += `<span title="Σ(posição × eleitores da cidade) ÷ Σ(eleitores). Pondera pelo porte: onde há mais eleitores pesa mais.">Posição (ponderada p/ eleitorado): ${ord(s.weighted_position)} <span class="vtag conta">CONTA</span></span>`;
@@ -1395,7 +1397,7 @@ case 'transferencia': {
         // Summary cards
         html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px;">';
         const cards = [
-            {value: data.total_coordenadores || 0, label: 'Coordenadores', color: '#FF6B00'},
+            {value: data.total_coordenadores || 0, label: 'Coordenadores', color: '{{ campanha.cor_marca }}'},
             {value: data.total_apoiadores || 0, label: 'Apoiadores', color: '#16a34a'},
             {value: data.total_parceiros || 0, label: 'Parceiros', color: '#2563eb'},
             {value: data.total_liderancas || 0, label: 'Lideranças Políticas', color: '#7c3aed'},
@@ -1479,7 +1481,7 @@ case 'transferencia': {
         // Summary cards
         html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px;">';
         const cards = [
-            {value: data.total_coordenadores || 0, label: 'Coordenadores', color: '#FF6B00'},
+            {value: data.total_coordenadores || 0, label: 'Coordenadores', color: '{{ campanha.cor_marca }}'},
             {value: data.total_apoiadores || 0, label: 'Apoiadores', color: '#16a34a'},
             {value: data.total_parceiros || 0, label: 'Parceiros', color: '#2563eb'},
             {value: data.total_liderancas || 0, label: 'Lideranças Políticas', color: '#7c3aed'},
@@ -1557,8 +1559,8 @@ case 'transferencia': {
         html += '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px;">';
         // toggle de camada
         html += '<div style="display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;">';
-        html += `<button onclick="trocarCamadaDemanda('status')" style="padding:5px 12px;border:none;font-size:.78rem;font-weight:700;cursor:pointer;background:${_demandLayer==='status'?'#FF6B00':'#fff'};color:${_demandLayer==='status'?'#fff':'#475569'};">Status</button>`;
-        html += `<button onclick="trocarCamadaDemanda('mismatch')" style="padding:5px 12px;border:none;border-left:1px solid #cbd5e1;font-size:.78rem;font-weight:700;cursor:pointer;background:${_demandLayer==='mismatch'?'#FF6B00':'#fff'};color:${_demandLayer==='mismatch'?'#fff':'#475569'};">Esforço × Oportunidade</button>`;
+        html += `<button onclick="trocarCamadaDemanda('status')" style="padding:5px 12px;border:none;font-size:.78rem;font-weight:700;cursor:pointer;background:${_demandLayer==='status'?'var(--navy)':'#fff'};color:${_demandLayer==='status'?'#fff':'#475569'};">Status</button>`;
+        html += `<button onclick="trocarCamadaDemanda('mismatch')" style="padding:5px 12px;border:none;border-left:1px solid #cbd5e1;font-size:.78rem;font-weight:700;cursor:pointer;background:${_demandLayer==='mismatch'?'var(--navy)':'#fff'};color:${_demandLayer==='mismatch'?'#fff':'#475569'};">Esforço × Oportunidade</button>`;
         html += '</div>';
         // filtro de tipo
         html += '<select onchange="trocarTipoDemanda(this.value)" style="padding:5px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:.78rem;font-weight:600;cursor:pointer;">';
@@ -1708,7 +1710,7 @@ case 'transferencia': {
         html += '<span style="display:inline-flex;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">';
         for (const v of ['vou', 'passei', 'todos']) {
             const on = rotFiltro === v;
-            html += `<button onclick="setRotFiltro('${v}')" style="padding:5px 12px;border:none;background:${on ? '#FF6B00' : '#fff'};color:${on ? '#fff' : '#64748b'};font-weight:700;font-size:.74rem;cursor:pointer;">${fLabels[v]}</button>`;
+            html += `<button onclick="setRotFiltro('${v}')" style="padding:5px 12px;border:none;background:${on ? 'var(--navy)' : '#fff'};color:${on ? '#fff' : '#64748b'};font-weight:700;font-size:.74rem;cursor:pointer;">${fLabels[v]}</button>`;
         }
         html += '</span>';
         // Visão: por roteiro × por dia (trajeto cronológico)
@@ -1884,7 +1886,7 @@ case 'transferencia': {
         }
 
         html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">';
-        html += `<a href="/agenda/compromissos/?cidade=${d.id}&data=${dataSel}" data-help="acao:compromisso" style="flex:1;text-align:center;background:#FF6B00;color:#fff;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;text-decoration:none;">+ Compromisso</a>`;
+        html += `<a href="/agenda/compromissos/?cidade=${d.id}&data=${dataSel}" data-help="acao:compromisso" style="flex:1;text-align:center;background:var(--navy);color:#fff;border-radius:8px;padding:8px 10px;font-size:.76rem;font-weight:700;text-decoration:none;">+ Compromisso</a>`;
         html += '</div>';
         body.innerHTML = html;
     }
@@ -2008,7 +2010,7 @@ case 'transferencia': {
         vitoria: {
             frase: 'Mostra <b>quantos votos ainda dá para conquistar</b> em cada cidade em 2026. Quanto mais laranja, mais voto sobrando para buscar.',
             escala: [
-                { cor: '#e25e00', label: 'Muita lacuna' },
+                { cor: '{{ campanha.cor_marca_escura }}', label: 'Muita lacuna' },
                 { cor: '#ff8f3c', label: 'Alta' },
                 { cor: '#ffc187', label: 'Média' },
                 { cor: '#ffe4c4', label: 'Baixa' },
@@ -2139,11 +2141,11 @@ case 'transferencia': {
 
         // ── Hero: potencial total (sempre visível) ──
         html += '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;border:1px solid #f1d9b8;background:linear-gradient(180deg,#fff,#fffaf2);border-radius:14px;padding:14px 18px;margin:8px 0 10px;">';
-        html += `<div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:2.2rem;font-weight:800;color:#FF6B00;line-height:1;">${fmt(t.potencial)}</span><span style="font-size:.86rem;font-weight:600;color:#1e293b;line-height:1.25;">votos de potencial<br><span style="font-weight:500;color:#64748b;font-size:.76rem;">somando as ${fmt(t.cidades)} cidades onde {{ campanha.trat_nome }} fez votos em 2022</span></span></div>`;
+        html += `<div style="display:flex;align-items:baseline;gap:10px;"><span style="font-size:2.2rem;font-weight:800;color:var(--navy);line-height:1;">${fmt(t.potencial)}</span><span style="font-size:.86rem;font-weight:600;color:#1e293b;line-height:1.25;">votos de potencial<br><span style="font-weight:500;color:#64748b;font-size:.76rem;">somando as ${fmt(t.cidades)} cidades onde {{ campanha.trat_nome }} fez votos em 2022</span></span></div>`;
         html += '<div style="display:flex;align-items:center;gap:12px;margin-left:auto;">';
         html += `<div style="text-align:right;"><div style="font-weight:800;">${fmt(t.votos_2022)}</div><div style="font-size:.72rem;color:#64748b;">votos hoje (2022)</div></div>`;
         html += '<span style="color:#cbd5e1;font-size:1.1rem;">→</span>';
-        html += `<div style="text-align:right;"><div style="font-weight:800;color:#e25e00;">+${fmt(t.disponiveis)}</div><div style="font-size:.72rem;color:#64748b;">a conquistar</div></div>`;
+        html += `<div style="text-align:right;"><div style="font-weight:800;color:var(--navy-700);">+${fmt(t.disponiveis)}</div><div style="font-size:.72rem;color:#64748b;">a conquistar</div></div>`;
         html += '</div></div>';
 
         // ── Botão para recolher/expandir a explicação ──
@@ -2152,7 +2154,7 @@ case 'transferencia': {
         if (_vitLegOpen) {
             // 1 · O que a cor mostra
             html += '<div class="vleg-h">1 · O que a cor mostra</div>';
-            html += '<div style="font-size:.88rem;color:#334155;margin-bottom:7px;">A cor de cada cidade mostra <b>quantos votos ainda dá para conquistar</b> ali em 2026. Quanto mais <b style="color:#e25e00;">laranja</b>, mais voto sobrando para buscar.</div>';
+            html += '<div style="font-size:.88rem;color:#334155;margin-bottom:7px;">A cor de cada cidade mostra <b>quantos votos ainda dá para conquistar</b> ali em 2026. Quanto mais <b style="color:var(--navy-700);">laranja</b>, mais voto sobrando para buscar.</div>';
             html += '<div style="display:flex;height:16px;border-radius:8px;overflow:hidden;border:1px solid #e5e8f0;max-width:460px;">';
             for (const c of ['#eceef2', '#ffe4c4', '#ffc187', '#ff8f3c', '#e25e00']) html += `<i style="flex:1;background:${c}"></i>`;
             html += '</div><div style="display:flex;justify-content:space-between;max-width:460px;font-size:.72rem;color:#94a3b8;margin-top:5px;"><span>já quase no limite</span><span>tem voto a buscar</span><span>muito voto disponível</span></div>';
@@ -2160,7 +2162,7 @@ case 'transferencia': {
             // 2 · De onde vêm os números (exemplo real, aberto)
             if (ex) {
                 html += `<div class="vleg-h">2 · De onde vêm os números — exemplo: ${ex.name}</div>`;
-                html += `<div style="font-size:.9rem;color:#2a3242;background:#fbfcfe;border:1px solid #e7eaf0;border-left:3px solid #FF6B00;border-radius:10px;padding:12px 14px;">Em <b>${ex.name}</b>, {{ campanha.trat_nome }} teve <b>${fmt(ex.votos_2022)}</b> votos em 2022. A cidade tem <b>${fmt(ex.eleitores)}</b> eleitores. Nossa meta é conquistar <b>${pr.penetracao_pct}% deles = ${fmt(ex.meta)} votos</b>. Como já tem ${fmt(ex.votos_2022)}, ainda <b>faltam <span style="color:#e25e00;">+${fmt(ex.gap)} votos</span></b>.</div>`;
+                html += `<div style="font-size:.9rem;color:#2a3242;background:#fbfcfe;border:1px solid #e7eaf0;border-left:3px solid var(--navy);border-radius:10px;padding:12px 14px;">Em <b>${ex.name}</b>, {{ campanha.trat_nome }} teve <b>${fmt(ex.votos_2022)}</b> votos em 2022. A cidade tem <b>${fmt(ex.eleitores)}</b> eleitores. Nossa meta é conquistar <b>${pr.penetracao_pct}% deles = ${fmt(ex.meta)} votos</b>. Como já tem ${fmt(ex.votos_2022)}, ainda <b>faltam <span style="color:var(--navy-700);">+${fmt(ex.gap)} votos</span></b>.</div>`;
                 const rows = [[fmt(ex.votos_2022), 'votos {{ campanha.de_nome }} em 2022', 'fato', 'Fato'], [fmt(ex.eleitores), 'eleitores da cidade', 'fato', 'Fato'], [pr.penetracao_pct + '%', 'meta: % do eleitorado da cidade', 'meta', 'Meta'], ['+' + pr.crescimento_pct + '%', 'crescimento mínimo sobre 2022', 'meta', 'Meta'], [fmt(ex.meta), 'meta de votos da cidade', 'conta', 'Conta'], ['+' + fmt(ex.gap), 'o que falta — é o que pinta a cor', 'conta', 'Conta']];
                 html += '<table class="vtable"><tbody>';
                 for (const r of rows) html += `<tr><td class="v">${r[0]}</td><td style="color:#475569;">${r[1]}</td><td style="text-align:right;"><span class="vtag ${r[2]}">${r[3]}</span></td></tr>`;
@@ -2331,7 +2333,7 @@ case 'transferencia': {
         let lista = _stratFiltro ? cities.filter(c => c.classification === _stratFiltro) : cities;
         lista = [...lista].sort((a, b) => (b.politicos?.aliados || 0) - (a.politicos?.aliados || 0) || b.gap - a.gap);
         const titulo = _stratFiltro ? strategicLabels[_stratFiltro] : 'Todas as cidades';
-        html += `<div class="dash-table-wrap"><div class="dash-table-header"><h3>${titulo}</h3><span>${lista.length} cidades${_stratFiltro ? ' · <a onclick="filtrarEstrategico(null)" style="cursor:pointer;color:#FF6B00;">limpar</a>' : ''}</span></div>`;
+        html += `<div class="dash-table-wrap"><div class="dash-table-header"><h3>${titulo}</h3><span>${lista.length} cidades${_stratFiltro ? ' · <a onclick="filtrarEstrategico(null)" style="cursor:pointer;color:var(--navy);">limpar</a>' : ''}</span></div>`;
         html += '<table class="dash-table"><thead><tr><th>Cidade</th><th>Região</th><th>Classificação</th><th class="text-right">Aliados</th><th class="text-right">Cabos</th><th class="text-right">Votos disp.</th><th>Diagnóstico</th></tr></thead><tbody>';
         for (const c of lista.slice(0, 60)) {
             const cls = c.classification || 'neutro';
@@ -2879,7 +2881,7 @@ case 'transferencia': {
         let html = '<div class="dash-summary">';
         html += '<span class="dash-summary-title">Doacoes por Regiao</span>';
         html += '<span class="dash-summary-stats">';
-        html += `<span style="color:#FF6B00;font-weight:600">Total: ${fmt.currency(totalArrecadado)}</span>`;
+        html += `<span style="color:var(--navy);font-weight:600">Total: ${fmt.currency(totalArrecadado)}</span>`;
         html += `<span>${totalDoadores} doadores</span>`;
         html += `<span>${regions.filter(r => r.total > 0).length} regioes com doacoes</span>`;
         html += '</span></div>';
@@ -2896,7 +2898,7 @@ case 'transferencia': {
         for (const r of sorted) {
             html += '<tr>';
             html += `<td><strong>${r.name}</strong></td>`;
-            html += `<td class="text-right" style="color:#FF6B00;font-weight:600">${fmt.currency(r.total)}</td>`;
+            html += `<td class="text-right" style="color:var(--navy);font-weight:600">${fmt.currency(r.total)}</td>`;
             html += `<td class="text-right">${r.count || 0}</td>`;
             html += `<td class="text-right">${r.doadores || 0}</td>`;
             html += '</tr>';

@@ -13,9 +13,9 @@
     .badge-planejado { background: #fef3c7; color: #92400e; }
     .badge-em_andamento { background: #dbeafe; color: #1d4ed8; }
     .badge-concluido { background: #d1fae5; color: #047857; }
-    .section-title { font-size: 1rem; font-weight: 700; color: #FF6B00; margin-bottom: 16px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
+    .section-title { font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 16px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
     .ponto-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; display: flex; gap: 16px; }
-    .ponto-numero { font-size: 1.2rem; font-weight: 700; color: #FF6B00; min-width: 30px; }
+    .ponto-numero { font-size: 1.2rem; font-weight: 700; color: var(--navy); min-width: 30px; }
     .ponto-info { flex: 1; }
     .ponto-titulo { font-weight: 600; color: #374151; font-size: 0.9rem; }
     .ponto-meta { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
@@ -23,7 +23,7 @@
 
     #roteiroMapa { height: 380px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; z-index: 1; }
     .mapa-num-icon {
-        background: #FF6B00; color: #fff; border-radius: 50%; width: 26px; height: 26px;
+        background: var(--navy); color: #fff; border-radius: 50%; width: 26px; height: 26px;
         display: flex; align-items: center; justify-content: center;
         font-weight: 700; font-size: 0.78rem; border: 2px solid #fff;
         box-shadow: 0 2px 6px rgba(0,0,0,0.3);
@@ -39,11 +39,11 @@
     .sug-stat { font-size: 0.72rem; color: #64748b; white-space: nowrap; }
     .sug-stat strong { color: #dc2626; }
     .sug-add {
-        font-size: 0.72rem; font-weight: 600; color: #FF6B00;
+        font-size: 0.72rem; font-weight: 600; color: var(--navy);
         text-decoration: none; white-space: nowrap; padding: 4px 10px;
         border: 1px solid #c7d7f5; border-radius: 7px; background: #fff;
     }
-    .sug-add:hover { background: #FF6B00; color: #fff; }
+    .sug-add:hover { background: var(--navy); color: #fff; }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 {% endblock %}
@@ -171,7 +171,7 @@
             .bindPopup('<strong>' + p.ordem + '. ' + p.titulo + '</strong><br>' + p.cidade + ' — ' + p.hora);
     });
     if (coords.length > 1) {
-        L.polyline(coords, { color: '#FF6B00', weight: 3, opacity: 0.7, dashArray: '8 6' }).addTo(mapa);
+        L.polyline(coords, { color: '{{ campanha.cor_marca }}', weight: 3, opacity: 0.7, dashArray: '8 6' }).addTo(mapa);
     }
     mapa.fitBounds(L.latLngBounds(coords).pad(0.25));
 })();

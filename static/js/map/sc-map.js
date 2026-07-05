@@ -1,6 +1,6 @@
 // Mapa SVG de Santa Catarina com D3.js
 // Identidade da campanha injetada pelo template (window.CAMPANHA ← config de marca).
-const BRAND = window.CAMPANHA || { nome: 'Candidato', tratNome: 'o candidato', deNome: 'do candidato', anoBase: '2022' };
+const BRAND = window.CAMPANHA || { nome: 'Candidato', tratNome: 'o candidato', deNome: 'do candidato', anoBase: '2022', corMarca: '#FF6B00', corMarcaEscura: '#E25E00' };
 class SCMap {
     constructor(containerId) {
         this.containerId = containerId;
@@ -105,7 +105,7 @@ class SCMap {
         html += `<div class="tooltip-row"><span class="tooltip-label">Classificação:</span> <span class="tooltip-value" style="font-weight:700">${this._quadLabel(c.quadrante)}</span></div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Votos 2022:</span> <span class="tooltip-value">${(c.votos_2022||0).toLocaleString('pt-BR')}</span></div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Potencial:</span> <span class="tooltip-value">${(c.meta||0).toLocaleString('pt-BR')}</span></div>`;
-        html += `<div class="tooltip-row"><span class="tooltip-label">Votos disponíveis:</span> <span class="tooltip-value" style="color:#e25e00;font-weight:800">+${(c.gap||0).toLocaleString('pt-BR')}</span></div>`;
+        html += `<div class="tooltip-row"><span class="tooltip-label">Votos disponíveis:</span> <span class="tooltip-value" style="color:var(--navy-700);font-weight:800">+${(c.gap||0).toLocaleString('pt-BR')}</span></div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Penetração 2022:</span> <span class="tooltip-value">${c.penetracao}%</span></div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Estrutura CRM:</span> <span class="tooltip-value">${c.estrutura} contato(s)${c.vencidos ? ', ' + c.vencidos + ' vencidos' : ''}</span></div>`;
         if (c.alerta === 'orfa') html += `<div class="tooltip-row"><span class="tooltip-value" style="color:#dc2626;font-weight:700">🚨 Oportunidade órfã (sem estrutura)</span></div>`;
@@ -118,7 +118,7 @@ class SCMap {
         const r = (this._victoryData?.regions || {})[p.slug];
         let html = `<div class="tooltip-title">${p.name}</div>`;
         if (!r) return html + '<div class="tooltip-row"><span style="color:#9ca3af">Sem dados</span></div>';
-        html += `<div class="tooltip-row"><span class="tooltip-label">Votos disponíveis:</span> <span class="tooltip-value" style="color:#e25e00;font-weight:800">+${(r.gap||0).toLocaleString('pt-BR')}</span></div>`;
+        html += `<div class="tooltip-row"><span class="tooltip-label">Votos disponíveis:</span> <span class="tooltip-value" style="color:var(--navy-700);font-weight:800">+${(r.gap||0).toLocaleString('pt-BR')}</span></div>`;
         html += `<div class="tooltip-row"><span class="tooltip-label">Votos 2022:</span> <span class="tooltip-value">${(r.votos_2022||0).toLocaleString('pt-BR')}</span></div>`;
         if (r.orfas) html += `<div class="tooltip-row"><span class="tooltip-label">Oportunidades órfãs:</span> <span class="tooltip-value" style="color:#dc2626;font-weight:700">${r.orfas}</span></div>`;
         if (r.pior) html += `<div class="tooltip-row"><span class="tooltip-label">Maior lacuna:</span> <span class="tooltip-value">${r.pior}</span></div>`;
@@ -184,7 +184,7 @@ class SCMap {
                 .attr('class', 'builder-line')
                 .attr('points', pontos.map(pt => `${pt.x},${pt.y}`).join(' '))
                 .attr('fill', 'none')
-                .attr('stroke', '#FF6B00')
+                .attr('stroke', BRAND.corMarca)
                 .attr('stroke-width', 2)
                 .attr('stroke-dasharray', '6,4')
                 .attr('opacity', 0.85);
@@ -193,7 +193,7 @@ class SCMap {
             const grp = this.g.append('g').attr('class', 'builder-marker');
             grp.append('circle')
                 .attr('cx', pt.x).attr('cy', pt.y).attr('r', 11)
-                .attr('fill', '#FF6B00').attr('stroke', '#fff').attr('stroke-width', 2.5);
+                .attr('fill', BRAND.corMarca).attr('stroke', '#fff').attr('stroke-width', 2.5);
             grp.append('text')
                 .attr('x', pt.x).attr('y', pt.y)
                 .attr('text-anchor', 'middle').attr('dy', '0.35em')
@@ -2423,7 +2423,7 @@ class SCMap {
                     return colorScale(pct);
                 })
                 .attr('fill-opacity', this.heatmapEnabled ? 0.85 : 0.7)
-                .attr('stroke', '#E25E00')
+                .attr('stroke', BRAND.corMarcaEscura)
                 .attr('stroke-width', 1)
                 .attr('cursor', 'pointer')
                 .on('mouseenter', (event, d) => {
@@ -2457,7 +2457,7 @@ class SCMap {
                 .attr('dy', '0.35em')
                 .attr('font-size', '7.5px')
                 .attr('font-weight', '600')
-                .attr('fill', '#FF6B00')
+                .attr('fill', BRAND.corMarca)
                 .attr('pointer-events', 'none')
                 .attr('paint-order', 'stroke')
                 .attr('stroke', '#fff')

@@ -26,5 +26,12 @@ def campanha(request):
             'ano_base': c['TSE_ANO_BASE'],
             'uf': c['UF'],
             'cores': c['CORES'],
+            # Aliases planos para contextos onde var() do CSS não resolve
+            # (meta theme-color, atributos SVG, cores de canvas/Chart.js).
+            'cor_marca': c['CORES']['--navy'],
+            'cor_marca_escura': c['CORES']['--navy-700'],
+            'cor_grafite': c['CORES']['--navy-900'],
+            'cor_assinatura': c['CORES']['--ouro'],
+            'cor_assinatura_forte': c['CORES']['--ouro-strong'],
         }
     }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="theme-color" content="#2B2B2B">
+    <meta name="theme-color" content="{{ campanha.cor_grafite }}">
     <title>Entrar — {{ campanha.candidato_primeiro_nome }} {{ campanha.partido_numero }}</title>
     <style>
         :root {
@@ -17,7 +17,7 @@
             color: var(--ink);
             background:
                 radial-gradient(120% 90% at 50% -10%, #0a3a8f 0%, transparent 55%),
-                linear-gradient(170deg, #E25E00 0%, #2B2B2B 100%);
+                linear-gradient(170deg, var(--navy-700) 0%, var(--navy-900) 100%);
             -webkit-font-smoothing: antialiased;
         }
         .stage {
@@ -68,7 +68,7 @@
             margin-top: 22px; transition: transform .12s, background .15s;
             box-shadow: 0 10px 22px -12px rgba(255, 107, 0,.9);
         }
-        .login-btn:active { transform: scale(.985); background: #E25E00; }
+        .login-btn:active { transform: scale(.985); background: var(--navy-700); }
         .error-msg {
             background: #fdeaea; color: #b4232a; padding: 11px 14px; border-radius: 11px;
             font-size: .82rem; font-weight: 600; margin-bottom: 14px; text-align: center;
@@ -155,7 +155,7 @@
         <div class="install-banner-text">Adicione o app à tela inicial em dois passos:</div>
         <div class="install-steps">
             <div class="install-step-num">1</div>
-            <div class="install-step-text">Toque em <span class="install-step-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" stroke-width="2"><path d="M4 12v6a2 2 0 002 2h12a2 2 0 002-2v-6"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span> <strong>Compartilhar</strong></div>
+            <div class="install-step-text">Toque em <span class="install-step-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ campanha.cor_marca }}" stroke-width="2"><path d="M4 12v6a2 2 0 002 2h12a2 2 0 002-2v-6"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span> <strong>Compartilhar</strong></div>
         </div>
         <div class="install-steps">
             <div class="install-step-num">2</div>

@@ -3,12 +3,12 @@
 {% block extra_css %}
 <style>
     .cv-hero { text-align: center; max-width: 720px; margin: 0 auto 36px; }
-    .cv-hero h1 { font-size: 1.6rem; font-weight: 800; color: #FF6B00; margin-bottom: 10px; }
+    .cv-hero h1 { font-size: 1.6rem; font-weight: 800; color: var(--navy); margin-bottom: 10px; }
     .cv-hero p { font-size: 0.95rem; color: #475569; line-height: 1.6; }
     .cv-lema {
         display: inline-block; margin-top: 14px; padding: 10px 22px;
         background: #eef4ff; border: 1px solid #c7d7f5; border-radius: 999px;
-        font-size: 0.85rem; font-weight: 700; color: #FF6B00;
+        font-size: 0.85rem; font-weight: 700; color: var(--navy);
     }
 
     .cv-ciclo {
@@ -21,24 +21,24 @@
         text-decoration: none; transition: all 0.18s; display: flex;
         flex-direction: column; gap: 10px;
     }
-    .cv-passo:hover { border-color: #FF6B00; transform: translateY(-4px); box-shadow: 0 12px 28px rgba(255, 107, 0,0.12); }
+    .cv-passo:hover { border-color: var(--navy); transform: translateY(-4px); box-shadow: 0 12px 28px rgba(255, 107, 0,0.12); }
     .cv-passo .num {
         position: absolute; top: -16px; left: 22px; width: 34px; height: 34px;
-        background: #FF6B00; color: #fff; border-radius: 50%; font-weight: 800;
+        background: var(--navy); color: #fff; border-radius: 50%; font-weight: 800;
         display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
         border: 3px solid #f1f5f9;
     }
     .cv-passo .emoji { font-size: 1.6rem; }
     .cv-passo h3 { font-size: 0.95rem; font-weight: 700; color: #0f172a; }
     .cv-passo p { font-size: 0.8rem; color: #64748b; line-height: 1.5; flex: 1; }
-    .cv-passo .ir { font-size: 0.76rem; font-weight: 700; color: #FF6B00; }
+    .cv-passo .ir { font-size: 0.76rem; font-weight: 700; color: var(--navy); }
     .cv-passo:not(:last-child)::after {
         content: '→'; position: absolute; right: -24px; top: 50%;
         transform: translateY(-50%); font-size: 1.3rem; color: #94a3b8; font-weight: 700;
     }
 
     .cv-secao { max-width: 880px; margin: 0 auto 28px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 26px 30px; }
-    .cv-secao h2 { font-size: 1.05rem; font-weight: 800; color: #FF6B00; margin-bottom: 14px; }
+    .cv-secao h2 { font-size: 1.05rem; font-weight: 800; color: var(--navy); margin-bottom: 14px; }
     .cv-secao ul { list-style: none; padding: 0; }
     .cv-secao li { font-size: 0.85rem; color: #374151; line-height: 1.7; padding-left: 26px; position: relative; margin-bottom: 8px; }
     .cv-secao li::before { content: '✓'; position: absolute; left: 0; color: #16a34a; font-weight: 800; }
@@ -48,10 +48,10 @@
     .cv-tour-btn {
         display: inline-flex; align-items: center; gap: 8px;
         padding: 9px 16px; border: 1px solid #c7d7f5; border-radius: 10px;
-        background: #fff; color: #FF6B00; font-size: 0.8rem; font-weight: 600;
+        background: #fff; color: var(--navy); font-size: 0.8rem; font-weight: 600;
         text-decoration: none; transition: all 0.15s;
     }
-    .cv-tour-btn:hover { background: #FF6B00; color: #fff; }
+    .cv-tour-btn:hover { background: var(--navy); color: #fff; }
 
     @media (max-width: 980px) {
         .cv-ciclo { grid-template-columns: 1fr 1fr; gap: 24px 0; }

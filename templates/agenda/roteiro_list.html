@@ -40,7 +40,7 @@
             {% for r in roteiros %}
             <tr>
                 <td>{{ r.data|date:"d/m/Y" }}</td>
-                <td><a href="{% url 'agenda:roteiro_detail' r.pk %}" style="color:#FF6B00;text-decoration:none;font-weight:500;">{{ r.titulo }}</a></td>
+                <td><a href="{% url 'agenda:roteiro_detail' r.pk %}" style="color:var(--navy);text-decoration:none;font-weight:500;">{{ r.titulo }}</a></td>
                 <td>{{ r.regiao.sigla }}</td>
                 <td>{{ r.motorista|default:"-" }}</td>
                 <td>{{ r.pontos.count }}</td>

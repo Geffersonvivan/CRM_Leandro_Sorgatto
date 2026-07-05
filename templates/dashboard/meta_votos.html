@@ -14,7 +14,7 @@
     /* Sections */
     .section { margin-bottom: 24px; }
     .section-title { font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .section-icon { width: 20px; height: 20px; color: #FF6B00; }
+    .section-icon { width: 20px; height: 20px; color: var(--navy); }
 
     /* Vinculo grid */
     .vinculo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -30,7 +30,7 @@
     .region-table tr:hover td { background: #f8fafc; }
     .region-table .text-right { text-align: right; }
     .region-bar { background: #e2e8f0; border-radius: 4px; height: 6px; min-width: 60px; }
-    .region-bar-fill { height: 100%; background: #FF6B00; border-radius: 4px; }
+    .region-bar-fill { height: 100%; background: var(--navy); border-radius: 4px; }
 
     /* Ranking table */
     .ranking-table { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
@@ -43,12 +43,12 @@
     .ranking-pos.top1 { background: #fef3c7; color: #92400e; }
     .ranking-pos.top2 { background: #e5e7eb; color: #374151; }
     .ranking-pos.top3 { background: #fed7aa; color: #9a3412; }
-    .total-highlight { font-weight: 800; color: #FF6B00; font-size: 0.95rem; }
+    .total-highlight { font-weight: 800; color: var(--navy); font-size: 0.95rem; }
 
     /* Page link pagination */
     .page-link { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.82rem; color: #475569; text-decoration: none; background: #fff; transition: all 0.15s; }
     .page-link:hover { background: #f8fafc; border-color: #3b82f6; color: #3b82f6; }
-    .page-link.active { background: #FF6B00; color: #fff; border-color: #FF6B00; font-weight: 600; }
+    .page-link.active { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 600; }
 </style>
 {% endblock %}
 
