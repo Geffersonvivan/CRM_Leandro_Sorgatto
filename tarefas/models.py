@@ -79,6 +79,11 @@ class Tarefa(models.Model):
     concluida_em = models.DateTimeField(null=True, blank=True)
     observacoes = models.TextField(blank=True, verbose_name='Observações')
 
+    # Link genérico (documento, referência, planilha…) — clicável na lista.
+    link = models.URLField(blank=True, max_length=500, verbose_name='Link')
+    # Link da reunião (videochamada) — vira botão "Entrar" na lista.
+    link_reuniao = models.URLField(blank=True, max_length=500, verbose_name='Link da reunião')
+
     compromisso = models.ForeignKey(
         'agenda.Compromisso',
         on_delete=models.SET_NULL,

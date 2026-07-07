@@ -146,6 +146,7 @@ def tarefa_edit(request, pk):
             'tipo': tarefa.tipo, 'fase': tarefa.fase, 'prioridade': tarefa.prioridade,
             'responsavel': tarefa.responsavel_id, 'regiao': tarefa.regiao_id,
             'cidade': tarefa.cidade_id, 'prazo': str(tarefa.prazo) if tarefa.prazo else '',
+            'link': tarefa.link, 'link_reuniao': tarefa.link_reuniao,
             'observacoes': tarefa.observacoes,
         }
         form = TarefaForm(request.POST, instance=tarefa, user=request.user)
@@ -161,6 +162,7 @@ def tarefa_edit(request, pk):
                 'tipo': tarefa.tipo, 'fase': tarefa.fase, 'prioridade': tarefa.prioridade,
                 'responsavel': tarefa.responsavel_id, 'regiao': tarefa.regiao_id,
                 'cidade': tarefa.cidade_id, 'prazo': str(tarefa.prazo) if tarefa.prazo else '',
+                'link': tarefa.link, 'link_reuniao': tarefa.link_reuniao,
                 'observacoes': tarefa.observacoes,
             }
             for fld, old_v in old_vals.items():
@@ -535,6 +537,8 @@ def api_tarefa_detail(request, pk):
         'prazo': tarefa.prazo.isoformat() if tarefa.prazo else '',
         'prazo_display': tarefa.prazo.strftime('%d/%m/%Y') if tarefa.prazo else '',
         'concluida_em': tarefa.concluida_em.strftime('%d/%m/%Y %H:%M') if tarefa.concluida_em else '',
+        'link': tarefa.link,
+        'link_reuniao': tarefa.link_reuniao,
         'observacoes': tarefa.observacoes,
         'is_vencida': tarefa.is_vencida,
         'vence_hoje': tarefa.vence_hoje,
@@ -631,7 +635,7 @@ def api_tarefa_patch(request, pk):
     field = data.get('field')
     value = data.get('value')
 
-    allowed_fields = ['titulo', 'descricao', 'observacoes', 'tipo', 'fase', 'prioridade', 'responsavel', 'prazo', 'data_hora_inicio', 'data_hora_termino', 'regiao', 'cidade']
+    allowed_fields = ['titulo', 'descricao', 'observacoes', 'tipo', 'fase', 'prioridade', 'responsavel', 'prazo', 'data_hora_inicio', 'data_hora_termino', 'regiao', 'cidade', 'link', 'link_reuniao']
     if field not in allowed_fields:
         return JsonResponse({'ok': False, 'error': 'Campo não permitido'}, status=400)
 
@@ -639,6 +643,19 @@ def api_tarefa_patch(request, pk):
         value = (value or '').strip()
         if not value or len(value) > 200:
             return JsonResponse({'ok': False, 'error': 'Título obrigatório (máx. 200)'}, status=400)
+
+    if field in ('link', 'link_reuniao'):
+        # Aceita colar "meet.google.com/..." sem esquema — prefixa https:// e valida.
+        value = (value or '').strip()
+        if value:
+            if not value.startswith(('http://', 'https://')):
+                value = 'https://' + value
+            from django.core.validators import URLValidator
+            from django.core.exceptions import ValidationError
+            try:
+                URLValidator()(value)
+            except ValidationError:
+                return JsonResponse({'ok': False, 'error': 'Link inválido'}, status=400)
 
     old_fase = tarefa.fase
     old_value = getattr(tarefa, field + '_id' if field in ('responsavel', 'regiao', 'cidade') else field, '')

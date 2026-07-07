@@ -17,7 +17,7 @@ class TarefaForm(forms.ModelForm):
         fields = [
             'titulo', 'descricao', 'tipo', 'prioridade',
             'responsavel', 'participantes',
-            'regiao', 'cidade', 'prazo', 'observacoes',
+            'regiao', 'cidade', 'prazo', 'link', 'link_reuniao', 'observacoes',
         ]
         widgets = {
             'titulo': forms.TextInput(attrs={'class': 'form-input'}),
@@ -28,17 +28,30 @@ class TarefaForm(forms.ModelForm):
             'participantes': forms.SelectMultiple(attrs={'class': 'form-input', 'size': 5}),
             'cidade': forms.Select(attrs={'class': 'form-input', 'id': 'id_cidade'}),
             'prazo': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
+            'link': forms.URLInput(attrs={'class': 'form-input', 'placeholder': 'https://… (documento, planilha, referência)'}),
+            'link_reuniao': forms.URLInput(attrs={'class': 'form-input', 'placeholder': 'https://meet… / zoom… (link da videochamada)'}),
             'observacoes': forms.Textarea(attrs={'class': 'form-input', 'rows': 3}),
         }
 
     field_order = [
         'titulo', 'descricao', 'tipo', 'prioridade',
         'responsavel', 'participantes',
-        'regiao', 'cidade', 'prazo', 'observacoes',
+        'regiao', 'cidade', 'prazo', 'link', 'link_reuniao', 'observacoes',
     ]
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # Aceita colar 'meet.google.com/...' sem esquema: prefixa https:// no dado
+        # bruto ANTES da validação do URLField (mesma tolerância do inline na lista).
+        if self.is_bound and self.data is not None:
+            try:
+                self.data = self.data.copy()   # QueryDict imutável → cópia mutável
+            except AttributeError:
+                self.data = dict(self.data)
+            for campo in ('link', 'link_reuniao'):
+                v = (self.data.get(campo) or '').strip()
+                if v and not v.startswith(('http://', 'https://')):
+                    self.data[campo] = 'https://' + v
         usuarios_sistema = Usuario.objects.exclude(
             vinculo__in=['coordenador', 'cabo', 'replicador']
         ).order_by('first_name')

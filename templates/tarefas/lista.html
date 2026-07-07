@@ -98,6 +98,18 @@
     .badge-tipo.estrategico { background: #1e3a8a; }
     .badge-tipo.eventos { background: #d97706; }
 
+    /* Coluna Link (link genérico + botão Entrar da reunião) */
+    .cell-links { display: flex; align-items: center; gap: 6px; padding: 0 8px; height: 34px; }
+    .cell-link-ico { display: inline-flex; align-items: center; color: #64748b; }
+    .cell-link-ico:hover { color: #0073ea; }
+    .cell-link-meet {
+        display: inline-flex; align-items: center; gap: 3px;
+        background: #16a34a; color: #fff; font-size: 0.66rem; font-weight: 700;
+        padding: 3px 8px; border-radius: 999px; text-decoration: none; white-space: nowrap;
+    }
+    .cell-link-meet:hover { background: #128a3b; }
+    .cell-link-empty { color: #cbd5e1; font-size: 0.8rem; }
+
     /* Status badge — fills entire cell */
     .badge-fase {
         display: flex; align-items: center; justify-content: center;
@@ -919,6 +931,7 @@
         <thead>
             <tr>
                 <th style="width:22%;">Atividade</th>
+                <th style="width:6%;">Link</th>
                 <th style="width:8%;">Área</th>
                 <th style="width:3%;">Resp.</th>
                 <th style="width:5%;">Partic.</th>
@@ -944,7 +957,9 @@
                 data-regiao="{{ t.regiao_id|default:'' }}"
                 data-cidade="{{ t.cidade_id|default:'' }}"
                 data-cabos="{% for c in t.cabos.all %}{{ c.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                data-participantes="{% for p in t.participantes.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                data-participantes="{% for p in t.participantes.all %}{{ p.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                data-link="{{ t.link }}"
+                data-link-reuniao="{{ t.link_reuniao }}">
                 <td>
                     <div class="cell-title-wrap">
                         <input type="checkbox" class="cell-cb">
@@ -957,6 +972,21 @@
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         </span>
                         {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="cell-links cell-click" onclick="openLinkPopover(event, {{ t.id }})" title="Clique para colar/editar link">
+                        {% if t.link %}
+                        <a href="{{ t.link }}" target="_blank" rel="noopener" class="cell-link-ico" title="Abrir link" onclick="event.stopPropagation();">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        </a>
+                        {% endif %}
+                        {% if t.link_reuniao %}
+                        <a href="{{ t.link_reuniao }}" target="_blank" rel="noopener" class="cell-link-meet" title="Entrar na reunião" onclick="event.stopPropagation();">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Entrar
+                        </a>
+                        {% endif %}
+                        {% if not t.link and not t.link_reuniao %}<span class="cell-link-empty">—</span>{% endif %}
                     </div>
                 </td>
                 <td>
@@ -1055,10 +1085,10 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="13" class="empty-state">Nenhuma tarefa cadastrada.</td></tr>
+            <tr><td colspan="14" class="empty-state">Nenhuma tarefa cadastrada.</td></tr>
             {% endfor %}
             <tr class="add-row" id="addRow">
-                <td colspan="13">
+                <td colspan="14">
                     <button type="button" class="add-row-btn" onclick="iniciarInline()">+ Adicionar atividade</button>
                 </td>
             </tr>
@@ -1150,6 +1180,14 @@
                             <div class="modal-prop-text-display" id="descricaoDisplay" onclick="toggleTextarea('descricao', true)"></div>
                             <textarea class="modal-prop-text-input" id="modalDescricao" placeholder="Clique para adicionar..." rows="1" style="display:none;"></textarea>
                         </div>
+                    </div>
+                    <div class="modal-prop" id="modalLinkRow" style="display:none;">
+                        <span class="modal-prop-label">Link</span>
+                        <div class="modal-prop-value modal-prop-readonly" id="modalLink"></div>
+                    </div>
+                    <div class="modal-prop" id="modalReuniaoRow" style="display:none;">
+                        <span class="modal-prop-label">Reunião</span>
+                        <div class="modal-prop-value modal-prop-readonly" id="modalReuniao"></div>
                     </div>
                     <div class="modal-prop">
                         <span class="modal-prop-label">Status</span>
@@ -2101,6 +2139,69 @@ function openPopover(event, tarefaId, field) {
     });
 }
 
+// Popover de edição de links (genérico + reunião) — cole qualquer URL, salva inline.
+function openLinkPopover(event, tarefaId) {
+    event.stopPropagation();
+    closePopover();
+    const row = document.querySelector(`tr[data-id="${tarefaId}"]`);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pop = document.createElement('div');
+    pop.className = 'popover open';
+    pop.style.visibility = 'hidden';   // mede antes de posicionar (evita flash)
+    pop.style.left = (rect.left) + 'px';
+    pop.style.minWidth = '280px';
+    pop.style.padding = '12px';
+    pop.innerHTML =
+        '<div style="font-size:.72rem;font-weight:700;color:#64748b;margin-bottom:4px;">Link</div>' +
+        '<input type="text" class="popover-search" id="popLink" placeholder="Cole um link (documento, planilha…)" style="width:100%;margin-bottom:10px;">' +
+        '<div style="font-size:.72rem;font-weight:700;color:#64748b;margin-bottom:4px;">Reunião (videochamada)</div>' +
+        '<input type="text" class="popover-search" id="popLinkReuniao" placeholder="Cole o link do Meet/Zoom…" style="width:100%;margin-bottom:10px;">' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+        '<button type="button" class="btn btn-secondary" onclick="closePopover()" style="padding:5px 12px;font-size:.8rem;">Cancelar</button>' +
+        '<button type="button" class="btn btn-primary" id="popLinkSave" style="padding:5px 12px;font-size:.8rem;">Salvar</button></div>' +
+        '<div id="popLinkErr" style="color:#dc2626;font-size:.72rem;margin-top:6px;display:none;"></div>';
+    document.body.appendChild(pop);
+    activePopover = pop;
+    // Posiciona abaixo da célula; se não couber, vira para cima (não some sob a página).
+    const ph = pop.offsetHeight;
+    const espacoAbaixo = window.innerHeight - rect.bottom;
+    let top = (espacoAbaixo >= ph + 12) ? (rect.bottom + 4) : (rect.top - ph - 4);
+    if (top < 8) top = 8;   // nunca acima do topo da viewport
+    pop.style.top = top + 'px';
+    // Se ainda passar da direita, ancora pela borda direita da célula
+    const pw = pop.offsetWidth;
+    if (rect.left + pw > window.innerWidth - 8) pop.style.left = Math.max(8, rect.right - pw) + 'px';
+    pop.style.visibility = 'visible';
+    const inLink = pop.querySelector('#popLink');
+    const inMeet = pop.querySelector('#popLinkReuniao');
+    inLink.value = row.dataset.link || '';
+    inMeet.value = row.dataset.linkReuniao || '';
+    setTimeout(() => inLink.focus(), 50);
+    pop.querySelector('#popLinkSave').addEventListener('click', function () {
+        const err = pop.querySelector('#popLinkErr'); err.style.display = 'none';
+        // Salva os dois campos; fecha ao concluir.
+        const jobs = [
+            patchFieldAsync(tarefaId, 'link', inLink.value.trim()),
+            patchFieldAsync(tarefaId, 'link_reuniao', inMeet.value.trim()),
+        ];
+        Promise.all(jobs).then(results => {
+            const bad = results.find(r => r && !r.ok);
+            if (bad) { err.textContent = bad.error || 'Link inválido'; err.style.display = 'block'; return; }
+            results.forEach(r => { if (r && r.field) row.dataset[r.field === 'link' ? 'link' : 'linkReuniao'] = r.value || ''; });
+            renderLinkCell(row);
+            closePopover();
+        });
+    });
+}
+// Versão que devolve o resultado (para o popover de link salvar dois campos juntos)
+function patchFieldAsync(tarefaId, field, value) {
+    return fetch(`/tarefas/api/${tarefaId}/patch/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ field, value }),
+    }).then(r => r.json().then(d => ({ ...d, field, value: d.value }))).catch(() => ({ ok: false, field, error: 'Falha de rede' }));
+}
+
 function patchField(tarefaId, field, value) {
     fetch(`/tarefas/api/${tarefaId}/patch/`, {
         method: 'POST',
@@ -2179,8 +2280,25 @@ function patchField(tarefaId, field, value) {
                 if (cabosEl) { renderAvatarCell(cabosEl, ''); }
                 row.dataset.cabos = '';
             }
+        } else if (field === 'link' || field === 'link_reuniao') {
+            row.dataset[field === 'link' ? 'link' : 'linkReuniao'] = data.value || '';
+            renderLinkCell(row);
         }
     });
+}
+
+// Redesenha a célula de Link (link genérico + botão Entrar) a partir dos data-*
+function renderLinkCell(row) {
+    const cell = row.querySelector('.cell-links');
+    if (!cell) return;
+    const link = row.dataset.link || '';
+    const meet = row.dataset.linkReuniao || '';
+    function esc(s) { const e = document.createElement('div'); e.textContent = s; return e.innerHTML; }
+    let h = '';
+    if (link) h += `<a href="${esc(link)}" target="_blank" rel="noopener" class="cell-link-ico" title="Abrir link" onclick="event.stopPropagation();"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a>`;
+    if (meet) h += `<a href="${esc(meet)}" target="_blank" rel="noopener" class="cell-link-meet" title="Entrar na reunião" onclick="event.stopPropagation();"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Entrar</a>`;
+    if (!link && !meet) h = '<span class="cell-link-empty">—</span>';
+    cell.innerHTML = h;
 }
 
 function clearCabos(tarefaId) {
@@ -2285,6 +2403,17 @@ function renderModal(d) {
     // Description
     document.getElementById('modalDescricao').value = d.descricao || '';
     setupTextareaState('descricao', d.descricao);
+
+    // Links (genérico + reunião) — clicáveis; a edição é pelo formulário
+    (function () {
+        function esc(s) { var e = document.createElement('div'); e.textContent = s; return e.innerHTML; }
+        var linkRow = document.getElementById('modalLinkRow'), linkVal = document.getElementById('modalLink');
+        if (d.link) { linkVal.innerHTML = '<a href="' + esc(d.link) + '" target="_blank" rel="noopener">' + esc(d.link) + '</a>'; linkRow.style.display = ''; }
+        else { linkRow.style.display = 'none'; }
+        var meetRow = document.getElementById('modalReuniaoRow'), meetVal = document.getElementById('modalReuniao');
+        if (d.link_reuniao) { meetVal.innerHTML = '<a href="' + esc(d.link_reuniao) + '" target="_blank" rel="noopener" class="cell-link-meet">🎥 Entrar na reunião</a>'; meetRow.style.display = ''; }
+        else { meetRow.style.display = 'none'; }
+    })();
 
     // Concluir button state
     updateBtnConcluir(d.fase);
@@ -3468,6 +3597,7 @@ function iniciarInline() {
                 <input type="text" class="inline-input" placeholder="+ Adicionar atividade" autofocus>
             </div>
         </td>
+        <td><div class="cell-links"><span class="cell-link-empty">—</span></div></td>
         <td><div class="cell-click"><span class="badge-tipo outro" style="opacity:.4">Outro</span></div></td>
         <td><div class="cell-click"><span class="cell-avatar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span></div></td>
         <td><div class="cell-center"><span class="cell-avatar mini" style="opacity:.4"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></span></div></td>
@@ -3531,6 +3661,8 @@ function salvarInline(tr, input) {
         tr.dataset.fase = data.fase;
         tr.dataset.responsavel = '';
         tr.dataset.prioridade = data.prioridade;
+        tr.dataset.link = '';
+        tr.dataset.linkReuniao = '';
 
         tr.innerHTML = `
             <td>
@@ -3540,6 +3672,11 @@ function salvarInline(tr, input) {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     </span>
                     <span class="cell-task-name" onclick="abrirTarefa(${id})">${escapeHtml(titulo)}</span>
+                </div>
+            </td>
+            <td>
+                <div class="cell-links cell-click" onclick="openLinkPopover(event, ${id})" title="Clique para colar/editar link">
+                    <span class="cell-link-empty">—</span>
                 </div>
             </td>
             <td>
