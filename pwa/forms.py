@@ -6,15 +6,17 @@ from usuarios.models import Usuario
 class ApoiadorPWAForm(forms.ModelForm):
     """Cadastro de apoiador via PWA — 5 campos: Nome, Cidade, Telefone, Categoria, Observações.
     Cidade é um select único com todas as cidades (funciona offline, sem cascata)."""
-    tipo = forms.ChoiceField(
+    # Categoria é múltipla (o apoiador pode ter mais de uma) e opcional.
+    tipos = forms.MultipleChoiceField(
         label='Categoria',
+        required=False,
         choices=[c for c in Lideranca.TIPO_CHOICES if c[0] != 'pwa'],
-        widget=forms.RadioSelect(attrs={'class': 'pwa-radio'}),
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'pwa-check'}),
     )
 
     class Meta:
         model = Lideranca
-        fields = ['nome', 'cidade', 'telefone', 'tipo', 'observacoes']
+        fields = ['nome', 'cidade', 'telefone', 'observacoes']
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'pwa-input', 'placeholder': 'Nome completo'}),
             'cidade': forms.Select(attrs={'class': 'pwa-input', 'id': 'id_cidade'}),
@@ -22,7 +24,7 @@ class ApoiadorPWAForm(forms.ModelForm):
             'observacoes': forms.Textarea(attrs={'class': 'pwa-input', 'placeholder': 'Observações...', 'rows': 3}),
         }
 
-    field_order = ['nome', 'cidade', 'telefone', 'tipo', 'observacoes']
+    field_order = ['nome', 'cidade', 'telefone', 'tipos', 'observacoes']
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -35,6 +37,8 @@ class ApoiadorPWAForm(forms.ModelForm):
         instance.papel = 'apoiador'
         cidade = self.cleaned_data.get('cidade')
         instance.regiao = cidade.regiao if cidade else None
+        # tipo (principal) é derivado de tipos no save() do model
+        instance.tipos = self.cleaned_data.get('tipos') or []
         if commit:
             instance.save()
         return instance

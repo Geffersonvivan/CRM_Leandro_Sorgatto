@@ -156,14 +156,18 @@ def api_sync(request):
         if not cidade:
             results.append({'client_id': cid, 'status': 'erro', 'error': 'Cidade inválida'})
             continue
-        tipo = (rec.get('tipo') or '').strip()
-        if tipo not in tipos_validos:
-            tipo = 'comunitario'
+        # Categoria é múltipla e opcional: aceita a lista `tipos` (novo) ou o
+        # `tipo` único (compat. com filas antigas em aparelhos ainda não atualizados).
+        # Só valores válidos entram; vazio fica vazio. tipo principal é derivado no save().
+        tipos_rec = rec.get('tipos')
+        if not isinstance(tipos_rec, list):
+            tipos_rec = [rec.get('tipo')] if rec.get('tipo') else []
+        tipos = [t for t in (str(x).strip() for x in tipos_rec) if t in tipos_validos]
         try:
             Lideranca.objects.create(
                 papel='apoiador', nome=nome, cidade=cidade, regiao=cidade.regiao,
                 telefone=(rec.get('telefone') or '').strip(),
-                tipo=tipo, observacoes=(rec.get('observacoes') or '').strip(),
+                tipos=tipos, observacoes=(rec.get('observacoes') or '').strip(),
                 status='ativo', cadastrado_por=request.user, pwa_client_id=cid,
                 origem='pwa', aprovacao='pendente',
             )

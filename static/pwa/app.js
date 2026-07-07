@@ -143,16 +143,20 @@
             var cidade = (form.querySelector('#id_cidade') || {}).value || '';
             var tel = (form.querySelector('#id_telefone') || {}).value || '';
             var obs = (form.querySelector('#id_observacoes') || {}).value || '';
-            var tipoEl = form.querySelector('input[name="tipo"]:checked');
+            // Categoria é múltipla e opcional — coleta todas as marcadas.
+            var tipos = Array.prototype.map.call(
+                form.querySelectorAll('input[name="tipos"]:checked'), function (el) { return el.value; });
             if (!nome.trim()) { toast('Informe o nome', 'error'); return; }
             if (!cidade) { toast('Selecione a cidade', 'error'); return; }
-            if (!tipoEl) { toast('Selecione a categoria', 'error'); return; }
             var rec = {
                 client_id: uuid(), nome: nome.trim(), cidade_id: cidade,
-                telefone: tel.trim(), tipo: tipoEl.value, observacoes: obs.trim(), _ts: Date.now()
+                telefone: tel.trim(), tipos: tipos, observacoes: obs.trim(), _ts: Date.now()
             };
             queue(rec).then(function () {
                 form.reset();
+                var citySearch = form.querySelector('#citySearch');
+                if (citySearch) { citySearch.value = ''; citySearch.classList.remove('has-city'); }
+                var cityHidden = form.querySelector('#id_cidade'); if (cityHidden) cityHidden.value = '';
                 var n = form.querySelector('#id_nome'); if (n) n.focus();
                 document.getElementById('micStatus').textContent = '';
                 toast('Salvo ✓', 'success');

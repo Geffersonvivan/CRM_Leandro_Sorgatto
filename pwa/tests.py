@@ -50,6 +50,28 @@ class SyncApoiadorTests(TestCase):
         # pendente não conta como oficial
         self.assertEqual(Lideranca.objects.apoiadores_aprovados().count(), 0)
 
+    def test_categoria_multipla_e_opcional(self):
+        # sync aceita lista de categorias; principal (tipo) = 1ª; inválidas caem fora
+        self._post({'records': [
+            {'client_id': 'm-1', 'nome': 'Multi', 'cidade_id': self.cidade.pk,
+             'tipos': ['empresarial', 'associacao', 'inexistente']},
+            {'client_id': 'm-2', 'nome': 'Sem Cat', 'cidade_id': self.cidade.pk, 'tipos': []},
+        ]})
+        multi = Lideranca.objects.get(pwa_client_id='m-1')
+        self.assertEqual(multi.tipos, ['empresarial', 'associacao'])  # inválida removida
+        self.assertEqual(multi.tipo, 'empresarial')                   # principal = 1ª
+        sem = Lideranca.objects.get(pwa_client_id='m-2')
+        self.assertEqual(sem.tipos, [])
+        self.assertEqual(sem.tipo, '')                                # opcional: vazio
+
+    def test_fila_antiga_com_tipo_unico_ainda_funciona(self):
+        # aparelho não atualizado envia 'tipo' (string) — compat mantida
+        self._post({'records': [{'client_id': 'old-1', 'nome': 'Legado',
+                                 'cidade_id': self.cidade.pk, 'tipo': 'imprensa'}]})
+        rec = Lideranca.objects.get(pwa_client_id='old-1')
+        self.assertEqual(rec.tipos, ['imprensa'])
+        self.assertEqual(rec.tipo, 'imprensa')
+
     def test_reenvio_da_mesma_fila_nao_duplica(self):
         self._post(self._fila())
         resp = self._post(self._fila())          # reenvio integral (ex.: app reabriu)
