@@ -5,6 +5,12 @@
     .form-card { max-width: 720px; }
     .btn-secondary { background: #e5e7eb; color: #374151; border: none; }
     .btn-secondary:hover { background: #d1d5db; }
+    .switch { display: inline-flex; align-items: center; height: 46px; cursor: pointer; }
+    .switch input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .switch .switch-track { position: relative; width: 42px; height: 24px; border-radius: 999px; background: #cbd5e1; transition: background .18s; flex-shrink: 0; }
+    .switch .switch-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .18s; }
+    .switch input:checked + .switch-track { background: var(--navy); }
+    .switch input:checked + .switch-track::after { left: 20px; }
 </style>
 {% endblock %}
 
@@ -20,6 +26,13 @@
         {# Loop único (mesma convenção do _form_fields.html) — inclui os campos da PLANILHA CENTRAL e evita drift. #}
         <div class="form-grid">
             {% for field in form.visible_fields %}
+            {% if field.field.widget.input_type == 'checkbox' %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+                <label class="switch" for="{{ field.id_for_label }}">{{ field }}<span class="switch-track"></span></label>
+                {{ field.errors }}
+            </div>
+            {% else %}
             <div class="form-group{% if field.name == 'observacoes' or field.name == 'endereco' %} full{% endif %}">
                 <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
                 {{ field }}
@@ -28,6 +41,7 @@
                 {% endif %}
                 {{ field.errors }}
             </div>
+            {% endif %}
             {% endfor %}
         </div>
         <div class="form-actions">

@@ -280,14 +280,19 @@ class Lideranca(SoftDeleteMixin, models.Model):
         ('nao', 'Não'),
         ('nao_contactado', 'Não contactado'),
     ]
+    # Fiel à planilha central da Isadora (BASE DA ESTRUTURA), na ordem dela.
     NIVEL_CHOICES = [
-        ('multiplicador', 'Multiplicador (líder)'),
+        ('voluntario', 'Voluntário'),
+        ('eleitor', 'Eleitor'),
         ('lead', 'Lead'),
+        ('multiplicador', 'Multiplicador (líder)'),
     ]
     CANAL_CHOICES = [
+        ('facebook', 'Facebook'),
         ('whatsapp', 'WhatsApp'),
         ('instagram', 'Instagram'),
-        ('facebook', 'Facebook'),
+        ('tiktok', 'Tiktok'),
+        ('twitter', 'Twitter'),
     ]
 
     papel = models.CharField(max_length=12, choices=PAPEL_CHOICES, db_index=True)
@@ -297,7 +302,10 @@ class Lideranca(SoftDeleteMixin, models.Model):
     telefone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     instagram = models.CharField(max_length=100, blank=True)
-    cidade = models.ForeignKey(Cidade, on_delete=models.PROTECT, related_name='liderancas')
+    # Opcional: contatos de fora de SC (ou sem cidade na planilha) entram sem
+    # cidade; a cidade/UF crua vai para observações na importação.
+    cidade = models.ForeignKey(Cidade, on_delete=models.PROTECT, related_name='liderancas',
+                               null=True, blank=True)
     regiao = models.ForeignKey(
         Regiao, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='liderancas',
@@ -344,8 +352,15 @@ class Lideranca(SoftDeleteMixin, models.Model):
     # Todos opcionais — não afetam cadastros existentes nem o funil de moderação.
     atendente = models.CharField(
         max_length=100, blank=True, verbose_name='Atendente',
-        help_text='Quem fez/conduz o atendimento deste contato.',
+        help_text='Quem fez/conduz o atendimento deste contato (texto livre/legado/import).',
     )                                                       # planilha: ATENDENTE
+    # Atendente estruturado: puxa os usuários cadastrados do sistema. O campo de
+    # texto acima fica para import/legado; a lista/edição inline usam este vínculo.
+    atendente_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='liderancas_atendidas',
+        verbose_name='Atendente (usuário)',
+    )
     intencao_voto = models.CharField(
         max_length=15, choices=INTENCAO_VOTO_CHOICES, blank=True,
         verbose_name='Intenção de voto',

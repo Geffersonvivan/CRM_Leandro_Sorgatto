@@ -28,6 +28,9 @@ CAMPANHA = {
     'TSE_ANO_BASE': 2022,
 
     # Paleta PL (azul + amarelo) — ajustar com a identidade oficial da campanha.
+    # Lista de Lideranças editável inline: exclusiva da Isadora por ora.
+    'LIDERANCA_INLINE_EDIT': False,
+
     'CORES': {
         '--navy': '#1e40af',        # azul PL (marca)
         '--navy-700': '#1e3a8a',

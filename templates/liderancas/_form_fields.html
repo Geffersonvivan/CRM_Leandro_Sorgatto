@@ -1,10 +1,50 @@
+{% with secoes=form.get_secoes %}
 <form method="post" id="formModalForm" novalidate>
     {% csrf_token %}
     {% if form.non_field_errors %}
     <div class="form-modal-errors">{{ form.non_field_errors }}</div>
     {% endif %}
+
+    {% if secoes %}
+    {# ===== Layout em capítulos (Isadora) ===== #}
+    <div class="apf">
+        {% for secao in secoes %}
+        <section class="apf-sec">
+            <div class="apf-eyebrow"><span class="apf-tick"></span>{{ secao.titulo }}</div>
+            <div class="apf-grid">
+                {% for field in secao.campos %}
+                {% if field.field.widget.input_type == 'checkbox' %}
+                <div class="apf-cell">
+                    <label class="apf-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+                    <label class="switch" for="{{ field.id_for_label }}">{{ field }}<span class="switch-track"></span></label>
+                    {{ field.errors }}
+                </div>
+                {% else %}
+                <div class="apf-cell{% if field.name == 'observacoes' or field.name == 'endereco' %} apf-full{% endif %}">
+                    <label class="apf-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+                    {{ field }}
+                    {% if field.name == 'observacoes' %}
+                    <button type="button" class="ia-clean-btn" data-ia-clean title="Corrigir e organizar o texto com IA">✨ Limpar com IA</button>
+                    {% endif %}
+                    {{ field.errors }}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+    {% else %}
+    {# ===== Loop simples (demais formulários/marcas) ===== #}
     <div class="form-grid">
         {% for field in form.visible_fields %}
+        {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+            <label class="switch" for="{{ field.id_for_label }}">{{ field }}<span class="switch-track"></span></label>
+            {{ field.errors }}
+        </div>
+        {% else %}
         <div class="form-group{% if field.name == 'observacoes' or field.name == 'endereco' or field.name == 'disponibilidades' %} full{% endif %}">
             <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
             {{ field }}
@@ -13,6 +53,48 @@
             {% endif %}
             {{ field.errors }}
         </div>
+        {% endif %}
         {% endfor %}
     </div>
+    {% endif %}
 </form>
+{% endwith %}
+
+<style>
+    /* ===== Toggle (booleanos) — mesma altura/ritmo dos inputs ===== */
+    .switch { display: inline-flex; align-items: center; height: 44px; cursor: pointer; }
+    .switch input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .switch .switch-track {
+        position: relative; width: 42px; height: 24px; border-radius: 999px;
+        background: #cbd5e1; transition: background .18s; flex-shrink: 0;
+    }
+    .switch .switch-track::after {
+        content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+        border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .18s;
+    }
+    .switch input:checked + .switch-track { background: var(--navy); }
+    .switch input:checked + .switch-track::after { left: 20px; }
+
+    /* ===== Form em capítulos (Isadora) ===== */
+    .apf-sec + .apf-sec { margin-top: 28px; padding-top: 24px; border-top: 1px solid #eef1f5; }
+    .apf-eyebrow {
+        display: flex; align-items: center; gap: 9px; margin-bottom: 16px;
+        font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em;
+        text-transform: uppercase; color: #94a3b8;
+    }
+    .apf-tick { width: 16px; height: 3px; border-radius: 2px; background: var(--navy); flex-shrink: 0; }
+    .apf-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px 18px; }
+    .apf-full { grid-column: 1 / -1; }
+    .apf-cell { display: flex; flex-direction: column; min-width: 0; }
+    .apf-label {
+        font-size: 0.78rem; font-weight: 600; color: #475569;
+        margin-bottom: 6px; letter-spacing: .1px;
+    }
+    /* Inputs/selects do capítulo herdam .form-input, mas garantimos altura uniforme */
+    .apf-cell .form-input { height: 44px; }
+    .apf-cell textarea.form-input { height: auto; min-height: 96px; }
+    .apf-cell .ia-clean-btn { margin-top: 8px; }
+    @media (max-width: 720px) {
+        .apf-grid { grid-template-columns: 1fr; }
+    }
+</style>

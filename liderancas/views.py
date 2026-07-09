@@ -11,6 +11,7 @@ from django.utils import timezone
 from core.views import api_cidades as core_api_cidades
 from core.views import api_regioes_cidades as core_api_regioes_cidades
 from usuarios.views import admin_required, secao_required
+from usuarios.models import Usuario
 from .models import Lideranca, Voluntario, Regiao, Cidade, InteracaoLog
 from .forms import CoordenadorRegionalForm, CaboEleitoralForm, ApoiadorForm, VoluntarioForm, InteracaoLogForm
 
@@ -127,8 +128,25 @@ def lideranca_list(request):
     situacao = request.GET.get('situacao', '')
     aprovacao = request.GET.get('aprovacao', '')
 
+    # --- Filtros alinhados à planilha (só Isadora) ---
+    inline_edit = settings.CAMPANHA.get('LIDERANCA_INLINE_EDIT', False)
+    f_atendente = request.GET.get('atendente', '')
+    f_voto = request.GET.get('voto', '')
+    f_nivel = request.GET.get('nivel', '')
+    f_canal = request.GET.get('canal', '')
+    # booleanos: '' = todos, 'sim' | 'nao'
+    f_bool = {campo: request.GET.get(campo, '')
+              for campo in ('contato_feito', 'vaquinha_enviada', 'doou', 'material_entregue')}
+    f_idade_min = request.GET.get('idade_min', '')
+    f_idade_max = request.GET.get('idade_max', '')
+    f_data_de = request.GET.get('data_de', '')
+    f_data_ate = request.GET.get('data_ate', '')
+    f_texto_campo = request.GET.get('texto_campo', '')   # filiado_partido | origem_contato | segmentos
+    f_texto_valor = request.GET.get('texto_valor', '')
+
     qs = Lideranca.objects.select_related(
-        'cidade', 'cidade__regiao', 'regiao', 'coordenador_responsavel', 'cadastrado_por'
+        'cidade', 'cidade__regiao', 'regiao', 'coordenador_responsavel', 'cadastrado_por',
+        'atendente_user',
     ).annotate(ultima_interacao=Max('interacoes__data'))
 
     # Aprovação: por padrão esconde rejeitados; filtro explícito mostra o estado pedido
@@ -162,6 +180,31 @@ def lideranca_list(request):
         qs = qs.filter(ultima_interacao__isnull=False)
         qs = qs.filter(atraso_q) if situacao == 'atrasado' else qs.exclude(atraso_q)
 
+    # --- Filtros da planilha (Isadora) — combinam em AND com os demais ---
+    if inline_edit:
+        if f_atendente:
+            qs = qs.filter(atendente_user_id=f_atendente)
+        if f_nivel:
+            qs = qs.filter(nivel=f_nivel)
+        # voto NÃO entra aqui — vira aba (aplicado após contar por voto, abaixo)
+        if f_canal:
+            qs = qs.filter(canal_atendimento=f_canal)
+        for campo, val in f_bool.items():
+            if val == 'sim':
+                qs = qs.filter(**{campo: True})
+            elif val == 'nao':
+                qs = qs.filter(**{campo: False})
+        if f_idade_min.isdigit():
+            qs = qs.filter(idade__gte=int(f_idade_min))
+        if f_idade_max.isdigit():
+            qs = qs.filter(idade__lte=int(f_idade_max))
+        if f_data_de:
+            qs = qs.filter(data_contato__gte=f_data_de)
+        if f_data_ate:
+            qs = qs.filter(data_contato__lte=f_data_ate)
+        if f_texto_campo in ('filiado_partido', 'origem_contato', 'segmentos') and f_texto_valor:
+            qs = qs.filter(**{f'{f_texto_campo}__icontains': f_texto_valor})
+
     # Contagem por papel (respeita os demais filtros) → abas
     contagem = {
         'todos': qs.count(),
@@ -171,6 +214,15 @@ def lideranca_list(request):
     }
     if papeis:
         qs = qs.filter(papel__in=papeis)
+
+    # Contagem por VOTO (Isadora) — antes de aplicar o filtro de voto, para as abas
+    voto_contagem = None
+    if inline_edit:
+        voto_contagem = {'todos': qs.count()}
+        for val, _lbl in Lideranca.INTENCAO_VOTO_CHOICES:
+            voto_contagem[val] = qs.filter(intencao_voto=val).count()
+        if f_voto:
+            qs = qs.filter(intencao_voto=f_voto)
 
     qs, current_sort, current_dir = _apply_sorting(
         request, qs,
@@ -202,10 +254,26 @@ def lideranca_list(request):
             params.setlist('papel', sorted(s))
         return params.urlencode()
 
-    abas = [{'key': '', 'label': 'Todos', 'count': contagem['todos'], 'qs': _toggle_qs(''), 'active': not papeis}]
-    for val, label in Lideranca.PAPEL_CHOICES:
-        abas.append({'key': val, 'label': label, 'count': contagem[val],
-                     'qs': _toggle_qs(val), 'active': val in papeis_set})
+    if inline_edit:
+        # Abas por VOTO (Isadora) — clique alterna o param `voto` (single-select)
+        def _toggle_voto_qs(val):
+            params = request.GET.copy()
+            params.pop('page', None); params.pop('export', None)
+            if val and f_voto != val:
+                params['voto'] = val
+            else:
+                params.pop('voto', None)
+            return params.urlencode()
+        abas = [{'key': '', 'label': 'Todos', 'count': voto_contagem['todos'],
+                 'qs': _toggle_voto_qs(''), 'active': not f_voto}]
+        for val, label in Lideranca.INTENCAO_VOTO_CHOICES:
+            abas.append({'key': val, 'label': label, 'count': voto_contagem.get(val, 0),
+                         'qs': _toggle_voto_qs(val), 'active': f_voto == val})
+    else:
+        abas = [{'key': '', 'label': 'Todos', 'count': contagem['todos'], 'qs': _toggle_qs(''), 'active': not papeis}]
+        for val, label in Lideranca.PAPEL_CHOICES:
+            abas.append({'key': val, 'label': label, 'count': contagem[val],
+                         'qs': _toggle_qs(val), 'active': val in papeis_set})
 
     # --- Chips de filtros ativos (remove um valor por vez) ---
     base_params = request.GET.copy()
@@ -259,6 +327,13 @@ def lideranca_list(request):
         # Colunas exibidas vêm da config de marca (Fase 2): mesma tabela,
         # cada marca com seu conjunto/ordem de colunas.
         'colunas': settings.CAMPANHA['COLUNAS_LIDERANCA'],
+        # Edição inline (estilo planilha) só quando a marca liga o flag (Isadora).
+        'inline_edit': settings.CAMPANHA.get('LIDERANCA_INLINE_EDIT', False),
+        'voto_choices': Lideranca.INTENCAO_VOTO_CHOICES,
+        'nivel_choices': Lideranca.NIVEL_CHOICES,
+        'canal_choices': Lideranca.CANAL_CHOICES,
+        'atendentes': list(Usuario.objects.filter(is_active=True).order_by('first_name', 'username')
+                           .values('id', 'first_name', 'last_name', 'username')),
         'total': paginator.count,
         'total_geral': Lideranca.objects.count(),
         'qs_sort_base': sort_base.urlencode(),
@@ -284,6 +359,18 @@ def lideranca_list(request):
         'prioridade_filtro': prioridade,
         'status_filtro': status,
         'situacao_filtro': situacao,
+        # Filtros alinhados à planilha (Isadora) — valores atuais para repovoar o form
+        'f_atendente': f_atendente, 'f_voto': f_voto, 'f_nivel': f_nivel, 'f_canal': f_canal,
+        'bool_filtros': [
+            {'campo': 'contato_feito', 'rotulo': 'Contato feito?', 'valor': f_bool['contato_feito']},
+            {'campo': 'vaquinha_enviada', 'rotulo': 'Vaquinha enviada?', 'valor': f_bool['vaquinha_enviada']},
+            {'campo': 'doou', 'rotulo': 'Doou?', 'valor': f_bool['doou']},
+            {'campo': 'material_entregue', 'rotulo': 'Material entregue?', 'valor': f_bool['material_entregue']},
+        ],
+        'f_algum_bool': any(f_bool.values()),
+        'f_idade_min': f_idade_min, 'f_idade_max': f_idade_max,
+        'f_data_de': f_data_de, 'f_data_ate': f_data_ate,
+        'f_texto_campo': f_texto_campo, 'f_texto_valor': f_texto_valor,
         'filtros_ativos': filtros_ativos,
         'per_page': per_page,
         'per_page_options': PER_PAGE_OPTIONS,
@@ -374,6 +461,59 @@ def lideranca_bulk_action(request):
         messages.error(request, 'Ação inválida.')
 
     return back
+
+
+@secao_required('liderancas:lista')
+def api_lideranca_patch(request, pk):
+    """Edição inline de UM campo da Liderança (lista estilo planilha da Isadora).
+    Campos permitidos: escolhas (voto/nível/canal), atendente (FK Usuario) e
+    booleanos (contato/vaquinha/doou/material)."""
+    import json as _json
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    obj = get_object_or_404(Lideranca, pk=pk)
+    try:
+        data = _json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+
+    field = data.get('field')
+    value = data.get('value')
+
+    ESCOLHAS = {
+        'intencao_voto': dict(Lideranca.INTENCAO_VOTO_CHOICES),
+        'nivel': dict(Lideranca.NIVEL_CHOICES),
+        'canal_atendimento': dict(Lideranca.CANAL_CHOICES),
+    }
+    BOOLEANOS = {'contato_feito', 'vaquinha_enviada', 'doou', 'material_entregue'}
+
+    display = ''
+    if field in ESCOLHAS:
+        value = (value or '').strip()
+        if value and value not in ESCOLHAS[field]:
+            return JsonResponse({'ok': False, 'error': 'Opção inválida'}, status=400)
+        setattr(obj, field, value)
+        display = ESCOLHAS[field].get(value, '')
+    elif field in BOOLEANOS:
+        setattr(obj, field, bool(value))
+        display = 'Sim' if value else 'Não'
+    elif field == 'atendente_user':
+        if value in (None, '', 0):
+            obj.atendente_user = None
+            display = ''
+        else:
+            from usuarios.models import Usuario
+            u = Usuario.objects.filter(pk=value).first()
+            if not u:
+                return JsonResponse({'ok': False, 'error': 'Usuário inválido'}, status=400)
+            obj.atendente_user = u
+            display = u.get_full_name() or u.username
+    else:
+        return JsonResponse({'ok': False, 'error': 'Campo não permitido'}, status=400)
+
+    obj.atualizado_por = request.user
+    obj.save()
+    return JsonResponse({'ok': True, 'value': value if not isinstance(value, bool) else value, 'display': display})
 
 
 # ==================== COORDENADORES ====================

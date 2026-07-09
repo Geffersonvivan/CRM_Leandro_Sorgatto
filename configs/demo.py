@@ -16,6 +16,7 @@ CAMPANHA = {
     'CARGO_2026': 'Deputado Federal',
     'TSE_CARGO_2026': 'deputado_federal',
 
+    'LIDERANCA_INLINE_EDIT': False,
     'TSE_TERMO_BUSCA': 'JOAO DEMO',
     'TSE_CARGO_BASE': 'deputado_federal',
     'TSE_CARGO_BASE_LABEL': 'Dep. Federal',

@@ -10,6 +10,7 @@ urlpatterns = [
     # Lista unificada de Lideranças (com filtro por papel)
     path('', views.lideranca_list, name='lideranca_list'),
     path('bulk/', views.lideranca_bulk_action, name='lideranca_bulk'),
+    path('api/<int:pk>/patch/', views.api_lideranca_patch, name='api_lideranca_patch'),
 
     # Coordenadores Regionais
     path('coordenadores/', views.coordenador_list, name='coordenador_list'),

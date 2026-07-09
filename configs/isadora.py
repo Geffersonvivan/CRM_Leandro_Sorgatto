@@ -27,6 +27,11 @@ CAMPANHA = {
     'TSE_CARGO_BASE_LABEL': 'Dep. Estadual',   # rótulo humano da base (§5.3: rótulo = conteúdo)
     'TSE_ANO_BASE': 2022,
 
+    # Lista de Lideranças editável célula a célula, no estilo da planilha central
+    # (Voto/Nível/Canal/Atendente com dropdown colorido + checkboxes inline).
+    # Só a Isadora usa este layout; as outras marcas seguem a lista padrão.
+    'LIDERANCA_INLINE_EDIT': True,
+
     # Cores da marca — valores das variáveis CSS históricas (--navy/--ouro/
     # --coral guardam a paleta atual; usar sempre a variável, não hex avulso).
     # Injetadas no :root pelo base.html; global.css traz o fallback.
@@ -44,13 +49,33 @@ CAMPANHA = {
     # guarda o superset; cada marca lista aqui o que mostra. A Isadora exibe
     # tudo. Chaves = campos do model (+ 'ultima_interacao', annotation da view);
     # seleção e ações são estruturais e ficam fora da lista.
+    # Espelha o cabeçalho da "BASE DA ESTRUTURA" da PLANILHA CENTRAL ISA (linha 3),
+    # na mesma ordem. A coluna "Class" (nº de sequência da planilha) não vira coluna;
+    # "HISTÓRICO DO ATENDIMENTO" é a annotation `ultima_interacao` (via InteracaoLog).
     'COLUNAS_LIDERANCA': [
-        'nome', 'papel', 'telefone', 'email', 'instagram', 'cidade', 'regiao',
-        'coordenador_responsavel', 'tipo', 'prioridade', 'intencao_voto',
-        'frequencia_relacionamento', 'votos_referencia', 'ultima_interacao',
-        'cadastrado_por', 'uf', 'nivel', 'atendente', 'contato_feito',
-        'data_contato', 'canal_atendimento', 'quem_e_eleitor',
-        'filiado_partido', 'segmentos', 'idade', 'vaquinha_enviada', 'doou',
-        'material_entregue', 'facebook', 'endereco', 'observacoes',
+        'atendente',          # ATENDENTE
+        'intencao_voto',      # VOTO
+        'nivel',              # NÍVEL
+        'nome',               # NOME
+        'cidade',             # CIDADE
+        'uf',                 # UF
+        'contato_feito',      # Contato Feito?
+        'data_contato',       # DATA CONTATO
+        'canal_atendimento',  # CANAL DO ÚLTIMO ATENDIMENTO
+        'telefone',           # TELEFONE
+        'vaquinha_enviada',   # Já mandou link da VAQUINHA?
+        'doou',               # DOOU?
+        'observacoes',        # OBSERVAÇÕES GERAIS
+        'filiado_partido',    # FILIADO A ALGUM PARTIDO?
+        'quem_e_eleitor',     # QUEM É O ELEITOR?
+        'origem_contato',     # COMO CHEGOU?
+        'instagram',          # INSTAGRAM
+        'facebook',           # FACEBOOK
+        'email',              # E-MAIL
+        'endereco',           # ENDEREÇO (PRA ENTREGA DE MATERIAL)
+        'material_entregue',  # MATERIAL ENTREGUE?
+        'idade',              # IDADE
+        'segmentos',          # SEGMENTOS/INTERESSES
+        'ultima_interacao',   # HISTÓRICO DO ATENDIMENTO (InteracaoLog)
     ],
 }

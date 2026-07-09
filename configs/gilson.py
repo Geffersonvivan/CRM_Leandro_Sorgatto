@@ -25,6 +25,9 @@ CAMPANHA = {
     'TSE_ANO_BASE': 2022,
 
     # Paleta NOVO — a mesma da Isadora.
+    # Lista de Lideranças editável inline: exclusiva da Isadora por ora.
+    'LIDERANCA_INLINE_EDIT': False,
+
     'CORES': {
         '--navy': '#FF6B00',        # laranja NOVO (marca)
         '--navy-700': '#E25E00',

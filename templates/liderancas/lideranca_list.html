@@ -39,6 +39,13 @@
     .filters-row input[type=text]:focus, .filters-row select:focus, .ms-btn:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(255, 107, 0,.10); }
     .filters-row input::placeholder { color:#cbd5e1; }
     .filter-actions { display:flex; gap:8px; align-items:flex-end; }
+    /* Painel de filtros avançados (Isadora) */
+    .filters-adv { display:none; margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0; }
+    .filters-adv.open { display:block; }
+    .filters-adv input[type=number], .filters-adv input[type=date], .filters-adv input[type=text], .filters-adv select { width:100%; height:38px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:9px; background:#fff; padding:0 12px; font-size:0.82rem; color:#1e293b; }
+    .filters-adv input:focus, .filters-adv select:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(255,107,0,.10); }
+    .filter-range { display:flex; gap:6px; }
+    .filter-range > * { min-width:0; }
 
     /* Multi-select dropdown (checkbox) */
     .ms { position:relative; }
@@ -96,6 +103,42 @@
     .voto-talvez { background: #fef3c7; color: #92400e; }
     .voto-nao { background: #fee2e2; color: #991b1b; }
     .voto-nao_contactado { background: #f1f5f9; color: #64748b; }
+
+    /* ===== Edição inline estilo planilha (só Isadora) — badges coloridos ===== */
+    .il-cell { cursor: pointer; }
+    .il-badge { display:inline-block; font-size:0.66rem; padding:3px 9px; border-radius:10px;
+                font-weight:700; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+    .il-empty { color:#cbd5e1; }
+    /* Nível — cores fiéis à planilha */
+    .niv-voluntario   { background:#15803d; color:#fff; }
+    .niv-eleitor      { background:#efe6d3; color:#7c5a1e; }
+    .niv-lead         { background:#dc2626; color:#fff; }
+    .niv-multiplicador{ background:#ede9fe; color:#6d28d9; }
+    .niv-nd           { background:#f1f5f9; color:#64748b; }
+    /* Canal */
+    .can-whatsapp  { background:#dcf7e3; color:#128a3b; }
+    .can-facebook  { background:#e7f0fe; color:#1d4ed8; }
+    .can-instagram { background:#fdeaf3; color:#c2185b; }
+    .can-tiktok    { background:#e5e7eb; color:#111827; }
+    .can-twitter   { background:#e6f4fb; color:#1d9bf0; }
+    /* Voto (badge maior do inline usa as mesmas cores do voto-badge) */
+    .il-voto-sim{background:#15803d;color:#fff;} .il-voto-talvez{background:#f5d90a;color:#5b4708;}
+    .il-voto-nao{background:#dc2626;color:#fff;} .il-voto-nao_contactado{background:#e2e8f0;color:#475569;}
+    /* Atendente — chip com cor determinística por pessoa */
+    .il-atend { display:inline-flex; align-items:center; gap:5px; font-size:0.68rem; font-weight:700;
+                padding:3px 9px; border-radius:999px; white-space:nowrap; }
+    /* Checkbox inline */
+    .il-check { width:17px; height:17px; border-radius:5px; border:1.6px solid #cbd5e1; cursor:pointer;
+                display:inline-flex; align-items:center; justify-content:center; background:#fff; }
+    .il-check.on { background:var(--navy); border-color:var(--navy); color:#fff; }
+    .il-check svg { width:11px; height:11px; }
+    /* Popover de escolha inline */
+    .il-pop { position:fixed; z-index:1000; background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+              box-shadow:0 10px 30px rgba(0,0,0,.16); padding:5px; min-width:190px; max-height:280px; overflow-y:auto; }
+    .il-pop .il-opt { padding:6px 9px; border-radius:7px; cursor:pointer; display:flex; align-items:center; gap:7px; font-size:.8rem; }
+    .il-pop .il-opt:hover { background:#eef3ff; }
+    .il-pop .il-search { width:100%; box-sizing:border-box; padding:7px 9px; margin-bottom:5px;
+                         border:1.5px solid #e2e8f0; border-radius:7px; font-size:.82rem; position:sticky; top:0; }
     /* Moderação (leads do app) */
     .tr-pendente td { background:#fff5f5; }
     .tr-pendente:hover td { background:#ffecec; }
@@ -123,8 +166,10 @@
     <h1 class="page-title">Lideranças <span class="page-subtitle">{{ total }}{% if total != total_geral %} de {{ total_geral }}{% endif %} registros</span></h1>
     <div style="display:flex;gap:8px;align-items:center;">
         <a href="?{{ query_string }}&export=csv" class="btn btn-outline btn-sm">Exportar CSV</a>
+        {% if not inline_edit %}
         <a href="{% url 'liderancas:coordenador_create' %}" class="btn btn-outline btn-sm" onclick="return openFormModal(this.href, 'Novo Coordenador Regional')">+ Coordenador</a>
         <a href="{% url 'liderancas:cabo_create' %}" class="btn btn-outline btn-sm" onclick="return openFormModal(this.href, 'Novo Cabo Eleitoral')">+ Cabo</a>
+        {% endif %}
         <a href="{% url 'liderancas:apoiador_create' %}" class="btn btn-primary" onclick="return openFormModal(this.href, 'Novo Apoiador')">+ Apoiador</a>
     </div>
 </div>
@@ -153,6 +198,7 @@
     <form method="get" id="filtrosForm">
         <input type="hidden" name="per_page" value="{{ per_page }}">
         {% for p in papeis_sel %}<input type="hidden" name="papel" value="{{ p }}">{% endfor %}
+        {% if inline_edit and f_voto %}<input type="hidden" name="voto" value="{{ f_voto }}">{% endif %}
         <div class="filters-row">
             <div class="filter-group">
                 <label>Busca</label>
@@ -178,6 +224,27 @@
                     {% endfor %}
                 </select>
             </div>
+            {% if inline_edit %}
+            {# Filtros alinhados à planilha (Isadora) — linha principal #}
+            <div class="filter-group">
+                <label>Atendente</label>
+                <select name="atendente">
+                    <option value="">Todos</option>
+                    {% for a in atendentes %}
+                    <option value="{{ a.id }}" {% if f_atendente == a.id|stringformat:"d" %}selected{% endif %}>{{ a.first_name }} {{ a.last_name }}{% if not a.first_name %}{{ a.username }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Nível</label>
+                <select name="nivel">
+                    <option value="">Todos</option>
+                    {% for val, lbl in nivel_choices %}<option value="{{ val }}" {% if f_nivel == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </div>
+            {# Voto virou aba (acima da barra) — não repetir como dropdown #}
+            {% else %}
+            {# Filtros clássicos (demais marcas) #}
             <div class="filter-group">
                 <label>Coordenador resp.</label>
                 <select name="coordenador">
@@ -225,10 +292,64 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
         </div>
+
+        {% if inline_edit %}
+        {# Painel de filtros avançados (Isadora) — abre sob demanda #}
+        <div class="filters-adv{% if f_canal or f_algum_bool or f_idade_min or f_idade_max or f_data_de or f_data_ate or f_texto_valor %} open{% endif %}" id="filtrosAvancados">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label>Canal</label>
+                    <select name="canal">
+                        <option value="">Todos</option>
+                        {% for val, lbl in canal_choices %}<option value="{{ val }}" {% if f_canal == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                    </select>
+                </div>
+                {% for b in bool_filtros %}
+                <div class="filter-group">
+                    <label>{{ b.rotulo }}</label>
+                    <select name="{{ b.campo }}">
+                        <option value="">Todos</option>
+                        <option value="sim" {% if b.valor == 'sim' %}selected{% endif %}>Sim</option>
+                        <option value="nao" {% if b.valor == 'nao' %}selected{% endif %}>Não</option>
+                    </select>
+                </div>
+                {% endfor %}
+                <div class="filter-group">
+                    <label>Idade (de – até)</label>
+                    <div class="filter-range">
+                        <input type="number" name="idade_min" min="0" max="130" placeholder="de" value="{{ f_idade_min }}">
+                        <input type="number" name="idade_max" min="0" max="130" placeholder="até" value="{{ f_idade_max }}">
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Data do contato (de – até)</label>
+                    <div class="filter-range">
+                        <input type="date" name="data_de" value="{{ f_data_de }}">
+                        <input type="date" name="data_ate" value="{{ f_data_ate }}">
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Contém texto em…</label>
+                    <div class="filter-range">
+                        <select name="texto_campo">
+                            <option value="">Campo</option>
+                            <option value="filiado_partido" {% if f_texto_campo == 'filiado_partido' %}selected{% endif %}>Filiado a partido</option>
+                            <option value="origem_contato" {% if f_texto_campo == 'origem_contato' %}selected{% endif %}>Como chegou</option>
+                            <option value="segmentos" {% if f_texto_campo == 'segmentos' %}selected{% endif %}>Segmentos</option>
+                        </select>
+                        <input type="text" name="texto_valor" placeholder="texto…" value="{{ f_texto_valor }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="filters-actions-row">
             <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
             <a href="{% url 'liderancas:lideranca_list' %}" class="btn btn-outline btn-sm">Limpar</a>
+            {% if inline_edit %}<button type="button" class="tool-btn" id="advToggle" onclick="toggleAdvFiltros()">Filtros avançados ▾</button>{% endif %}
             <span class="fa-spacer"></span>
             <button type="button" class="tool-btn" onclick="toggleDensity()">Densidade</button>
         </div>
@@ -316,6 +437,7 @@
                     {% elif c == 'data_contato' %}<th class="col-datacontato">Data contato</th>
                     {% elif c == 'canal_atendimento' %}<th class="col-canal">Canal</th>
                     {% elif c == 'quem_e_eleitor' %}<th class="col-quemeleitor">Quem é o eleitor</th>
+                    {% elif c == 'origem_contato' %}<th class="col-comochegou">Como chegou</th>
                     {% elif c == 'filiado_partido' %}<th class="col-filiado">Filiado partido</th>
                     {% elif c == 'segmentos' %}<th class="col-segmentos">Segmentos</th>
                     {% elif c == 'idade' %}<th class="col-idade">Idade</th>
@@ -345,24 +467,25 @@
                     {% elif c == 'coordenador_responsavel' %}<td>{% if o.papel == 'cabo' %}{{ o.coordenador_responsavel.nome|default:"-" }}{% else %}-{% endif %}</td>
                     {% elif c == 'tipo' %}<td>{% if o.papel == 'apoiador' %}{{ o.get_tipos_display }}{% if o.cargo %} · {{ o.get_cargo_display }}{% endif %}{% else %}-{% endif %}</td>
                     {% elif c == 'prioridade' %}<td class="nw" style="text-align:center;">{{ o.get_prioridade_display }}</td>
-                    {% elif c == 'intencao_voto' %}<td class="nw" style="text-align:center;">{% if o.intencao_voto %}<span class="voto-badge voto-{{ o.intencao_voto }}">{{ o.get_intencao_voto_display }}</span>{% else %}-{% endif %}</td>
+                    {% elif c == 'intencao_voto' %}<td class="nw" style="text-align:center;">{% if inline_edit %}<span class="il-cell" onclick="ilOpen(event,{{ o.pk }},'intencao_voto')">{% if o.intencao_voto %}<span class="il-badge il-voto-{{ o.intencao_voto }}" data-il="intencao_voto">{{ o.get_intencao_voto_display }}</span>{% else %}<span class="il-badge il-empty" data-il="intencao_voto">—</span>{% endif %}</span>{% else %}{% if o.intencao_voto %}<span class="voto-badge voto-{{ o.intencao_voto }}">{{ o.get_intencao_voto_display }}</span>{% else %}-{% endif %}{% endif %}</td>
                     {% elif c == 'frequencia_relacionamento' %}<td class="col-freq nw" style="text-align:center;">{{ o.get_frequencia_relacionamento_display }}</td>
                     {% elif c == 'votos_referencia' %}<td class="col-votos nw" style="text-align:right;">{% if o.papel == 'apoiador' %}{{ o.votos_referencia }}{% else %}-{% endif %}</td>
                     {% elif c == 'ultima_interacao' %}<td class="nw" style="text-align:center;">{{ o.ultima_interacao|contact_badge }}</td>
                     {% elif c == 'cadastrado_por' %}<td class="col-cadpor">{% if o.cadastrado_por %}{{ o.cadastrado_por.get_full_name|default:o.cadastrado_por.username }}{% else %}-{% endif %}</td>
                     {% elif c == 'uf' %}<td class="col-uf nw" style="text-align:center;">{{ o.uf|default:"-" }}</td>
-                    {% elif c == 'nivel' %}<td class="col-nivel nw">{{ o.get_nivel_display|default:"-" }}</td>
-                    {% elif c == 'atendente' %}<td class="col-atendente">{{ o.atendente|default:"-" }}</td>
-                    {% elif c == 'contato_feito' %}<td class="col-contatofeito nw" style="text-align:center;">{% if o.contato_feito %}✓{% else %}–{% endif %}</td>
+                    {% elif c == 'nivel' %}<td class="col-nivel nw">{% if inline_edit %}<span class="il-cell" onclick="ilOpen(event,{{ o.pk }},'nivel')">{% if o.nivel %}<span class="il-badge niv-{{ o.nivel }}" data-il="nivel">{{ o.get_nivel_display }}</span>{% else %}<span class="il-badge il-empty" data-il="nivel">—</span>{% endif %}</span>{% else %}{{ o.get_nivel_display|default:"-" }}{% endif %}</td>
+                    {% elif c == 'atendente' %}<td class="col-atendente">{% if inline_edit %}<span class="il-cell" onclick="ilOpen(event,{{ o.pk }},'atendente_user')">{% if o.atendente_user_id %}<span class="il-atend" data-il="atendente_user" data-uid="{{ o.atendente_user_id }}">{{ o.atendente_user.get_full_name|default:o.atendente_user.username }}</span>{% else %}<span class="il-badge il-empty" data-il="atendente_user" data-uid="">—</span>{% endif %}</span>{% else %}{{ o.atendente|default:"-" }}{% endif %}</td>
+                    {% elif c == 'contato_feito' %}<td class="col-contatofeito nw" style="text-align:center;">{% if inline_edit %}<span class="il-check{% if o.contato_feito %} on{% endif %}" onclick="ilToggle(this,{{ o.pk }},'contato_feito')">{% if o.contato_feito %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>{% endif %}</span>{% else %}{% if o.contato_feito %}✓{% else %}–{% endif %}{% endif %}</td>
                     {% elif c == 'data_contato' %}<td class="col-datacontato nw" style="text-align:center;">{{ o.data_contato|date:"d/m/Y"|default:"-" }}</td>
-                    {% elif c == 'canal_atendimento' %}<td class="col-canal nw">{{ o.get_canal_atendimento_display|default:"-" }}</td>
+                    {% elif c == 'canal_atendimento' %}<td class="col-canal nw">{% if inline_edit %}<span class="il-cell" onclick="ilOpen(event,{{ o.pk }},'canal_atendimento')">{% if o.canal_atendimento %}<span class="il-badge can-{{ o.canal_atendimento }}" data-il="canal_atendimento">{{ o.get_canal_atendimento_display }}</span>{% else %}<span class="il-badge il-empty" data-il="canal_atendimento">—</span>{% endif %}</span>{% else %}{{ o.get_canal_atendimento_display|default:"-" }}{% endif %}</td>
                     {% elif c == 'quem_e_eleitor' %}<td class="col-quemeleitor">{{ o.quem_e_eleitor|default:"-" }}</td>
+                    {% elif c == 'origem_contato' %}<td class="col-comochegou">{{ o.origem_contato|default:"-" }}</td>
                     {% elif c == 'filiado_partido' %}<td class="col-filiado">{{ o.filiado_partido|default:"-" }}</td>
                     {% elif c == 'segmentos' %}<td class="col-segmentos">{{ o.segmentos|default:"-" }}</td>
                     {% elif c == 'idade' %}<td class="col-idade nw" style="text-align:center;">{{ o.idade|default:"-" }}</td>
-                    {% elif c == 'vaquinha_enviada' %}<td class="col-vaquinha nw" style="text-align:center;">{% if o.vaquinha_enviada %}✓{% else %}–{% endif %}</td>
-                    {% elif c == 'doou' %}<td class="col-doou nw" style="text-align:center;">{% if o.doou %}✓{% else %}–{% endif %}</td>
-                    {% elif c == 'material_entregue' %}<td class="col-material nw" style="text-align:center;">{% if o.material_entregue %}✓{% else %}–{% endif %}</td>
+                    {% elif c == 'vaquinha_enviada' %}<td class="col-vaquinha nw" style="text-align:center;">{% if inline_edit %}<span class="il-check{% if o.vaquinha_enviada %} on{% endif %}" onclick="ilToggle(this,{{ o.pk }},'vaquinha_enviada')">{% if o.vaquinha_enviada %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>{% endif %}</span>{% else %}{% if o.vaquinha_enviada %}✓{% else %}–{% endif %}{% endif %}</td>
+                    {% elif c == 'doou' %}<td class="col-doou nw" style="text-align:center;">{% if inline_edit %}<span class="il-check{% if o.doou %} on{% endif %}" onclick="ilToggle(this,{{ o.pk }},'doou')">{% if o.doou %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>{% endif %}</span>{% else %}{% if o.doou %}✓{% else %}–{% endif %}{% endif %}</td>
+                    {% elif c == 'material_entregue' %}<td class="col-material nw" style="text-align:center;">{% if inline_edit %}<span class="il-check{% if o.material_entregue %} on{% endif %}" onclick="ilToggle(this,{{ o.pk }},'material_entregue')">{% if o.material_entregue %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>{% endif %}</span>{% else %}{% if o.material_entregue %}✓{% else %}–{% endif %}{% endif %}</td>
                     {% elif c == 'facebook' %}<td class="col-facebook">{{ o.facebook|default:"-" }}</td>
                     {% elif c == 'endereco' %}<td class="col-endereco">{{ o.endereco|default:"-" }}</td>
                     {% elif c == 'observacoes' %}<td style="min-width:80px;">
@@ -459,6 +582,121 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if inline_edit %}
+<script id="ilVoto" type="application/json">[{% for v,l in voto_choices %}{"v":"{{ v }}","l":"{{ l|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script id="ilNivel" type="application/json">[{% for v,l in nivel_choices %}{"v":"{{ v }}","l":"{{ l|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script id="ilCanal" type="application/json">[{% for v,l in canal_choices %}{"v":"{{ v }}","l":"{{ l|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script id="ilAtend" type="application/json">[{% for u in atendentes %}{"v":{{ u.id }},"l":"{{ u.first_name|add:' '|add:u.last_name|default:u.username|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
+<script>
+// ===== Edição inline estilo planilha (Isadora) =====
+(function () {
+    var CSRF = document.querySelector('[name=csrfmiddlewaretoken]')
+        ? document.querySelector('[name=csrfmiddlewaretoken]').value
+        : (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+    var OPTS = {
+        intencao_voto: {data: JSON.parse(document.getElementById('ilVoto').textContent), cls: function(v){return 'il-voto-'+v;}, tipo: 'escolha'},
+        nivel:         {data: JSON.parse(document.getElementById('ilNivel').textContent), cls: function(v){return 'niv-'+v;}, tipo: 'escolha'},
+        canal_atendimento: {data: JSON.parse(document.getElementById('ilCanal').textContent), cls: function(v){return 'can-'+v;}, tipo: 'escolha'},
+        atendente_user: {data: JSON.parse(document.getElementById('ilAtend').textContent), cls: function(){return 'il-atend';}, tipo: 'atendente'},
+    };
+    // Cores determinísticas para os chips de atendente (por id de usuário)
+    var PALETA = ['#15803d','#7c3aed','#c2185b','#1d4ed8','#b45309','#0d9488','#be123c','#4338ca','#0369a1','#65a30d'];
+    function corAtend(uid) { var n=parseInt(uid,10)||0; var c=PALETA[n%PALETA.length]; return {bg:c+'22', fg:c}; }
+    window.ilPaintAtendentes = function () {
+        document.querySelectorAll('.il-atend[data-uid]').forEach(function (el) {
+            var uid = el.getAttribute('data-uid'); if (!uid) return;
+            var c = corAtend(uid); el.style.background = c.bg; el.style.color = c.fg;
+        });
+    };
+
+    var pop = null;
+    function closePop() { if (pop) { pop.remove(); pop = null; } }
+    document.addEventListener('click', function (e) { if (pop && !pop.contains(e.target) && !e.target.closest('.il-cell')) closePop(); });
+
+    window.ilOpen = function (event, pk, field) {
+        event.stopPropagation();
+        closePop();
+        var cfg = OPTS[field]; if (!cfg) return;
+        var cell = event.currentTarget;
+        var rect = cell.getBoundingClientRect();
+        pop = document.createElement('div');
+        pop.className = 'il-pop';
+        var html = '';
+        var comBusca = cfg.data.length > 8;
+        if (comBusca) html += '<input class="il-search" placeholder="Buscar…" autocomplete="off">';
+        html += '<div class="il-opt" data-v=""><span class="il-badge il-empty">— (limpar)</span></div>';
+        cfg.data.forEach(function (o) {
+            if (cfg.tipo === 'atendente') {
+                var c = corAtend(o.v);
+                html += '<div class="il-opt" data-v="'+o.v+'"><span class="il-atend" style="background:'+c.bg+';color:'+c.fg+'">'+esc(o.l)+'</span></div>';
+            } else {
+                html += '<div class="il-opt" data-v="'+o.v+'"><span class="il-badge '+cfg.cls(o.v)+'">'+esc(o.l)+'</span></div>';
+            }
+        });
+        pop.innerHTML = html;
+        document.body.appendChild(pop);
+        // posiciona (vira p/ cima se não couber)
+        var ph = pop.offsetHeight;
+        var top = (window.innerHeight - rect.bottom >= ph + 8) ? rect.bottom + 4 : Math.max(8, rect.top - ph - 4);
+        pop.style.top = top + 'px';
+        pop.style.left = Math.min(rect.left, window.innerWidth - pop.offsetWidth - 8) + 'px';
+        var search = pop.querySelector('.il-search');
+        if (search) { search.focus(); search.addEventListener('input', function () {
+            var q = search.value.toLowerCase();
+            pop.querySelectorAll('.il-opt[data-v]').forEach(function (op) {
+                if (!op.getAttribute('data-v')) return;
+                op.style.display = op.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+            });
+        }); }
+        pop.querySelectorAll('.il-opt').forEach(function (op) {
+            op.addEventListener('click', function () {
+                var v = op.getAttribute('data-v');
+                ilPatch(pk, field, v === '' ? '' : (cfg.tipo === 'atendente' ? parseInt(v, 10) : v), cell, cfg);
+                closePop();
+            });
+        });
+    };
+
+    window.ilToggle = function (el, pk, field) {
+        var novo = !el.classList.contains('on');
+        ilPatch(pk, field, novo, null, null, function () {
+            el.classList.toggle('on', novo);
+            el.innerHTML = novo ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+        });
+    };
+
+    function ilPatch(pk, field, value, cell, cfg, onOk) {
+        fetch('/liderancas/api/' + pk + '/patch/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ field: field, value: value }),
+        }).then(function (r) {
+            return r.json().catch(function () { throw new Error('HTTP ' + r.status); });
+        }).then(function (d) {
+            if (!d.ok) { alert(d.error || 'Erro ao salvar'); return; }
+            if (onOk) { onOk(); return; }
+            // repinta a célula de escolha/atendente
+            var span = cell.querySelector('[data-il]');
+            if (!span) return;
+            if (!value) {
+                span.className = 'il-badge il-empty'; span.textContent = '—';
+                if (field === 'atendente_user') span.setAttribute('data-uid', '');
+            } else if (cfg.tipo === 'atendente') {
+                var c = corAtend(value);
+                span.className = 'il-atend'; span.setAttribute('data-uid', value);
+                span.style.background = c.bg; span.style.color = c.fg; span.textContent = d.display;
+            } else {
+                span.className = 'il-badge ' + cfg.cls(value); span.textContent = d.display;
+            }
+        }).catch(function (err) { alert('Não foi possível salvar (' + (err.message || 'erro') + ').'); });
+    }
+
+    function esc(s) { var e = document.createElement('div'); e.textContent = s; return e.innerHTML; }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ilPaintAtendentes);
+    else ilPaintAtendentes();
+})();
+</script>
+{% endif %}
 <script>
 // Multi-select dropdowns (checkbox) — Região e Categoria
 function updateMsLabel(ms) {
@@ -496,6 +734,17 @@ document.querySelectorAll('#msRegiao input[type=checkbox]').forEach(function (c)
 // Densidade
 if (localStorage.getItem('lideranca_dense') === '1') document.getElementById('tableScroll').classList.add('dense');
 function toggleDensity() { var t = document.getElementById('tableScroll'); t.classList.toggle('dense'); localStorage.setItem('lideranca_dense', t.classList.contains('dense') ? '1' : '0'); }
+function toggleAdvFiltros() {
+    var p = document.getElementById('filtrosAvancados'); if (!p) return;
+    var aberto = p.classList.toggle('open');
+    var b = document.getElementById('advToggle');
+    if (b) b.textContent = 'Filtros avançados ' + (aberto ? '▴' : '▾');
+}
+// Se já vem aberto (há filtro avançado ativo), acerta o rótulo do botão
+document.addEventListener('DOMContentLoaded', function () {
+    var p = document.getElementById('filtrosAvancados'), b = document.getElementById('advToggle');
+    if (p && b && p.classList.contains('open')) b.textContent = 'Filtros avançados ▴';
+});
 
 // Itens por página
 function setPerPage(v) { var p = new URLSearchParams(window.location.search); p.set('per_page', v); p.delete('page'); window.location.search = p.toString(); }

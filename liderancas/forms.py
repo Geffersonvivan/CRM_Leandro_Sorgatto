@@ -1,5 +1,6 @@
 import re
 from django import forms
+from usuarios.models import Usuario
 from .models import Lideranca, Voluntario, Cidade, Regiao, InteracaoLog
 
 
@@ -196,7 +197,7 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
             'frequencia_relacionamento',
             'status',
             # PLANILHA CENTRAL ISA
-            'atendente', 'contato_feito', 'data_contato', 'canal_atendimento',
+            'atendente', 'atendente_user', 'contato_feito', 'data_contato', 'canal_atendimento',
             'intencao_voto', 'quem_e_eleitor', 'filiado_partido', 'segmentos', 'idade',
             'vaquinha_enviada', 'doou', 'material_entregue', 'endereco',
             'observacoes',
@@ -220,6 +221,7 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-input'}),
             # PLANILHA CENTRAL
             'atendente': forms.TextInput(attrs={'class': 'form-input'}),
+            'atendente_user': forms.Select(attrs={'class': 'form-input'}),
             'data_contato': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
             'canal_atendimento': forms.Select(attrs={'class': 'form-input'}),
             'intencao_voto': forms.Select(attrs={'class': 'form-input'}),
@@ -239,12 +241,58 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.user = user
 
-        if self.instance.pk:
+        from django.conf import settings
+        isadora_layout = settings.CAMPANHA.get('LIDERANCA_INLINE_EDIT', False)
+
+        if isadora_layout:
+            # Form alinhado à PLANILHA CENTRAL da Isadora: Atendente puxa os usuários
+            # cadastrados; some o funil de vendas (cargo, votos, prioridade, etc.).
+            self.fields['atendente_user'].queryset = Usuario.objects.filter(
+                is_active=True).order_by('first_name', 'username')
+            self.fields['atendente_user'].required = False
+            self.fields['atendente_user'].label = 'Atendente'
+            # rótulos fiéis à planilha
+            self.fields['intencao_voto'].label = 'Voto'
+            self.fields['origem_contato'].label = 'Como chegou'
+            for f in ('cargo', 'votos_referencia', 'meta_votos_transferir', 'prioridade',
+                      'grau_influencia', 'frequencia_relacionamento', 'status',
+                      'atendente', 'tipos'):
+                self.fields.pop(f, None)
+            # Seções do form (design em capítulos) — agrupam por como a campanha
+            # pensa um apoiador: quem é, como classificamos, status de atendimento.
+            self._secoes = [
+                ('Contato', ['nome', 'telefone', 'email', 'regiao', 'cidade', 'uf',
+                             'instagram', 'facebook', 'idade', 'endereco']),
+                ('Classificação', ['atendente_user', 'intencao_voto', 'nivel',
+                                   'quem_e_eleitor', 'origem_contato', 'filiado_partido',
+                                   'segmentos']),
+                ('Atendimento', ['contato_feito', 'data_contato', 'canal_atendimento',
+                                 'vaquinha_enviada', 'doou', 'material_entregue']),
+                ('Observações', ['observacoes']),
+            ]
+        else:
+            # Outras marcas mantêm o form clássico — sem o seletor de usuário.
+            self.fields.pop('atendente_user', None)
+
+        if 'tipos' in self.fields and self.instance.pk:
             # Pré-seleciona as categorias já gravadas (fallback ao tipo único legado)
             self.fields['tipos'].initial = self.instance.tipos or (
                 [self.instance.tipo] if self.instance.tipo else [])
         if self.instance.pk and self.instance.cidade_id:
             self.fields['regiao'].initial = self.instance.cidade.regiao_id
+
+    def get_secoes(self):
+        """Campos agrupados em seções (layout Isadora). None nas outras marcas —
+        aí o template cai no loop simples."""
+        secoes = getattr(self, '_secoes', None)
+        if not secoes:
+            return None
+        out = []
+        for titulo, nomes in secoes:
+            campos = [self[n] for n in nomes if n in self.fields]
+            if campos:
+                out.append({'titulo': titulo, 'campos': campos})
+        return out
 
         if user:
             if hasattr(user, 'coordenacao'):
@@ -292,8 +340,11 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
         instance.papel = 'apoiador'
         cidade = self.cleaned_data.get('cidade')
         instance.regiao = cidade.regiao if cidade else None
-        # tipo (principal) é derivado de tipos no save() do model
-        instance.tipos = self.cleaned_data.get('tipos') or []
+        # tipo (principal) é derivado de tipos no save() do model. Só mexe se o
+        # campo existir no form (no layout Isadora, Categoria foi removida — não
+        # apagar as categorias já gravadas ao editar).
+        if 'tipos' in self.fields:
+            instance.tipos = self.cleaned_data.get('tipos') or []
         if commit:
             instance.save()
         return instance
