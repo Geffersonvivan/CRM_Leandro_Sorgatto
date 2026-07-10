@@ -3,10 +3,11 @@ from datetime import date, datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, F
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from core.views import api_cidades as core_api_cidades
@@ -214,6 +215,7 @@ def tarefa_delete(request, pk):
 
 # ── Lista (principal) ────────────────────────────────────────────
 
+@never_cache
 @secao_required('demandas:tarefas')
 def lista(request):
     tarefas = _tarefas_ativas().select_related(
@@ -221,7 +223,9 @@ def lista(request):
     ).prefetch_related('participantes', 'cabos')
 
     tarefas = _filtrar_por_usuario(tarefas, request.user)
-    tarefas = list(tarefas.order_by('fase', 'ordem', '-prioridade'))
+    # Ranqueado por prazo: as que vencem antes no topo; sem prazo vão para o fim.
+    # Empate mantém a ordem manual (ordem) e a prioridade como desempate.
+    tarefas = list(tarefas.order_by(F('prazo').asc(nulls_last=True), 'ordem', '-prioridade'))
 
     _anotar_coordenadores_cabos(tarefas)
 

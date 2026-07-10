@@ -951,6 +951,7 @@
             <tr data-id="{{ t.id }}"
                 data-titulo="{{ t.titulo|lower }}"
                 data-fase="{{ t.fase }}"
+                data-prazo="{{ t.prazo|date:'Y-m-d' }}"
                 data-responsavel="{{ t.responsavel_id|default:'' }}"
                 data-prioridade="{{ t.prioridade }}"
                 data-tipo="{{ t.tipo }}"
@@ -1757,6 +1758,7 @@ function buildDatePicker(pop, tarefaId) {
         document.getElementById('prazo-' + tarefaId).textContent = '—';
         document.getElementById('prazo-' + tarefaId).className = 'cell-prazo';
         patchField(tarefaId, 'prazo', '');
+        reordenarPorPrazo();   // sem prazo → vai para o fim, na hora
         closePopover();
     });
     footer.appendChild(clearBtn);
@@ -1849,6 +1851,7 @@ function buildDatePicker(pop, tarefaId) {
         document.getElementById('prazo-' + tarefaId).textContent = display;
         document.getElementById('prazo-' + tarefaId).className = 'cell-prazo';
         patchField(tarefaId, 'prazo', val);
+        reordenarPorPrazo();   // reordena na hora ao clicar OK, sem esperar a rede
         closePopover();
     }
 
@@ -2202,6 +2205,28 @@ function patchFieldAsync(tarefaId, field, value) {
     }).then(r => r.json().then(d => ({ ...d, field, value: d.value }))).catch(() => ({ ok: false, field, error: 'Falha de rede' }));
 }
 
+// Reordena a lista NA HORA, sem refresh: as que vencem antes sobem; sem prazo
+// vão para o fim. Lê o prazo direto da CÉLULA visível (#prazo-<id>), então é
+// robusto — não depende de data-attributes nem de encontrar o <tr>.
+const _prazoRank = tr => {
+    const cell = document.getElementById('prazo-' + tr.dataset.id);
+    const m = cell && cell.textContent.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : '9999-99-99';  // sem prazo → fim
+};
+function reordenarPorPrazo() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const addRow = document.getElementById('addRow');
+    const prio = { alta: 0, media: 1, baixa: 2 };
+    const linhas = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-id]'));
+    linhas.sort((a, b) => {
+        const ra = _prazoRank(a), rb = _prazoRank(b);
+        if (ra !== rb) return ra < rb ? -1 : 1;
+        return (prio[a.dataset.prioridade] ?? 1) - (prio[b.dataset.prioridade] ?? 1);
+    });
+    linhas.forEach(tr => tbody.insertBefore(tr, addRow || null));
+}
+
 function patchField(tarefaId, field, value) {
     fetch(`/tarefas/api/${tarefaId}/patch/`, {
         method: 'POST',
@@ -2225,6 +2250,7 @@ function patchField(tarefaId, field, value) {
             b.className = 'badge-prio ' + value;
             b.textContent = data.display;
             row.dataset.prioridade = value;
+            reordenarPorPrazo();
         } else if (field === 'responsavel') {
             const av = document.getElementById('avatar-' + tarefaId);
             if (value) {
@@ -2241,7 +2267,9 @@ function patchField(tarefaId, field, value) {
         } else if (field === 'prazo') {
             const s = document.getElementById('prazo-' + tarefaId);
             s.textContent = data.display || '—';
-            s.className = 'cell-prazo';
+            // Mantém o realce de vencida/hoje ao editar inline (não zera a cor).
+            s.className = 'cell-prazo' + (data.is_vencida ? ' vencido' : (data.vence_hoje ? ' hoje' : ''));
+            reordenarPorPrazo();
         } else if (field === 'data_hora_inicio') {
             const s = document.getElementById('dt-inicio-' + tarefaId);
             s.textContent = data.display || '—';
@@ -3661,6 +3689,7 @@ function salvarInline(tr, input) {
         const id = data.id;
         tr.className = '';
         tr.dataset.id = id;
+        tr.dataset.prazo = '';  // nova tarefa sem prazo → vai para o fim do ranking
         tr.dataset.titulo = titulo.toLowerCase();
         tr.dataset.fase = data.fase;
         tr.dataset.responsavel = '';
@@ -3758,6 +3787,7 @@ function salvarInline(tr, input) {
             const total = document.querySelectorAll('#tableBody tr[data-id]').length;
             countEl.textContent = total + ' tarefas';
         }
+        reordenarPorPrazo();   // encaixa a nova tarefa no ranking (sem prazo → fim)
     }).catch(() => { tr.remove(); });
 }
 
