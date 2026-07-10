@@ -4,6 +4,10 @@
     {% if form.non_field_errors %}
     <div class="form-modal-errors">{{ form.non_field_errors }}</div>
     {% endif %}
+    {% if form.meso_display %}
+    {# Território derivado (Isadora): ilha cidade -> [assoc, micro, meso]. #}
+    <script id="cidadeRegioes" type="application/json">{% autoescape off %}{ {% for c in form.cidade.field.queryset %}"{{ c.pk }}":["{{ c.regiao.sigla|default:''|escapejs }}","{{ c.microrregiao.nome|default:''|escapejs }}","{{ c.mesorregiao.nome|default:''|escapejs }}"]{% if not forloop.last %},{% endif %}{% endfor %} }{% endautoescape %}</script>
+    {% endif %}
 
     {% if secoes %}
     {# ===== Layout em capítulos (Isadora) ===== #}

@@ -251,17 +251,41 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
                 is_active=True).order_by('first_name', 'username')
             self.fields['atendente_user'].required = False
             self.fields['atendente_user'].label = 'Atendente'
+            # Cidade é o ponto de partida: select completo (com as 3 regiões
+            # pré-carregadas para o lookup do JS derivar meso/micro/assoc).
+            self.fields['cidade'].queryset = Cidade.objects.select_related(
+                'regiao', 'microrregiao', 'mesorregiao').order_by('nome')
             # rótulos fiéis à planilha
             self.fields['intencao_voto'].label = 'Voto'
             self.fields['origem_contato'].label = 'Como chegou'
             for f in ('cargo', 'votos_referencia', 'meta_votos_transferir', 'prioridade',
                       'grau_influencia', 'frequencia_relacionamento', 'status',
-                      'atendente', 'tipos'):
+                      'atendente', 'tipos', 'regiao'):
                 self.fields.pop(f, None)
+            # Território derivado da cidade (Isadora): escolhida a cidade, Meso/Micro/
+            # Associação são preenchidas sozinhas (read-only). Não são gravadas na
+            # liderança — a região é propriedade da cidade; o JS só as exibe.
+            for nome, label in (('assoc_display', 'Associação'),
+                                ('micro_display', 'Microrregião'),
+                                ('meso_display', 'Mesorregião')):
+                self.fields[nome] = forms.CharField(
+                    label=label, required=False,
+                    widget=forms.TextInput(attrs={
+                        'class': 'form-input', 'id': f'id_{nome}',
+                        'readonly': True, 'disabled': True, 'placeholder': '—',
+                        'data-derivado': 'regiao',
+                    }),
+                )
+            if self.instance.pk and self.instance.cidade_id:
+                c = self.instance.cidade
+                self.fields['assoc_display'].initial = c.regiao.sigla if c.regiao_id else ''
+                self.fields['micro_display'].initial = c.microrregiao.nome if c.microrregiao_id else ''
+                self.fields['meso_display'].initial = c.mesorregiao.nome if c.mesorregiao_id else ''
             # Seções do form (design em capítulos) — agrupam por como a campanha
             # pensa um apoiador: quem é, como classificamos, status de atendimento.
             self._secoes = [
-                ('Contato', ['nome', 'telefone', 'email', 'regiao', 'cidade', 'uf',
+                ('Contato', ['nome', 'telefone', 'email', 'cidade',
+                             'assoc_display', 'micro_display', 'meso_display', 'uf',
                              'instagram', 'facebook', 'idade', 'endereco']),
                 ('Classificação', ['atendente_user', 'intencao_voto', 'nivel',
                                    'quem_e_eleitor', 'origem_contato', 'filiado_partido',
@@ -278,7 +302,7 @@ class ApoiadorForm(DuplicateCheckMixin, forms.ModelForm):
             # Pré-seleciona as categorias já gravadas (fallback ao tipo único legado)
             self.fields['tipos'].initial = self.instance.tipos or (
                 [self.instance.tipo] if self.instance.tipo else [])
-        if self.instance.pk and self.instance.cidade_id:
+        if self.instance.pk and self.instance.cidade_id and 'regiao' in self.fields:
             self.fields['regiao'].initial = self.instance.cidade.regiao_id
 
     def get_secoes(self):

@@ -100,6 +100,22 @@ class MacroRegiao(models.Model):
 
 
 class Regiao(models.Model):
+    # Nível da regionalização (SC): associação de municípios (padrão histórico, 21),
+    # microrregião IBGE (20) e mesorregião IBGE (6). Um seletor escolhe o nível;
+    # cada cidade pertence a uma de cada nível.
+    NIVEL_CHOICES = [
+        ('associacao', 'Associação de Municípios'),
+        ('micro', 'Microrregião'),
+        ('meso', 'Mesorregião'),
+    ]
+    nivel = models.CharField(
+        max_length=12, choices=NIVEL_CHOICES, default='associacao', db_index=True,
+        verbose_name='Nível',
+    )
+    codigo = models.CharField(
+        max_length=10, blank=True, verbose_name='Código IBGE',
+        help_text='Código IBGE da meso/microrregião (vazio para associações).',
+    )
     nome = models.CharField(max_length=100)
     sigla = models.CharField(max_length=20, unique=True)
     nome_completo = models.CharField(max_length=255, blank=True)
@@ -126,7 +142,20 @@ class Regiao(models.Model):
 
 class Cidade(models.Model):
     nome = models.CharField(max_length=100)
+    # `regiao` = associação de municípios (padrão histórico). meso/micro são a
+    # regionalização IBGE, mapeadas por codigo_ibge no seed. Os três níveis são
+    # propriedade da cidade — a liderança deriva deles, nunca os armazena.
     regiao = models.ForeignKey(Regiao, on_delete=models.PROTECT, related_name='cidades')
+    mesorregiao = models.ForeignKey(
+        Regiao, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='cidades_meso', limit_choices_to={'nivel': 'meso'},
+        verbose_name='Mesorregião',
+    )
+    microrregiao = models.ForeignKey(
+        Regiao, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='cidades_micro', limit_choices_to={'nivel': 'micro'},
+        verbose_name='Microrregião',
+    )
     slug = models.SlugField(db_index=True, null=True, blank=True)
     codigo_ibge = models.CharField(max_length=10, unique=True, null=True, blank=True)
     populacao = models.IntegerField(default=0)

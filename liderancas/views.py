@@ -3,6 +3,7 @@ import io
 from datetime import timedelta
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Max, Count
@@ -146,8 +147,8 @@ def lideranca_list(request):
     f_texto_valor = request.GET.get('texto_valor', '')
 
     qs = Lideranca.objects.select_related(
-        'cidade', 'cidade__regiao', 'regiao', 'coordenador_responsavel', 'cadastrado_por',
-        'atendente_user',
+        'cidade', 'cidade__regiao', 'cidade__microrregiao', 'cidade__mesorregiao',
+        'regiao', 'coordenador_responsavel', 'cadastrado_por', 'atendente_user',
     ).annotate(ultima_interacao=Max('interacoes__data'))
 
     # Aprovação: por padrão esconde rejeitados; filtro explícito mostra o estado pedido
@@ -867,6 +868,7 @@ def apoiador_list(request):
     })
 
 
+@never_cache
 @secao_required('liderancas:lista')
 def apoiador_create(request):
     if request.method == 'POST':
@@ -889,6 +891,7 @@ def apoiador_create(request):
     })
 
 
+@never_cache
 @secao_required('liderancas:lista')
 def apoiador_edit(request, pk):
     apoiador = get_object_or_404(Lideranca, pk=pk, papel='apoiador')

@@ -288,12 +288,89 @@
         });
     }
 
+    // ===== Território derivado da cidade (Isadora) =====
+    // Escolhida a cidade, preenche os campos read-only Assoc/Micro/Meso a partir do
+    // lookup embutido (#cidadeRegioes). Funciona na página cheia e no modal.
+    function initCidadeDerivados(scope) {
+        var root = (scope && document.querySelector(scope)) || document;
+        var island = root.querySelector('#cidadeRegioes') || document.getElementById('cidadeRegioes');
+        var cid = root.querySelector('#id_cidade');
+        if (!island || !cid || cid.dataset.derivadosWired) return;
+        cid.dataset.derivadosWired = '1';
+        var mapa;
+        try { mapa = JSON.parse(island.textContent || '{}'); } catch (e) { return; }
+        var assoc = root.querySelector('#id_assoc_display');
+        var micro = root.querySelector('#id_micro_display');
+        var meso = root.querySelector('#id_meso_display');
+        function preencher() {
+            var r = mapa[cid.value] || ['', '', ''];
+            if (assoc) assoc.value = r[0] || '';
+            if (micro) micro.value = r[1] || '';
+            if (meso) meso.value = r[2] || '';
+        }
+        cid.addEventListener('change', preencher);
+        preencher();
+    }
+
+    // ===== Busca na cidade (combo pesquisável sobre o <select> nativo) =====
+    function _injectCsbCss() {
+        if (document.getElementById('csb-css')) return;
+        var st = document.createElement('style'); st.id = 'csb-css';
+        st.textContent =
+            '.csb{position:relative;width:100%;}' +
+            '.csb-list{position:absolute;z-index:950;top:calc(100% + 4px);left:0;right:0;' +
+            'max-height:280px;overflow-y:auto;background:#fff;border:1.5px solid #e2e8f0;' +
+            'border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.14);padding:4px;}' +
+            '.csb-opt{padding:8px 12px;border-radius:8px;font-size:0.85rem;color:#1e293b;cursor:pointer;line-height:1.35;}' +
+            '.csb-opt:hover,.csb-opt.active{background:var(--accent-ring,#eef2ff);}' +
+            '.csb-empty{padding:8px 12px;font-size:0.82rem;color:#94a3b8;}';
+        document.head.appendChild(st);
+    }
+    function initCidadeSearch(scope) {
+        var root = (scope && document.querySelector(scope)) || document;
+        var sel = root.querySelector('select#id_cidade');
+        if (!sel || sel.dataset.searchable) return;
+        _injectCsbCss();
+        sel.dataset.searchable = '1';
+        sel.style.display = 'none';
+        var wrap = document.createElement('div'); wrap.className = 'csb';
+        var input = document.createElement('input');
+        input.type = 'text'; input.className = 'form-input csb-input';
+        input.placeholder = 'Buscar cidade…'; input.autocomplete = 'off';
+        var list = document.createElement('div'); list.className = 'csb-list'; list.hidden = true;
+        sel.parentNode.insertBefore(wrap, sel);
+        wrap.appendChild(input); wrap.appendChild(sel); wrap.appendChild(list);
+        if (sel.value && sel.options[sel.selectedIndex]) input.value = sel.options[sel.selectedIndex].textContent;
+        function render(f) {
+            f = (f || '').toLowerCase(); list.innerHTML = ''; var n = 0;
+            Array.prototype.forEach.call(sel.options, function (opt) {
+                if (!opt.value) return;
+                if (f && opt.textContent.toLowerCase().indexOf(f) === -1) return;
+                if (n++ >= 60) return;
+                var d = document.createElement('div'); d.className = 'csb-opt'; d.textContent = opt.textContent;
+                d.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    sel.value = opt.value; input.value = opt.textContent; list.hidden = true;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                list.appendChild(d);
+            });
+            if (!n) { var em = document.createElement('div'); em.className = 'csb-empty'; em.textContent = 'Nenhuma cidade'; list.appendChild(em); }
+            list.hidden = false;
+        }
+        input.addEventListener('focus', function () { render(input.value); });
+        input.addEventListener('input', function () { render(input.value); });
+        input.addEventListener('blur', function () { setTimeout(function () { list.hidden = true; }, 150); });
+    }
+
     // Expose
     window.LiderancasCommon = {
         initPhoneMask: initPhoneMask,
         initCityLoader: initCityLoader,
         initFilterCityLoader: initFilterCityLoader,
         initRegiaoCustomDropdown: initRegiaoCustomDropdown,
+        initCidadeDerivados: initCidadeDerivados,
+        initCidadeSearch: initCidadeSearch,
     };
 
     // Auto-init em todos os selects de região (uma vez só)
@@ -307,6 +384,25 @@
             document.addEventListener('DOMContentLoaded', _rcdStart);
         } else {
             _rcdStart();
+        }
+    }
+
+    // Auto-init do território derivado (Isadora): funciona na página cheia E quando
+    // o form é injetado num modal — sem depender de quem chama initWidgets. Observa
+    // o DOM e liga busca+preenchimento assim que a ilha #cidadeRegioes aparece.
+    if (!window.__cidadeAutoInit) {
+        window.__cidadeAutoInit = true;
+        function _cidadeStart() {
+            if (!document.getElementById('cidadeRegioes')) return;
+            initCidadeSearch();
+            initCidadeDerivados();
+        }
+        var _obs = new MutationObserver(function () { _cidadeStart(); });
+        function _boot() { _cidadeStart(); _obs.observe(document.body, { childList: true, subtree: true }); }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', _boot);
+        } else {
+            _boot();
         }
     }
 })();

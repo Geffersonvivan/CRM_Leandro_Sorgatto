@@ -74,6 +74,9 @@ CAMPANHA = {
         'nivel',              # NÍVEL
         'nome',               # NOME
         'cidade',             # CIDADE
+        'associacao',         # ASSOCIAÇÃO (sigla, derivada da cidade)
+        'microrregiao',       # MICRORREGIÃO (IBGE, derivada da cidade)
+        'mesorregiao',        # MESORREGIÃO (IBGE, derivada da cidade)
         'uf',                 # UF
         'contato_feito',      # Contato Feito?
         'data_contato',       # DATA CONTATO

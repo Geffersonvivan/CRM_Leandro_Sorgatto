@@ -430,6 +430,9 @@
                     {% elif c == 'email' %}<th class="col-email">E-mail</th>
                     {% elif c == 'instagram' %}<th class="col-insta">Instagram</th>
                     {% elif c == 'cidade' %}{% sortable_th "cidade__nome" "Cidade" "" %}
+                    {% elif c == 'associacao' %}<th class="col-assoc">Associação</th>
+                    {% elif c == 'microrregiao' %}<th class="col-micro">Microrregião</th>
+                    {% elif c == 'mesorregiao' %}<th class="col-meso">Mesorregião</th>
                     {% elif c == 'regiao' %}{% sortable_th "regiao__sigla" "Região" "" %}
                     {% elif c == 'coordenador_responsavel' %}<th>Coord. Resp.</th>
                     {% elif c == 'tipo' %}<th>Categoria / Cargo</th>
@@ -474,6 +477,9 @@
                     {% elif c == 'email' %}<td class="col-email">{{ o.email|default:"-" }}</td>
                     {% elif c == 'instagram' %}<td class="col-insta">{{ o.instagram|instagram_link }}</td>
                     {% elif c == 'cidade' %}<td>{{ o.cidade.nome|default:"-" }}</td>
+                    {% elif c == 'associacao' %}<td class="col-assoc nw" style="text-align:center;"><span class="badge">{{ o.cidade.regiao.sigla|default:"-" }}</span></td>
+                    {% elif c == 'microrregiao' %}<td class="col-micro nw">{{ o.cidade.microrregiao.nome|default:"-" }}</td>
+                    {% elif c == 'mesorregiao' %}<td class="col-meso nw">{{ o.cidade.mesorregiao.nome|default:"-" }}</td>
                     {% elif c == 'regiao' %}<td class="nw" style="text-align:center;"><span class="badge">{{ o.cidade.regiao.sigla|default:"-" }}</span></td>
                     {% elif c == 'coordenador_responsavel' %}<td>{% if o.papel == 'cabo' %}{{ o.coordenador_responsavel.nome|default:"-" }}{% else %}-{% endif %}</td>
                     {% elif c == 'tipo' %}<td>{% if o.papel == 'apoiador' %}{{ o.get_tipos_display }}{% if o.cargo %} · {{ o.get_cargo_display }}{% endif %}{% else %}-{% endif %}</td>

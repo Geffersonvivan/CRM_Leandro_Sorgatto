@@ -44,6 +44,9 @@
         if (window.LiderancasCommon) {
             LiderancasCommon.initPhoneMask('#formModal #id_telefone');
             LiderancasCommon.initCityLoader('#formModal #id_regiao', '#formModal #id_cidade');
+            // Isadora: busca na cidade + preenchimento derivado de Meso/Micro/Assoc.
+            LiderancasCommon.initCidadeSearch('#formModal');
+            LiderancasCommon.initCidadeDerivados('#formModal');
         }
         const form = document.getElementById('formModalForm');
         if (form) form.addEventListener('submit', onSubmit);
@@ -86,7 +89,7 @@
         document.getElementById('formModalBody').innerHTML =
             '<div class="form-modal-loading"><span class="spinner"></span> Carregando...</div>';
         overlay.classList.add('active');
-        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
             .then(function (r) {
                 if (!r.ok) throw new Error('http');
                 return r.text();
