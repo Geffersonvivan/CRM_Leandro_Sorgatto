@@ -1,3 +1,4 @@
+import itertools
 import math
 from collections import defaultdict
 
@@ -1834,7 +1835,9 @@ class Elections2022API(APIView):
         if not eleicao:
             return Response({'summary': {}, 'perf_summary': {}, 'cities': [], 'zones': []})
 
-        # Agrupar todos os resultados por cidade, ordenados por votos
+        # Resultados ordenados por cidade e votos. Streaming com iterator()+groupby:
+        # processa uma cidade por vez (só os candidatos dela em memória) — evita
+        # carregar os 264k resultados de uma vez (pico ~142MB → OOM no dyno).
         all_results = (
             ResultadoCandidato.objects
             .filter(eleicao=eleicao)
@@ -1845,17 +1848,15 @@ class Elections2022API(APIView):
                 'candidato_nome', 'votos', 'percentual', 'is_candidato',
             )
             .order_by('cidade__slug', '-votos')
+            .iterator(chunk_size=5000)
         )
-
-        city_candidates = defaultdict(list)
-        for r in all_results:
-            city_candidates[r['cidade__slug']].append(r)
 
         cities = []
         total_ls_votes = 0
         positions = []
 
-        for slug, candidates in city_candidates.items():
+        for slug, _grupo in itertools.groupby(all_results, key=lambda r: r['cidade__slug']):
+            candidates = list(_grupo)  # candidatos apenas desta cidade
             ls_pos = None
             ls_votes = 0
             ls_pct = 0
