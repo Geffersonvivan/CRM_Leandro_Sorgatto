@@ -43,7 +43,9 @@ class ResultadoCandidato(models.Model):
         verbose_name_plural = 'Resultados por Candidato'
         indexes = [
             models.Index(fields=['eleicao', 'cidade']),
-            models.Index(fields=['is_candidato']),
+            # (is_candidato) sozinho era peso morto: ~0,1% TRUE, o planner não o
+            # usava (baixa seletividade). Removido — a janela das Eleições filtra
+            # is_candidato já depois de percorrer a partição por cidade.
         ]
 
     def __str__(self):
@@ -66,6 +68,11 @@ class ResultadoZona(models.Model):
         verbose_name_plural = 'Resultados por Zona'
         indexes = [
             models.Index(fields=['eleicao', 'cidade', 'zona']),
+            # Ranking por zona (ZoneRankingAPI) filtra (eleicao, zona) sem cidade —
+            # o índice acima não alcança 'zona' sem 'cidade'. Este cobre e dá ~7,7x.
+            models.Index(fields=['eleicao', 'zona']),
+            # zone_agg das Eleições 2022 filtra (eleicao, is_candidato) agrupando por zona.
+            models.Index(fields=['eleicao', 'is_candidato', 'zona']),
         ]
 
     def __str__(self):

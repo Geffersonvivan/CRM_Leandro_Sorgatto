@@ -218,16 +218,16 @@ def tarefa_delete(request, pk):
 @never_cache
 @secao_required('demandas:tarefas')
 def lista(request):
-    tarefas = _tarefas_ativas().select_related(
+    tarefas_qs = _tarefas_ativas().select_related(
         'responsavel', 'regiao', 'cidade', 'compromisso'
     ).prefetch_related('participantes', 'cabos')
 
-    tarefas = _filtrar_por_usuario(tarefas, request.user)
+    tarefas_qs = _filtrar_por_usuario(tarefas_qs, request.user)
     # Ranqueado por prazo: as que vencem antes no topo; sem prazo vão para o fim.
     # Empate mantém a ordem manual (ordem) e a prioridade como desempate.
-    tarefas = list(tarefas.order_by(F('prazo').asc(nulls_last=True), 'ordem', '-prioridade'))
+    tarefas_qs = tarefas_qs.order_by(F('prazo').asc(nulls_last=True), 'ordem', '-prioridade')
 
-    _anotar_coordenadores_cabos(tarefas)
+    total_tarefas = tarefas_qs.count()
 
     usuarios = Usuario.objects.exclude(
         vinculo__in=['coordenador', 'cabo', 'replicador']
@@ -245,25 +245,28 @@ def lista(request):
             if areas else Tarefa.AREA_CHOICES
         )
 
-    # Paginação
+    # Paginação no banco (LIMIT/OFFSET): materializa e anota coord/cabos só na
+    # página exibida, não a base inteira antes de paginar.
     page_number = request.GET.get('page', 1)
     per_page = request.GET.get('per_page', '50')
     if per_page == 'all':
-        per_page = len(tarefas) or 1
+        per_page = total_tarefas or 1
     else:
         try:
             per_page = int(per_page)
         except (ValueError, TypeError):
             per_page = 50
-    paginator = Paginator(tarefas, per_page)
+    paginator = Paginator(tarefas_qs, per_page)
     page_obj = paginator.get_page(page_number)
+    page_obj.object_list = list(page_obj.object_list)
+    _anotar_coordenadores_cabos(page_obj.object_list)
     per_page_atual = request.GET.get('per_page', '50')
 
     return render(request, 'tarefas/lista.html', {
         'tarefas': page_obj,
         'page_obj': page_obj,
         'per_page': per_page_atual,
-        'total_tarefas': len(tarefas),
+        'total_tarefas': total_tarefas,
         'usuarios': usuarios,
         'tipo_choices': tipo_choices,
         'fase_choices': Tarefa.FASE_CHOICES,

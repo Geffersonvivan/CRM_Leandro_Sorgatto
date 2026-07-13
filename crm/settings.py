@@ -184,6 +184,12 @@ CACHES = {
     },
 }
 
+# Sessão em cache+banco: lê do cache (evita 1 SELECT em django_session por
+# request — custo que pesa com o Postgres remoto/US-West) e persiste no banco,
+# então não perde sessão ao reciclar o worker. Com 1 processo/N threads, o
+# LocMemCache é compartilhado entre as threads.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+
 # ---- PWA: transcrição de áudio (Whisper) — opcional, ativa só se a chave existir ----
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 WHISPER_MODEL = os.environ.get('WHISPER_MODEL', 'whisper-1')
