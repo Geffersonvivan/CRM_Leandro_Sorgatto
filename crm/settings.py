@@ -98,6 +98,15 @@ DATABASES = {
     )
 }
 
+# O Postgres do Railway é servido atrás de um pooler (PgBouncer, transaction
+# mode), onde SERVER-SIDE CURSORS quebram — e uma conexão persistente
+# (conn_max_age) que falhe nesse ponto envenena os requests seguintes do mesmo
+# worker. Desligar os cursores server-side torna todo QuerySet.iterator() um
+# fetch client-side, seguro atrás do pooler. Trava para não reincidir o 500 do
+# mapa/dashboard causado pelo .iterator() das Eleições 2022.
+if DATABASES['default'].get('ENGINE') == 'django.db.backends.postgresql':
+    DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -163,19 +172,15 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Cache em memória do processo — usado pelo cache_page das APIs analíticas
-# do mapa. Com múltiplos workers gunicorn cada worker tem o seu, o que é
-# aceitável para dados agregados; trocar por Redis se precisar invalidação.
-# Cache no BANCO (persistente/compartilhado entre workers) — o LocMemCache era
-# por-worker e esvaziava a cada reciclagem, fazendo o mapa (Eleições 2022)
-# recomputar toda hora. Com o cache no banco, o @cache_page computa uma vez e
-# serve rápido a todos. A tabela é criada por `createcachetable` (no release).
+# Cache em memória do processo — usado pelo cache_page das APIs analíticas do
+# mapa. Com múltiplos workers gunicorn cada worker tem o seu; para dados agregados
+# isso é aceitável, pois o recompute de cada endpoint é enxuto (Eleições 2022 usa
+# função de janela no banco: ~0,5s, ~0,2MB). NÃO usar DatabaseCache aqui: gravaria
+# no volume do Postgres (já em ~86%) e não alivia recompute barato. Trocar por
+# Redis só se precisar invalidação/compartilhamento entre workers.
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'crm_cache_table',
-        'TIMEOUT': 300,
-        'OPTIONS': {'MAX_ENTRIES': 5000},
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     },
 }
 

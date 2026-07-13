@@ -1,9 +1,9 @@
-import itertools
 import math
 from collections import defaultdict
 
 from django.conf import settings
 
+from django.db import connection
 from django.db.models import Count, Sum, Q, F, Avg, OuterRef, Subquery, IntegerField
 from django.db.models.functions import Coalesce
 from django.shortcuts import render
@@ -1835,44 +1835,44 @@ class Elections2022API(APIView):
         if not eleicao:
             return Response({'summary': {}, 'perf_summary': {}, 'cities': [], 'zones': []})
 
-        # Resultados ordenados por cidade e votos. Streaming com iterator()+groupby:
-        # processa uma cidade por vez (só os candidatos dela em memória) — evita
-        # carregar os 264k resultados de uma vez (pico ~142MB → OOM no dyno).
-        all_results = (
-            ResultadoCandidato.objects
-            .filter(eleicao=eleicao)
-            .select_related('cidade__regiao')
-            .values(
-                'cidade__slug', 'cidade__nome', 'cidade__regiao__sigla',
-                'cidade__regiao__slug', 'cidade__eleitores',
-                'candidato_nome', 'votos', 'percentual', 'is_candidato',
-            )
-            .order_by('cidade__slug', '-votos')
-            .iterator(chunk_size=5000)
-        )
+        # Ranking por cidade em UMA passada no banco (funções de janela): posição
+        # do candidato-base, total de concorrentes e 1º colocado saem calculados no
+        # Postgres; só ~295 linhas (uma por cidade) voltam ao Python (pico ~0,2MB).
+        # Substitui o .iterator()+groupby anterior, que dependia de server-side
+        # cursor — este QUEBRA atrás do pooler do Railway (transaction mode) e
+        # derrubava o endpoint em prod (500); a alternativa sem cursor carregava os
+        # ~171k resultados de uma vez (pico ~142MB → OOM). A janela resolve ambos.
+        sql_ranking = """
+            SELECT c.slug, c.nome, r.sigla, r.slug, c.eleitores,
+                   t.votos, t.pct, t.posicao, t.total, t.first_name, t.first_votes
+            FROM (
+              SELECT rc.cidade_id AS cid, rc.votos AS votos, rc.percentual AS pct,
+                     rc.is_candidato AS is_cand,
+                     ROW_NUMBER() OVER (PARTITION BY rc.cidade_id ORDER BY rc.votos DESC) AS posicao,
+                     COUNT(*)     OVER (PARTITION BY rc.cidade_id) AS total,
+                     FIRST_VALUE(rc.candidato_nome)
+                        OVER (PARTITION BY rc.cidade_id ORDER BY rc.votos DESC) AS first_name,
+                     MAX(rc.votos) OVER (PARTITION BY rc.cidade_id) AS first_votes
+              FROM mapa_resultadocandidato rc
+              WHERE rc.eleicao_id = %s
+            ) t
+            JOIN liderancas_cidade c ON c.id = t.cid
+            LEFT JOIN liderancas_regiao r ON r.id = c.regiao_id
+            WHERE t.is_cand
+            ORDER BY t.posicao
+        """
+        with connection.cursor() as cur:
+            cur.execute(sql_ranking, [eleicao.id])
+            rows = cur.fetchall()
 
         cities = []
         total_ls_votes = 0
         positions = []
 
-        for slug, _grupo in itertools.groupby(all_results, key=lambda r: r['cidade__slug']):
-            candidates = list(_grupo)  # candidatos apenas desta cidade
-            ls_pos = None
-            ls_votes = 0
-            ls_pct = 0
-            first_name = candidates[0]['candidato_nome'] if candidates else ''
-            first_votes = candidates[0]['votos'] if candidates else 0
-
-            for i, c in enumerate(candidates, 1):
-                if c['is_candidato']:
-                    ls_pos = i
-                    ls_votes = c['votos']
-                    ls_pct = float(c['percentual'])
-                    break
-
-            if ls_pos is None:
-                continue
-
+        for (slug, nome, sigla, region_slug, eleitores,
+             ls_votes, ls_pct, ls_pos, total_cand, first_name, first_votes) in rows:
+            ls_votes = ls_votes or 0
+            ls_pct = float(ls_pct or 0)
             total_ls_votes += ls_votes
             positions.append(ls_pos)
 
@@ -1887,23 +1887,22 @@ class Elections2022API(APIView):
             else:
                 perf = 'abaixo'
 
-            info = candidates[0]
             cities.append({
                 'slug': slug,
-                'name': info['cidade__nome'],
-                'region': info['cidade__regiao__sigla'],
-                'region_slug': info['cidade__regiao__slug'],
-                'voters': info['cidade__eleitores'] or 0,
+                'name': nome,
+                'region': sigla,
+                'region_slug': region_slug,
+                'voters': eleitores or 0,
                 'ls_votes': ls_votes,
                 'ls_position': ls_pos,
                 'ls_pct': ls_pct,
-                'total_candidates': len(candidates),
+                'total_candidates': total_cand,
                 # Percentil da candidata na cidade: posição relativa ao total de
                 # concorrentes (1º de 400 = top 0,25%). Comparável entre cidades de
                 # portes diferentes, ao contrário da posição absoluta. Badge CONTA.
-                'percentil': round(ls_pos / len(candidates) * 100, 1) if candidates else None,
+                'percentil': round(ls_pos / total_cand * 100, 1) if total_cand else None,
                 'first_name': first_name,
-                'first_votes': first_votes,
+                'first_votes': first_votes or 0,
                 'performance': perf,
             })
 
