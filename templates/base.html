@@ -96,19 +96,13 @@
         </div>
         {% endif %}
 
-        {% if user.perfil == 'admin' or user.is_superuser or 'mapa' in user.secoes_permitidas or 'demandas' in user.secoes_permitidas or 'oportunidades' in user.secoes_permitidas %}
+        {% if user.perfil == 'admin' or user.is_superuser or 'mapa' in user.secoes_permitidas or 'demandas' in user.secoes_permitidas %}
         <div class="sidebar-group">
             <div class="sidebar-group-label">Inteligência</div>
             {% if user.perfil == 'admin' or user.is_superuser or 'mapa' in user.secoes_permitidas or 'demandas' in user.secoes_permitidas %}
             <a class="sidebar-link{% if request.resolver_match.namespace == 'mapa' %} active{% endif %}" href="{% url 'mapa:index' %}" title="Mapa">
                 <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span>
                 <span class="sidebar-label">Mapa</span>
-            </a>
-            {% endif %}
-            {% if user.perfil == 'admin' or user.is_superuser or 'oportunidades' in user.secoes_permitidas %}
-            <a class="sidebar-link{% if request.resolver_match.namespace == 'oportunidades' %} active{% endif %}" href="{% url 'oportunidades:central' %}" title="Oportunidades">
-                <span class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></span>
-                <span class="sidebar-label">Oportunidades</span>
             </a>
             {% endif %}
         </div>
