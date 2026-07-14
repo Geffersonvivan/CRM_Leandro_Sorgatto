@@ -1615,7 +1615,7 @@ class VoteTransferAPI(APIView):
         aliados_obj = list(AliadoChapa.objects.filter(ativo=True))
         aliados_votes = {a.id: {} for a in aliados_obj}
         for a in aliados_obj:
-            qs = ResultadoCandidato.objects.filter(eleicao__ano=2022).select_related('cidade')
+            qs = ResultadoCandidato.objects.filter(eleicao__ano=2022)
             if a.candidato_numero:
                 # casamento exato por número da urna (+ cargo, pois números repetem entre cargos)
                 qs = qs.filter(candidato_numero=a.candidato_numero)
@@ -1625,11 +1625,11 @@ class VoteTransferAPI(APIView):
                 # fallback: termos no nome (cadastros antigos sem número)
                 for t in [t for t in a.termos_busca.upper().split() if t]:
                     qs = qs.filter(candidato_nome__icontains=t)
-            for r in qs:
-                slug = r.cidade.slug
+            for r in qs.values('cidade__slug', 'votos', 'percentual'):
+                slug = r['cidade__slug']
                 cur = aliados_votes[a.id].get(slug)
-                if not cur or r.votos > cur['votes']:
-                    aliados_votes[a.id][slug] = {'votes': r.votos, 'pct': float(r.percentual)}
+                if not cur or r['votos'] > cur['votes']:
+                    aliados_votes[a.id][slug] = {'votes': r['votos'], 'pct': float(r['percentual'])}
         avg_aliado = {}
         for a in aliados_obj:
             vals = [v['pct'] for v in aliados_votes[a.id].values() if v['pct']]
@@ -1644,18 +1644,18 @@ class VoteTransferAPI(APIView):
             results = (
                 ResultadoCandidato.objects
                 .filter(eleicao=eleicao, eleito=True, partido__in=ALLIED_PARTIES)
-                .select_related('cidade')
+                .values('cidade__slug', 'candidato_nome', 'votos', 'percentual')
             )
             for r in results:
-                if r.votos > 0:
-                    slug = r.cidade.slug
+                if r['votos'] > 0:
+                    slug = r['cidade__slug']
                     if slug not in allied_dep_map:
                         allied_dep_map[slug] = {'best_name': '', 'best_pct': 0, 'total_votes': 0, 'count': 0}
-                    allied_dep_map[slug]['total_votes'] += r.votos
+                    allied_dep_map[slug]['total_votes'] += r['votos']
                     allied_dep_map[slug]['count'] += 1
-                    if float(r.percentual) > allied_dep_map[slug]['best_pct']:
-                        allied_dep_map[slug]['best_name'] = r.candidato_nome
-                        allied_dep_map[slug]['best_pct'] = float(r.percentual)
+                    if float(r['percentual']) > allied_dep_map[slug]['best_pct']:
+                        allied_dep_map[slug]['best_name'] = r['candidato_nome']
+                        allied_dep_map[slug]['best_pct'] = float(r['percentual'])
 
         # IBGE indicators
         indicadores = {
@@ -2048,6 +2048,9 @@ class NeighborDeputiesAPI(APIView):
         # Coletar votos dos deputados aliados por cidade
         allied_dep_votes = defaultdict(list)  # city_slug -> [{name, votes, pct, party}]
 
+        # .values() em vez de .select_related('cidade'): os laços só usam o slug da
+        # cidade — carregar o objeto Cidade inteiro (com o JSONField geojson,
+        # decodificado a cada linha) instanciava dezenas de milhares de models à toa.
         for eleicao in dep_elections:
             results = (
                 ResultadoCandidato.objects
@@ -2056,15 +2059,15 @@ class NeighborDeputiesAPI(APIView):
                     eleito=True,
                     partido__in=['PL', 'PP', 'REPUBLICANOS', 'UNIÃO BRASIL', 'UNIÃO'],
                 )
-                .select_related('cidade')
+                .values('cidade__slug', 'candidato_nome', 'votos', 'percentual', 'partido')
             )
             for r in results:
-                if r.votos > 0:
-                    allied_dep_votes[r.cidade.slug].append({
-                        'name': r.candidato_nome,
-                        'votes': r.votos,
-                        'pct': float(r.percentual),
-                        'party': r.partido,
+                if r['votos'] > 0:
+                    allied_dep_votes[r['cidade__slug']].append({
+                        'name': r['candidato_nome'],
+                        'votes': r['votos'],
+                        'pct': float(r['percentual']),
+                        'party': r['partido'],
                     })
 
         # Top adversary candidates per city (strongest non-allied)
@@ -2074,15 +2077,15 @@ class NeighborDeputiesAPI(APIView):
                 ResultadoCandidato.objects
                 .filter(eleicao=eleicao, eleito=True)
                 .exclude(partido__in=ALLIED_PARTIES)
-                .select_related('cidade')
+                .values('cidade__slug', 'candidato_nome', 'votos', 'percentual', 'partido')
             )
             for r in results:
-                if r.votos > 0:
-                    adversary_top[r.cidade.slug].append({
-                        'name': r.candidato_nome,
-                        'votes': r.votos,
-                        'pct': float(r.percentual),
-                        'party': r.partido,
+                if r['votos'] > 0:
+                    adversary_top[r['cidade__slug']].append({
+                        'name': r['candidato_nome'],
+                        'votes': r['votos'],
+                        'pct': float(r['percentual']),
+                        'party': r['partido'],
                     })
 
         # Compromissos (visits) per city
@@ -2573,11 +2576,20 @@ class PerfilIdeologicoAPI(APIView):
         demandas_map = {r['cidade__slug']: r['total'] for r in demandas_qs}
 
         # ── Classificação estratégica e rede PL por cidade ──
-        all_cities = Cidade.objects.select_related('regiao').annotate(
-            # distinct: dois Count sobre relações to-many diferentes
-            coord_count=Count('regiao__liderancas', filter=Q(regiao__liderancas__papel='coordenador'), distinct=True),
-            cabo_count=Count('liderancas', filter=Q(liderancas__papel='cabo'), distinct=True),
+        # Contagens isoladas por relação — evita o fan-out cartesiano
+        # (regiao__liderancas × liderancas) no mesmo annotate, que era o maior
+        # custo do cold-load deste endpoint. Mesmas expressões → idêntico.
+        coord_map = dict(
+            Cidade.objects.values_list('id').annotate(
+                c=Count('regiao__liderancas', filter=Q(regiao__liderancas__papel='coordenador'), distinct=True),
+            ).values_list('id', 'c')
         )
+        cabo_map = dict(
+            Cidade.objects.values_list('id').annotate(
+                c=Count('liderancas', filter=Q(liderancas__papel='cabo'), distinct=True),
+            ).values_list('id', 'c')
+        )
+        all_cities = Cidade.objects.select_related('regiao')
         # Médias de estado: Count e Sum em queries separadas (join inflaria os Sum).
         st_apoiadores = Lideranca.objects.apoiadores_aprovados().count()
         st_sums = Cidade.objects.aggregate(
@@ -2589,6 +2601,8 @@ class PerfilIdeologicoAPI(APIView):
 
         strategic_map = {}  # slug -> {classification, pl_network_level}
         for ct in all_cities:
+            coord_count = coord_map.get(ct.id, 0)
+            cabo_count = cabo_map.get(ct.id, 0)
             voters = ct.eleitores or 0
             votes = ct.votos_referencia_2022 or 0
             pen = (votes / voters * 100) if voters > 0 else 0
@@ -2616,11 +2630,11 @@ class PerfilIdeologicoAPI(APIView):
             ap_count = apoiadores_map.get(ct.slug, 0)
             dens = (ap_count / max(voters, 1)) * 100
             pl_raw = round(
-                (100 if (ct.coord_count or 0) > 0 else 0) * 0.25
+                (100 if (coord_count or 0) > 0 else 0) * 0.25
                 + min(vp * 2, 100) * 0.25
                 + (100 if ct.presidente_diretorio else 0) * 0.20
                 + min(dens / max(st_density * 2, 0.01) * 100, 100) * 0.15
-                + min((ct.cabo_count or 0) * 25, 100) * 0.15
+                + min((cabo_count or 0) * 25, 100) * 0.15
             )
             if pl_raw >= 60:
                 pl_level = 'forte'
