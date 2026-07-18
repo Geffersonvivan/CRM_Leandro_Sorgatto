@@ -300,6 +300,14 @@
     .gcal-field-date { width: 140px; flex-shrink: 0; }
     .gcal-field-time { width: 100px; flex-shrink: 0; }
 
+    /* Cidade-primeiro (Sorgatto): o combo de busca da cidade e o display da
+       região precisam poder encolher no flex (min-width:0), senão o nome longo
+       da região estoura a linha. A região trunca com reticências. */
+    .gcal-fields-inline .gcal-field-md { min-width: 0; }
+    .gcal-rows .csb { width: 100%; }
+    .gcal-rows .csb-input { width: 100%; box-sizing: border-box; }
+    #id_regiao_display { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
     /* Inputs — clean, borderless look */
     .gcal-rows .form-input {
         padding: 5px 8px; border: 1px solid transparent; border-radius: 6px;
