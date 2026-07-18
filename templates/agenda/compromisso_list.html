@@ -303,9 +303,11 @@
     /* Cidade-primeiro (Sorgatto): o combo de busca da cidade e o display da
        região precisam poder encolher no flex (min-width:0), senão o nome longo
        da região estoura a linha. A região trunca com reticências. */
-    .gcal-fields-inline .gcal-field-md { min-width: 0; }
-    .gcal-rows .csb { width: 100%; }
-    .gcal-rows .csb-input { width: 100%; box-sizing: border-box; }
+    /* A célula vira flex-container: o conteúdo (combo de busca .csb ou o input
+       de região) preenche a largura e a célula ABRAÇA a altura do conteúdo —
+       senão o input inline inflava a célula (~91-113px) e desalinhava a linha. */
+    .gcal-fields-inline .gcal-field-md { min-width: 0; display: flex; align-items: center; }
+    .gcal-fields-inline .gcal-field-md > * { flex: 1; min-width: 0; box-sizing: border-box; }
     #id_regiao_display { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     /* Inputs — clean, borderless look */
