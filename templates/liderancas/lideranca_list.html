@@ -159,6 +159,88 @@
     .int-table th { font-size: 0.68rem; text-transform: uppercase; color: #64748b; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e2e8f0; }
     .int-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #374151; }
 </style>
+{% if inline_edit or planilha_apple %}
+<style>
+    /* ===================================================================
+       APPLE DESIGN — restyle da planilha. Ativo na Isadora (inline_edit) e
+       nas marcas que ligam PLANILHA_APPLE (ex.: Sorgatto — só o visual,
+       sem a edição inline). Tudo em var(--navy)/var(--ouro): respeita a
+       paleta da marca. Marcas sem nenhum dos dois flags não recebem nada.
+       =================================================================== */
+
+    /* CRÍTICO p/ o congelamento: o .main-content é flex item com min-width:auto,
+       então ele cresce até a largura da tabela e a PÁGINA rola (não a .table-scroll),
+       e o sticky-left nunca fixa. min-width:0 solta o flex item p/ encolher até a
+       tela; aí a .table-scroll passa a clipar e rolar internamente. Só carrega aqui. */
+    .main-content { min-width: 0; }
+    .table-scroll { max-width: 100%; }
+
+    /* §12 Cartão: cantos arredondados + profundidade */
+    .table-scroll { border: 1px solid rgba(20,20,45,.07); border-radius: 16px; background: #fff;
+        box-shadow: 0 28px 60px -32px rgba(20,20,45,.45), 0 2px 10px -6px rgba(20,20,45,.14); }
+
+    /* CRÍTICO p/ congelar coluna: sticky horizontal NÃO funciona com
+       border-collapse:collapse — trocamos p/ separate (visual idêntico). */
+    .table-scroll table { border-collapse: separate; border-spacing: 0; }
+
+    /* Mais respiro nas células — muda a densidade de cara (§6/§15) */
+    .table-scroll th, .table-scroll td { padding: 12px 14px; font-size: 0.8rem; }
+    .table-scroll thead th { padding: 14px 14px; }
+    /* §15 Números tabulares alinham datas/idade/UF/votos */
+    .table-scroll .col-datacontato, .table-scroll .col-idade,
+    .table-scroll .col-uf, .table-scroll .col-votos { font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+
+    /* §12 Cabeçalho de vidro (já é sticky top) */
+    .table-scroll thead th { background: rgba(255,255,255,.72);
+        backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%);
+        border-bottom: 1px solid rgba(20,20,45,.08);
+        color: #475569; font-weight: 700; letter-spacing: .5px; }
+
+    /* Zebra mais leve + hover na cor da marca */
+    .table-scroll tbody tr { transition: background .16s ease; }
+    .table-scroll tbody tr:nth-child(even) { background: #fafbfc; }
+    .table-scroll tbody tr:hover { background: rgba(0,0,0,.035); }
+    @supports (background: color-mix(in srgb, red, blue)) {
+        .table-scroll tbody tr:hover { background: color-mix(in srgb, var(--navy) 8%, #fff); }
+    }
+
+    /* §1 Response — feedback físico no pointer-down */
+    .il-check, .il-badge, .il-atend, .voto-badge, .btn-icon, .papel-tab, .tool-btn, .chip {
+        transition: transform .12s cubic-bezier(.34,1.4,.64,1), background .15s, border-color .15s, box-shadow .15s; }
+    .il-check:active, .il-badge:active, .il-atend:active, .voto-badge:active { transform: scale(.92); }
+    .btn-icon:active, .tool-btn:active, .papel-tab:active { transform: scale(.96); }
+    .il-cell:active .il-badge { transform: scale(.94); }
+    .il-check { will-change: transform; }
+    .il-check:focus-visible, .btn-icon:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+    /* §7/§12 Coluna Nome CONGELADA — âncora ao rolar na horizontal.
+       Fica em left:0; o checkbox desliza sob ela. */
+    .table-scroll th.col-nome, .table-scroll td.col-nome { position: sticky; left: 0; }
+    .table-scroll td.col-nome { background: #fff; font-weight: 600; color: #1e293b; }
+    .table-scroll thead th.col-nome { z-index: 6; background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+    .table-scroll tbody td.col-nome { z-index: 5; }
+    .table-scroll tbody tr:nth-child(even) td.col-nome { background: #fafbfc; }
+    .table-scroll tbody tr:hover td.col-nome { background: #eef4ff; }
+    @supports (background: color-mix(in srgb, red, blue)) {
+        .table-scroll tbody tr:hover td.col-nome { background: color-mix(in srgb, var(--navy) 9%, #fff); }
+    }
+    .table-scroll tr.tr-pendente td.col-nome { background: #fff5f5; }
+    .table-scroll tr.tr-pendente:hover td.col-nome { background: #ffecec; }
+    .table-scroll tr.tr-rejeitado td.col-nome { background: #f9fafb; }
+    /* §12 scroll-edge: sombra à direita da coluna congelada quando há rolagem horizontal */
+    .table-scroll.is-scrolled-x th.col-nome, .table-scroll.is-scrolled-x td.col-nome {
+        box-shadow: 12px 0 16px -12px rgba(20,20,45,.35); }
+
+    /* §14 Reduced motion / transparency */
+    @media (prefers-reduced-motion: reduce) {
+        .table-scroll *, .il-check, .il-badge { transition-duration: .001ms !important; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+        .table-scroll thead th { background: #eef1f6 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+        .table-scroll thead th.col-nome { background: #eef1f6 !important; }
+    }
+</style>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -434,7 +516,7 @@
                 {# Seleção e Ações são estruturais; o resto segue a ordem da config. #}
                 <th class="col-check"><input type="checkbox" id="checkAll" class="row-check" onchange="toggleAll(this)"></th>
                 {% for c in colunas %}
-                    {% if c == 'nome' %}{% sortable_th "nome" "Nome" "" %}
+                    {% if c == 'nome' %}{% sortable_th "nome" "Nome" "" "col-nome" %}
                     {% elif c == 'papel' %}{% sortable_th "papel" "Papel" "" %}
                     {% elif c == 'telefone' %}<th>Telefone</th>
                     {% elif c == 'email' %}<th class="col-email">E-mail</th>
@@ -481,7 +563,7 @@
             <tr {% if o.aprovacao == 'pendente' %}class="tr-pendente"{% elif o.aprovacao == 'rejeitado' %}class="tr-rejeitado"{% endif %}>
                 <td class="col-check"><input type="checkbox" class="row-check bulk-check" form="bulkForm" name="selected_ids" value="{{ o.pk }}" onchange="updateBulk()"></td>
                 {% for c in colunas %}
-                    {% if c == 'nome' %}<td style="min-width:150px;">{{ o.nome }}{% if o.aprovacao != 'aprovado' %}<span class="apr-badge apr-{{ o.aprovacao }}">{{ o.get_aprovacao_display }}</span>{% endif %}</td>
+                    {% if c == 'nome' %}<td class="col-nome" style="min-width:195px;">{{ o.nome }}{% if o.aprovacao != 'aprovado' %}<span class="apr-badge apr-{{ o.aprovacao }}">{{ o.get_aprovacao_display }}</span>{% endif %}</td>
                     {% elif c == 'papel' %}<td class="nw"><span class="papel-badge papel-{{ o.papel }}">{{ o.get_papel_display }}</span></td>
                     {% elif c == 'telefone' %}<td class="nw">{{ o.telefone|whatsapp_link }}</td>
                     {% elif c == 'email' %}<td class="col-email">{{ o.email|default:"-" }}</td>
@@ -609,6 +691,19 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if planilha_apple and not inline_edit %}
+<script>
+/* Restyle Apple (sem edição inline): liga a sombra da coluna Nome congelada
+   quando há rolagem horizontal. A Isadora tem isto dentro do bloco inline. */
+(function () {
+    var sc = document.getElementById('tableScroll');
+    if (!sc) return;
+    var upd = function () { sc.classList.toggle('is-scrolled-x', sc.scrollLeft > 2); };
+    sc.addEventListener('scroll', upd, { passive: true });
+    upd();
+})();
+</script>
+{% endif %}
 {% if inline_edit %}
 <script id="ilVoto" type="application/json">[{% for v,l in voto_choices %}{"v":"{{ v }}","l":"{{ l|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
 <script id="ilNivel" type="application/json">[{% for v,l in nivel_choices %}{"v":"{{ v }}","l":"{{ l|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>

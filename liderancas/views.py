@@ -369,6 +369,9 @@ def lideranca_list(request):
         'colunas': settings.CAMPANHA['COLUNAS_LIDERANCA'],
         # Edição inline (estilo planilha) só quando a marca liga o flag (Isadora).
         'inline_edit': settings.CAMPANHA.get('LIDERANCA_INLINE_EDIT', False),
+        # Restyle "Apple + Nome congelado" sem a edição inline (ex.: Sorgatto):
+        # só o visual da planilha. A Isadora já recebe via inline_edit.
+        'planilha_apple': settings.CAMPANHA.get('PLANILHA_APPLE', False),
         'voto_choices': Lideranca.INTENCAO_VOTO_CHOICES,
         'nivel_choices': Lideranca.NIVEL_CHOICES,
         'canal_choices': Lideranca.CANAL_CHOICES,

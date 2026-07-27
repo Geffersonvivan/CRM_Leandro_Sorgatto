@@ -39,6 +39,9 @@ CAMPANHA = {
     # Campo "Em que você quer ajudar?" no cadastro de apoiador (sem o layout
     # inline completo da Isadora). Portado da Isadora.
     'FORMAS_AJUDA': True,
+    # Restyle "Apple + Nome congelado" na planilha de Lideranças — só o visual
+    # (cabeçalho de vidro, cartão, coluna Nome sticky). NÃO liga a edição inline.
+    'PLANILHA_APPLE': True,
     # Agenda: no Novo Compromisso a cidade é o ponto de partida (busca nos 295
     # municípios) e a região é preenchida/derivada automaticamente dela.
     'CIDADE_PRIMEIRO': True,
