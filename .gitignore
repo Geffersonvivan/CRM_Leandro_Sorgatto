@@ -50,3 +50,11 @@ Auditoria_CRM/
 
 # Grafo de conhecimento gerado (graphify)
 graphify-out/
+
+# Segredos / credenciais Google (NUNCA commitar — repo público, CLAUDE.md §9)
+.drive_oauth.json
+client_secret_*.json
+*-*.apps.googleusercontent.com.json
+crm-base-eleitoral-*.json
+*service-account*.json
+*.credentials.json
