@@ -257,6 +257,9 @@ class ApoiadorForm(CidadePrimeiroFormMixin, DuplicateCheckMixin, forms.ModelForm
 
         from django.conf import settings
         isadora_layout = settings.CAMPANHA.get('LIDERANCA_INLINE_EDIT', False)
+        # "Em que você quer ajudar?" pode existir sem o layout inline completo:
+        # marcas que só querem o campo (ex.: Sorgatto) ligam FORMAS_AJUDA.
+        formas_ajuda_on = isadora_layout or settings.CAMPANHA.get('FORMAS_AJUDA', False)
 
         if isadora_layout:
             # Form alinhado à PLANILHA CENTRAL da Isadora: Atendente puxa os usuários
@@ -312,11 +315,15 @@ class ApoiadorForm(CidadePrimeiroFormMixin, DuplicateCheckMixin, forms.ModelForm
                 ('Observações', ['observacoes']),
             ]
         else:
-            # Outras marcas mantêm o form clássico — sem o seletor de usuário nem
-            # o campo "em que quer ajudar" (exclusivo do layout Isadora).
+            # Outras marcas mantêm o form clássico — sem o seletor de usuário do
+            # layout inline. O campo "em que quer ajudar" entra se FORMAS_AJUDA.
             self.fields.pop('atendente_user', None)
-            self.fields.pop('formas_ajuda', None)
-            self.fields.pop('quer_trabalho_remunerado', None)
+            if formas_ajuda_on:
+                if self.instance.pk:
+                    self.fields['formas_ajuda'].initial = self.instance.formas_ajuda or []
+            else:
+                self.fields.pop('formas_ajuda', None)
+                self.fields.pop('quer_trabalho_remunerado', None)
 
         if 'tipos' in self.fields and self.instance.pk:
             # Pré-seleciona as categorias já gravadas (fallback ao tipo único legado)

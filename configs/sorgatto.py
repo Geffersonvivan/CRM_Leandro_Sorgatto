@@ -33,6 +33,12 @@ CAMPANHA = {
     'DASHBOARD_VOTOS_PLANILHA': False,
     'PWA_CADASTRO_CONTATO': False,
     'MAPA_NIVEIS_IBGE': False,
+    # Aba "Checklist" na modal de tarefa (itens marcáveis + barra de progresso,
+    # converter item em tarefa). Portado da Isadora.
+    'TAREFA_CHECKLIST': True,
+    # Campo "Em que você quer ajudar?" no cadastro de apoiador (sem o layout
+    # inline completo da Isadora). Portado da Isadora.
+    'FORMAS_AJUDA': True,
     # Agenda: no Novo Compromisso a cidade é o ponto de partida (busca nos 295
     # municípios) e a região é preenchida/derivada automaticamente dela.
     'CIDADE_PRIMEIRO': True,
